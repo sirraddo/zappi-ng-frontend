@@ -1,0 +1,63 @@
+/**
+ * dark-mode.css
+ * Add these CSS variables to your existing index.css or App.css
+ * Place in: frontend/src/dark-mode.css
+ * Then import in main.jsx: import './dark-mode.css';
+ */
+
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  --border: #e5e7eb;
+  --primary: #7c3aed;
+  --primary-light: #f5f3ff;
+  --shadow: rgba(0, 0, 0, 0.08);
+  --nav-bg: #ffffff;
+  --card-bg: #ffffff;
+}
+
+[data-theme="dark"] {
+  --bg-primary: #13131e;
+  --bg-secondary: #1a1a2e;
+  --bg-tertiary: #1f1f30;
+  --text-primary: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --text-tertiary: #6b7280;
+  --border: #2d2d3a;
+  --primary: #a78bfa;
+  --primary-light: #2d1f4a;
+  --shadow: rgba(0, 0, 0, 0.3);
+  --nav-bg: #1a1a2e;
+  --card-bg: #1f1f30;
+}
+
+/* Apply to body */
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background 0.2s, color 0.2s;
+}
+
+/* Dark mode toggle button — use anywhere */
+.theme-toggle {
+  background: none;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: border-color 0.15s;
+}
+
+.theme-toggle:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}

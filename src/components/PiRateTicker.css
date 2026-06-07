@@ -1,0 +1,66 @@
+/* PiRateTicker.css */
+.rate-ticker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(90deg, #f5f3ff, #ede9fe);
+  border: 1px solid #c4b5fd;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: #5b21b6;
+  font-weight: 500;
+}
+
+.rate-ticker.loading {
+  color: var(--text-secondary, #6b7280);
+  background: var(--bg-secondary, #f9fafb);
+  border-color: var(--border, #e5e7eb);
+  font-style: italic;
+  font-size: 12px;
+}
+
+.rate-pi-logo {
+  font-size: 16px;
+  font-weight: 800;
+  color: #7c3aed;
+}
+
+.rate-equals {
+  font-weight: 500;
+}
+
+.rate-separator {
+  color: #8b5cf6;
+}
+
+.rate-naira {
+  font-weight: 700;
+  font-size: 14px;
+  color: #4c1d95;
+}
+
+.rate-trend {
+  font-size: 11px;
+}
+
+.rate-trend.up { color: #16a34a; }
+.rate-trend.down { color: #dc2626; }
+
+.rate-badge {
+  font-size: 10px;
+  background: rgba(124, 58, 237, 0.1);
+  color: #7c3aed;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+[data-theme="dark"] .rate-ticker {
+  background: linear-gradient(90deg, #2d1f4a, #1f1535);
+  border-color: #4c1d95;
+  color: #c4b5fd;
+}
+
+[data-theme="dark"] .rate-naira { color: #ddd6fe; }
+[data-theme="dark"] .rate-pi-logo { color: #a78bfa; }
