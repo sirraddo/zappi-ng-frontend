@@ -323,14 +323,12 @@ export function RegisterScreen({ onSuccess, onLogin }) {
       <div style={{ padding: 20 }}>
         {/* Social signup buttons */}
         <SocialButtons onProfile={handleSocialProfile} mode="signup" />
-        {!isPiBrowser() && (
-  <button
+        <button
     onClick={() => window.Pi ? window.Pi.authenticate(['username','payments'], ()=>{}).then(a => fetch(`${import.meta.env.VITE_API_URL}/api/auth/verify`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({authResult:a})}).then(r=>r.json()).then(d=>{if(d.token){localStorage.setItem('zappi_token',d.token);onSuccess()}})) : alert('Open in Pi Browser to use Pi login')}
     style={{ width:'100%', padding:'12px', background:'#6C3AED', color:'white', border:'none', borderRadius:12, fontSize:14, fontWeight:600, cursor:'pointer', marginTop:8 }}
   >
     ⚡ Continue with Pi
   </button>
-)}
 
         <div style={{ textAlign: "center", margin: "20px 0", display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ flex: 1, height: 1, background: "#E5E7EB" }} />
@@ -680,3 +678,4 @@ export function ProfileScreen({ onBack, onLogout }) {
     </div>
   )
 }
+
