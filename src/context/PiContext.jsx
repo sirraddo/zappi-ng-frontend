@@ -30,9 +30,26 @@ export function PiProvider({ children }) {
       import.meta.env.DEV; // allow testing in dev
 
     if (insidePiBrowser) {
-      pi.piAuth().catch((e) => {
-        console.warn("Auto Pi auth failed:", e.message);
-      });
+      pi.piAuth()
+  .then(async (authResult) => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/auth/verify`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ authResult }),
+        }
+      );
+      const data = await res.json();
+      if (data.token) localStorage.setItem("zappi_token", data.token);
+    } catch (err) {
+      console.warn("JWT fetch failed:", err.message);
+    }
+  })
+  .catch((e) => {
+    console.warn("Auto Pi auth failed:", e.message);
+  });
     }
   }, [pi.isReady, authAttempted]);
 
