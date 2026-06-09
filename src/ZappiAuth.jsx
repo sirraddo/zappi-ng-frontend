@@ -18,7 +18,9 @@ function isMobileBrowser() {
 
 function isPiBrowser() {
   const ua = navigator.userAgent || ""
-  return /PiBrowser|pi-browser/i.test(ua)
+  return /PiBrowser|pi-browser|Pi Network|PiNetwork/i.test(ua) ||
+    window.location.hostname.includes("minepi.com") ||
+    typeof window.Pi !== "undefined"
 }
 
 // ── SOCIAL LOGIN HELPERS ──────────────────────────────────────────────────────
