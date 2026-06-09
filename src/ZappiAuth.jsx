@@ -16,6 +16,11 @@ function isMobileBrowser() {
   return isMobile && !isPiBrowser
 }
 
+function isPiBrowser() {
+  const ua = navigator.userAgent || ""
+  return /PiBrowser|pi-browser/i.test(ua)
+}
+
 // ── SOCIAL LOGIN HELPERS ──────────────────────────────────────────────────────
 function getSocialAuthUrl(provider) {
   const redirectUri = encodeURIComponent(window.location.origin + "/auth/callback")
@@ -117,7 +122,7 @@ function SocialButtons({ onProfile, mode = "login" }) {
         <div style={{ flex: 1, height: 1, background: "#E5E7EB" }} />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        {providers.map(p => (
+        {providers.filter(p => !(p.id === "google" && isPiBrowser())).map(p => (
           <button key={p.id} onClick={() => openSocialLogin(p.id, onProfile)}
             style={{
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
