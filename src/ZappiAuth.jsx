@@ -35,6 +35,32 @@ function getSocialAuthUrl(provider) {
   }
   return null
 }
+const API_URL = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+
+async function piLogin(onSuccess) {
+  if (typeof window.Pi === "undefined") {
+    alert("Pi login works inside the Pi Browser app. Open this site in Pi Browser to continue with Pi.")
+    return
+  }
+  try {
+    window.Pi.init({ version: "2.0" }) // add sandbox: true here if your app is on Pi testnet
+    const auth = await window.Pi.authenticate(["username", "payments"], () => {})
+    const res = await fetch(`${API_URL}/api/auth/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accessToken: auth.accessToken }),
+    })
+    const data = await res.json()
+    if (data.token) {
+      localStorage.setItem("zappi_token", data.token)
+      onSuccess?.(data)
+    } else {
+      alert("Pi verification failed. Please try again.")
+    }
+  } catch (e) {
+    alert("Pi login failed: " + (e?.message || "unknown error"))
+  }
+}
 
 function openSocialLogin(provider, onProfile) {
   if (provider === "whatsapp") {
@@ -308,12 +334,10 @@ export function RegisterScreen({ onSuccess, onLogin }) {
       <div style={{ padding: 20 }}>
         {/* Social signup buttons */}
         <SocialButtons onProfile={handleSocialProfile} mode="signup" />
-        <button
-    onClick={() => window.Pi ? window.Pi.authenticate(['username','payments'], ()=>{}).then(a => fetch(`${import.meta.env.VITE_API_URL}/api/auth/verify`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({authResult:a})}).then(r=>r.json()).then(d=>{if(d.token){localStorage.setItem('zappi_token',d.token);onSuccess()}})) : alert('Open in Pi Browser to use Pi login')}
-    style={{ width:'100%', padding:'12px', background:'#6C3AED', color:'white', border:'none', borderRadius:12, fontSize:14, fontWeight:600, cursor:'pointer', marginTop:8 }}
-  >
-    ⚡ Continue with Pi
-  </button>
+        <button onClick={() => piLogin(onSuccess)}
+  style={{ width:'100%', padding:'12px', background:'#6C3AED', color:'white', border:'none', borderRadius:14, fontSize:15, fontWeight:700, cursor:'pointer' }}>
+  ⚡ Continue with Pi
+</button>
 
         <div style={{ textAlign: "center", margin: "20px 0", display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ flex: 1, height: 1, background: "#E5E7EB" }} />

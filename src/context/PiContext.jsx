@@ -34,11 +34,11 @@ export function PiProvider({ children }) {
   .then(async (authResult) => {
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/auth/verify`,
+        `${import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"}/api/auth/verify`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ authResult }),
+         body: JSON.stringify({ accessToken: authResult.accessToken }),
         }
       );
       const data = await res.json();
