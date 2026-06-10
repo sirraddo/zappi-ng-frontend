@@ -34,7 +34,7 @@ export function usePiNetwork() {
   function initPi() {
     try {
       const sandbox = import.meta.env.VITE_PI_SANDBOX === "true";
-      window.Pi.init({ version: "2.0", sandbox });
+      window.Pi.init({ version: "2.0", sandbox: import.meta.env.VITE_PI_SANDBOX === "true" })
       setIsSandbox(sandbox);
       setIsReady(true);
     } catch (e) {

@@ -43,7 +43,7 @@ async function piLogin(onSuccess) {
     return
   }
   try {
-    window.Pi.init({ version: "2.0" }) // add sandbox: true here if your app is on Pi testnet
+    window.Pi.init({ version: "2.0", sandbox: import.meta.env.VITE_PI_SANDBOX === "true" })
     const auth = await window.Pi.authenticate(["username", "payments"], () => {})
     const res = await fetch(`${API_URL}/api/auth/verify`, {
       method: "POST",
@@ -336,7 +336,7 @@ export function RegisterScreen({ onSuccess, onLogin }) {
         <SocialButtons onProfile={handleSocialProfile} mode="signup" />
         <button onClick={() => piLogin(onSuccess)}
   style={{ width:'100%', padding:'12px', background:'#6C3AED', color:'white', border:'none', borderRadius:14, fontSize:15, fontWeight:700, cursor:'pointer' }}>
-  ⚡ Continue with Pi
+   ⚡ Continue with Pi v2
 </button>
 
         <div style={{ textAlign: "center", margin: "20px 0", display: "flex", alignItems: "center", gap: 12 }}>
