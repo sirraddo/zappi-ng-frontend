@@ -34,9 +34,6 @@ function getSocialAuthUrl(provider) {
     const appId = import.meta.env.VITE_FACEBOOK_APP_ID || "YOUR_FACEBOOK_APP_ID"
     return `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=email,public_profile&response_type=token`
   }
-  if (provider === "twitter") {
-    return `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${import.meta.env.VITE_TWITTER_CLIENT_ID || "YOUR_TWITTER_CLIENT_ID"}&redirect_uri=${redirectUri}&scope=tweet.read%20users.read&state=state&code_challenge=challenge&code_challenge_method=plain`
-  }
   return null
 }
 
@@ -96,16 +93,6 @@ function SocialButtons({ onProfile, mode = "login" }) {
         </svg>
       )
     },
-    {
-      id: "twitter", label: "X (Twitter)",
-      bg: "#000", border: "#000", color: "white",
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.91-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-        </svg>
-      )
-    },
-    
   ]
 
   return (
