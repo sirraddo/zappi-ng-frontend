@@ -120,7 +120,7 @@ export default function App() {
   const [liveRate, setLiveRate] = useState(2150)
 
   useEffect(() => {
-    fetch("http://localhost:4000/api/pi-rate")
+    fetch(`${import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"}/api/pi-rate`)
       .then(r => r.json())
       .then(d => { if (d.ngnPerPi) setLiveRate(d.ngnPerPi) })
       .catch(() => {}) // silently fall back to 600
