@@ -36,24 +36,30 @@ function getSocialAuthUrl(provider) {
   return null
 }
 const API_URL = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
-
+function dbg(msg) {
+  let el = document.getElementById("pi-debug");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "pi-debug";
+    el.style.cssText =
+      "position:fixed;bottom:0;left:0;right:0;background:#111;color:#0f0;" +
+      "font:11px monospace;padding:6px;z-index:99999;white-space:pre-wrap;max-height:35vh;overflow:auto";
+    document.body.appendChild(el);
+  }
+  el.textContent += msg + "\n";
+}
 async function piLogin(onSuccess) {
-  alert("1: piLogin started");
+  dbg("1: piLogin started");
 
   if (typeof window.Pi === "undefined") {
     alert("Pi login works inside the Pi Browser app. Open this site in Pi Browser to continue.");
     return;
   }
-  alert("2: Pi SDK present");
+  dbg("2: Pi SDK present");
 
   try {
-    await Promise.race([
-      Promise.resolve(
-        window.Pi.init({ version: "2.0", sandbox: import.meta.env.VITE_PI_SANDBOX === "true" })
-      ),
-      new Promise((_, rej) => setTimeout(() => rej(new Error("Pi.init timed out (10s)")), 10000)),
-    ]);
-    alert("3: Pi.init OK");
+    window.Pi.init({ version: "2.0", sandbox: import.meta.env.VITE_PI_SANDBOX === "true" });
+    dbg("3: init called, authenticating…");
 
     const auth = await Promise.race([
       window.Pi.authenticate(["username"], (payment) => {
@@ -61,7 +67,7 @@ async function piLogin(onSuccess) {
       }),
       new Promise((_, rej) => setTimeout(() => rej(new Error("Pi.authenticate timed out (30s)")), 30000)),
     ]);
-    alert("4: authenticated as " + (auth?.user?.username || "unknown"));
+    dbg("4: authenticated as " + (auth?.user?.username || "unknown"));
 
     const res = await fetch(`${API_URL}/api/auth/verify`, {
       method: "POST",
