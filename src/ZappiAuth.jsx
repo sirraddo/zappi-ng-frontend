@@ -38,27 +38,45 @@ function getSocialAuthUrl(provider) {
 const API_URL = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
 
 async function piLogin(onSuccess) {
+  alert("1: piLogin started");
+
   if (typeof window.Pi === "undefined") {
-    alert("Pi login works inside the Pi Browser app. Open this site in Pi Browser to continue with Pi.")
-    return
+    alert("Pi login works inside the Pi Browser app. Open this site in Pi Browser to continue.");
+    return;
   }
+  alert("2: Pi SDK present");
+
   try {
-    window.Pi.init({ version: "2.0", sandbox: import.meta.env.VITE_PI_SANDBOX === "true" })
-    const auth = await window.Pi.authenticate(["username", "payments"], () => {})
+    await Promise.race([
+      Promise.resolve(
+        window.Pi.init({ version: "2.0", sandbox: import.meta.env.VITE_PI_SANDBOX === "true" })
+      ),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("Pi.init timed out (10s)")), 10000)),
+    ]);
+    alert("3: Pi.init OK");
+
+    const auth = await Promise.race([
+      window.Pi.authenticate(["username"], (payment) => {
+        console.log("incomplete payment", payment);
+      }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("Pi.authenticate timed out (30s)")), 30000)),
+    ]);
+    alert("4: authenticated as " + (auth?.user?.username || "unknown"));
+
     const res = await fetch(`${API_URL}/api/auth/verify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ accessToken: auth.accessToken }),
-    })
-    const data = await res.json()
+    });
+    const data = await res.json();
     if (data.token) {
-      localStorage.setItem("zappi_token", data.token)
-      onSuccess?.(data)
+      localStorage.setItem("zappi_token", data.token);
+      onSuccess?.(data);
     } else {
-      alert("Pi verification failed. Please try again.")
+      alert("Pi verification failed. Please try again.");
     }
   } catch (e) {
-    alert("Pi login failed: " + (e?.message || "unknown error"))
+    alert("PI ERROR: " + (e?.message || "unknown error"));
   }
 }
 

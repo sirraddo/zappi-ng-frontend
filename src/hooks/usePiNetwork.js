@@ -49,7 +49,7 @@ export function usePiNetwork() {
   const piAuth = useCallback(async () => {
     if (!window.Pi) throw new Error("Pi SDK not loaded");
 
-    const scopes = ["username", "payments", "wallet_address"];
+    const scopes = ["username"];
 
     return new Promise((resolve, reject) => {
       window.Pi.authenticate(scopes, async (payment) => {
