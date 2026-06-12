@@ -22,19 +22,6 @@ function isPiBrowser() {
     window.location.hostname.includes("minepi.com") 
 }
 
-// ── SOCIAL LOGIN HELPERS ──────────────────────────────────────────────────────
-function getSocialAuthUrl(provider) {
-  const redirectUri = encodeURIComponent(window.location.origin + "/auth/callback")
-  if (provider === "google") {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID"
-    return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=email%20profile`
-  }
-  if (provider === "facebook") {
-    const appId = import.meta.env.VITE_FACEBOOK_APP_ID || "YOUR_FACEBOOK_APP_ID"
-    return `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=email,public_profile&response_type=token`
-  }
-  return null
-}
 const API_URL = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
 function dbg(msg) {
   let el = document.getElementById("pi-debug");
@@ -92,37 +79,18 @@ function openSocialLogin(provider, onProfile) {
     window.open(`https://wa.me/?text=${shareText}`, "_blank")
     return
   }
-  const url = getSocialAuthUrl(provider)
-  if (!url) return
-  const popup = window.open(url, `${provider}_login`, "width=500,height=600,scrollbars=yes")
-  const timer = setInterval(() => {
-    if (!popup || popup.closed) {
-      clearInterval(timer)
-      return
-    }
-    try {
-      const hash = popup.location.hash || popup.location.search
-      if (hash && (hash.includes("access_token") || hash.includes("code="))) {
-        clearInterval(timer)
-        popup.close()
-        onProfile({ name: "", email: "", provider })
-      }
-    } catch (e) {}
-  }, 500)
-  // Fallback: pre-fill with placeholder after 3s for demo/dev
-  setTimeout(() => {
-    if (!popup || popup.closed) return
-    clearInterval(timer)
-    popup.close()
-    onProfile({ name: `${provider.charAt(0).toUpperCase() + provider.slice(1)} User`, email: "", provider })
-  }, 15000)
+  if (provider === "google") {
+    window.location.href = `${API_URL}/api/auth/google`
+    return
+  }
+  alert("Facebook login is coming soon.")
 }
 
 // ── SOCIAL BUTTONS COMPONENT ──────────────────────────────────────────────────
 function SocialButtons({ onProfile, mode = "login" }) {
   const providers = [
     {
-      id: "google", label: "Google", hidden: isPiBrowser(),
+      id: "google", label: "Google",
       bg: "white", border: "#E5E7EB", color: "#3c4043",
       icon: (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
