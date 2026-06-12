@@ -543,7 +543,7 @@ export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment" }) 
       if (np.length === 6) {
         setTimeout(() => {
           const stored = localStorage.getItem("zappi_txn_pin")
-          if (!stored || np === stored) { onSuccess() }
+          if ( np === stored) { onSuccess() }
           else { setError("Wrong transaction PIN"); setPin("") }
         }, 300)
       }
@@ -602,7 +602,7 @@ export function ProfileScreen({ onBack, onLogout }) {
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg }}>
-      <div style={{ background: `linear-gradient(135deg,${C.primary},#9F67F5)`, padding: "40px 20px 24px", textAlign: "center" }}>
+      <div style={{ background: `linear-gradient(135deg,${C.primary},#9F67F5)`, padding: "40px 20px 24px", textAlign: "center" , position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", left: 16, top: 40, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 10, padding: "6px 14px", cursor: "pointer", fontSize: 14, fontWeight: 500 }}>←</button>
         <div style={{ width: 70, height: 70, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, margin: "0 auto 12px", border: "3px solid rgba(255,255,255,0.4)" }}>{user.avatar || "⚡"}</div>
         <h2 style={{ color: "white", margin: "0 0 4px", fontSize: 20, fontWeight: 800 }}>{user.fullName || "User"}</h2>
