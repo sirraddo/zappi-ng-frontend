@@ -133,19 +133,6 @@ fetch(`${import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
 const [authScreen, setAuthScreen] = useState("splash") // splash|register|login|forgot
 const [isLoggedIn, setIsLoggedIn] = useState(false)
 const [showProfile, setShowProfile] = useState(false)
-// Google OAuth return: catch #token=... from the backend redirect
-useEffect(() => {
-const h = new URLSearchParams(window.location.hash.slice(1));
-const token = h.get("token");
-if (token) {
-localStorage.setItem("zappi_token", token);
-history.replaceState(null, "", window.location.pathname);
-setIsLoggedIn(true);
-} else if (h.get("auth_error")) {
-history.replaceState(null, "", window.location.pathname);
-alert("Google sign-in failed — please try again.");
-}
-}, []);
 
 // Check if user exists on load
 useEffect(() => {
