@@ -73,76 +73,6 @@ async function piLogin(onSuccess) {
   }
 }
 
-function openSocialLogin(provider, onProfile) {
-  if (provider === "whatsapp") {
-    const shareText = encodeURIComponent("Join me on Zappi NG — Pay bills with Pi Network! https://zappi-ng-frontend.vercel.app")
-    window.open(`https://wa.me/?text=${shareText}`, "_blank")
-    return
-  }
-  if (provider === "google") {
-    window.location.href = `${API_URL}/api/auth/google`
-    return
-  }
-  alert("Facebook login is coming soon.")
-}
-
-// ── SOCIAL BUTTONS COMPONENT ──────────────────────────────────────────────────
-function SocialButtons({ onProfile, mode = "login" }) {
-  const providers = [
-    {
-      id: "google", label: "Google",
-      bg: "white", border: "#E5E7EB", color: "#3c4043",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-        </svg>
-      )
-    },
-    {
-      id: "facebook", label: "Facebook",
-      bg: "#1877F2", border: "#1877F2", color: "white",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-        </svg>
-      )
-    },
-  ]
-  return (
-    <div>
-      <div style={{ textAlign: "center", margin: "20px 0", display: "flex", alignItems: "center", gap: 12 }}>
-        <div style={{ flex: 1, height: 1, background: "#E5E7EB" }} />
-        <span style={{ fontSize: 12, color: "#aaa", fontWeight: 500 }}>or {mode === "login" ? "sign in" : "sign up"} with</span>
-        <div style={{ flex: 1, height: 1, background: "#E5E7EB" }} />
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        {providers.filter(p => !p.hidden).map(p => (
-          <button key={p.id} onClick={() => openSocialLogin(p.id, onProfile)}
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              padding: "11px 8px", borderRadius: 12, border: `1.5px solid ${p.border}`,
-              background: p.bg, color: p.color, fontSize: 13, fontWeight: 600,
-              cursor: "pointer", transition: "opacity 0.15s"
-            }}
-            onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
-            onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-          >
-            {p.icon} {p.label}
-          </button>
-        ))}
-      </div>
-      {mode === "login" && (
-        <p style={{ textAlign: "center", fontSize: 11, color: "#bbb", margin: "10px 0 0" }}>
-          Social login will link to your Zappi account
-        </p>
-      )}
-    </div>
-  )
-}
-
 // ── PIN DOTS ──────────────────────────────────────────────────────────────────
 function PinDots({ value, length, error }) {
   return (
@@ -213,14 +143,6 @@ export function RegisterScreen({ onSuccess, onLogin }) {
   const [pinError, setPinError] = useState("")
 
   const avatars = ["😊", "👨🏾", "👩🏾", "🦁", "⚡", "🔥", "💎", "🎯", "🚀", "🦅"]
-
-  const handleSocialProfile = (profile) => {
-    setForm(f => ({
-      ...f,
-      fullName: profile.name || f.fullName,
-      email: profile.email || f.email,
-    }))
-  }
 
   const validate = () => {
     const e = {}
@@ -324,11 +246,9 @@ export function RegisterScreen({ onSuccess, onLogin }) {
         <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 14, margin: 0 }}>Create your account</p>
       </div>
       <div style={{ padding: 20 }}>
-        {/* Social signup buttons */}
-        <SocialButtons onProfile={handleSocialProfile} mode="signup" />
         <button onClick={() => piLogin(onSuccess)}
   style={{ width:'100%', padding:'12px', background:'#6C3AED', color:'white', border:'none', borderRadius:14, fontSize:15, fontWeight:700, cursor:'pointer' }}>
-   ⚡ Continue with Pi v2
+   ⚡ Authenticate with Pi
 </button>
 
         <div style={{ textAlign: "center", margin: "20px 0", display: "flex", alignItems: "center", gap: 12 }}>
@@ -402,17 +322,6 @@ export function LoginScreen({ onSuccess, onRegister, onForgot }) {
     }
   }
 
-  const handleSocialLogin = (profile) => {
-    // In production: verify social token with backend, then call onSuccess()
-    // For now, if a local user exists with matching email, log them in
-    const user = JSON.parse(localStorage.getItem("zappi_user") || "{}")
-    if (profile.email && profile.email === user.email) {
-      onSuccess()
-    } else {
-      setError(`No account found for this ${profile.provider} profile. Please sign up first.`)
-    }
-  }
-
   const user = JSON.parse(localStorage.getItem("zappi_user") || "{}")
 
   return (
@@ -445,9 +354,6 @@ export function LoginScreen({ onSuccess, onRegister, onForgot }) {
             <button onClick={onForgot} style={{ background: "none", border: "none", color: C.primary, fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "4px 0", marginBottom: 16 }}>Forgot password?</button>
             {error && <p style={{ color: C.danger, fontSize: 13, fontWeight: 600, margin: "0 0 12px", textAlign: "center" }}>{error}</p>}
             <button onClick={handlePasswordLogin} style={{ width: "100%", background: C.primary, color: "white", border: "none", borderRadius: 14, padding: 16, fontSize: 16, fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 16px rgba(108,58,237,0.3)" }}>Sign In</button>
-
-            {/* Social login buttons */}
-            <SocialButtons onProfile={handleSocialLogin} mode="login" />
 
             {/* Fingerprint — hidden on mobile browsers, shown on desktop / Pi Browser */}
             {!mobileBrowser ? (
