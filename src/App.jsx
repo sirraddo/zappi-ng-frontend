@@ -166,7 +166,7 @@ alert("Google sign-in failed — please try again.");
 }
 }, []);
 
-// Persist Google-OAuth session across plain reloads (not just right after redirect)
+// Persist login session across reloads (zappi_token = Pi session JWT)
 useEffect(() => {
 if (localStorage.getItem("zappi_token")) setIsLoggedIn(true)
 }, []);
