@@ -242,43 +242,49 @@ export function RegisterScreen({ onSuccess, onLogin }) {
 
   const handleLoginPinPress = (d) => {
     setPinError("")
-    if (pinStep === "create") {
-      if (pin.length < 4) {
-        const np = pin + d; setPin(np)
-        if (np.length === 4) setTimeout(() => setPinStep("confirm"), 300)
-      }
-    } else {
-      if (confirmPin.length < 4) {
-        const nc = confirmPin + d; setConfirmPin(nc)
-        if (nc.length === 4) {
-          setTimeout(() => {
-            if (nc === pin) { localStorage.setItem("zappi_login_pin", pin); setStep("txnpin") }
-            else { setPinError("PINs don't match"); setConfirmPin(""); setTimeout(() => { setPin(""); setPinStep("create"); setPinError("") }, 600) }
-          }, 300)
-        }
-      }
-    }
+    if (pinStep === "create") setPin(prev => (prev.length < 4 ? prev + d : prev))
+    else setConfirmPin(prev => (prev.length < 4 ? prev + d : prev))
   }
+
+  useEffect(() => {
+    if (pinStep === "create" && pin.length === 4) {
+      const t = setTimeout(() => setPinStep("confirm"), 300)
+      return () => clearTimeout(t)
+    }
+  }, [pin, pinStep])
+
+  useEffect(() => {
+    if (pinStep === "confirm" && confirmPin.length === 4) {
+      const t = setTimeout(() => {
+        if (confirmPin === pin) { localStorage.setItem("zappi_login_pin", pin); setStep("txnpin") }
+        else { setPinError("PINs don't match"); setConfirmPin(""); setTimeout(() => { setPin(""); setPinStep("create"); setPinError("") }, 600) }
+      }, 300)
+      return () => clearTimeout(t)
+    }
+  }, [confirmPin, pinStep, pin])
 
   const handleTxnPinPress = (d) => {
     setPinError("")
-    if (txnStep === "create") {
-      if (txnPin.length < 6) {
-        const np = txnPin + d; setTxnPin(np)
-        if (np.length === 6) setTimeout(() => setTxnStep("confirm"), 300)
-      }
-    } else {
-      if (confirmTxnPin.length < 6) {
-        const nc = confirmTxnPin + d; setConfirmTxnPin(nc)
-        if (nc.length === 6) {
-          setTimeout(() => {
-            if (nc === txnPin) { localStorage.setItem("zappi_txn_pin", txnPin); onSuccess() }
-            else { setPinError("PINs don't match"); setConfirmTxnPin(""); setTimeout(() => { setTxnPin(""); setTxnStep("create"); setPinError("") }, 600) }
-          }, 300)
-        }
-      }
-    }
+    if (txnStep === "create") setTxnPin(prev => (prev.length < 6 ? prev + d : prev))
+    else setConfirmTxnPin(prev => (prev.length < 6 ? prev + d : prev))
   }
+
+  useEffect(() => {
+    if (txnStep === "create" && txnPin.length === 6) {
+      const t = setTimeout(() => setTxnStep("confirm"), 300)
+      return () => clearTimeout(t)
+    }
+  }, [txnPin, txnStep])
+
+  useEffect(() => {
+    if (txnStep === "confirm" && confirmTxnPin.length === 6) {
+      const t = setTimeout(() => {
+        if (confirmTxnPin === txnPin) { localStorage.setItem("zappi_txn_pin", txnPin); onSuccess() }
+        else { setPinError("PINs don't match"); setConfirmTxnPin(""); setTimeout(() => { setTxnPin(""); setTxnStep("create"); setPinError("") }, 600) }
+      }, 300)
+      return () => clearTimeout(t)
+    }
+  }, [confirmTxnPin, txnStep, txnPin])
 
   const field = (key, label, placeholder, type = "text") => (
     <div style={{ marginBottom: 14 }}>
@@ -383,24 +389,24 @@ export function LoginScreen({ onSuccess, onRegister, onForgot }) {
     }
   }
 
-  const handlePinPress = (d) => {
-    setPinError("")
-    if (pin.length < 4) {
-      const np = pin + d; setPin(np)
-      if (np.length === 4) {
-        setTimeout(() => {
-          const stored = localStorage.getItem("zappi_login_pin")
-          if (np === stored) { onSuccess() }
-          else {
-            const a = attempts + 1; setAttempts(a)
-            if (a >= 3) { setLocked(true); setPinError("Too many attempts. Use password instead.") }
-            else setPinError(`Wrong PIN. ${3 - a} attempt${3 - a === 1 ? "" : "s"} left.`)
-            setPin("")
-          }
-        }, 300)
-      }
+    const handlePinPress = (d) => setPin(prev => (prev.length < 4 ? prev + d : prev))
+
+  useEffect(() => {
+    if (pin.length === 4) {
+      const stored = localStorage.getItem("zappi_login_pin")
+      const t = setTimeout(() => {
+        if (pin === stored) onSuccess()
+        else {
+          const a = attempts + 1; setAttempts(a)
+          if (a >= 3) { setLocked(true); setPinError("Too many attempts. Use password instead.") }
+          else setPinError(`Wrong PIN. ${3 - a} attempt${3 - a === 1 ? "" : "s"} left.`)
+          setPin("")
+        }
+      }, 300)
+      return () => clearTimeout(t)
     }
-  }
+    if (pin.length === 0) setPinError("")
+  }, [pin])
 
   const handleSocialLogin = (profile) => {
     // In production: verify social token with backend, then call onSuccess()
@@ -536,19 +542,21 @@ export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment" }) 
   const [pin, setPin] = useState("")
   const [error, setError] = useState("")
 
-  const handlePress = (d) => {
-    setError("")
-    if (pin.length < 6) {
-      const np = pin + d; setPin(np)
-      if (np.length === 6) {
-        setTimeout(() => {
-          const stored = localStorage.getItem("zappi_txn_pin")
-          if ( np === stored) { onSuccess() }
-          else { setError("Wrong transaction PIN"); setPin("") }
-        }, 300)
-      }
+    // Functional update -- never drops a tap, even when typed faster than React re-renders.
+  const handlePress = (d) => setPin(prev => (prev.length < 6 ? prev + d : prev))
+
+  // Verify once all 6 digits are committed (reads real state, not a stale closure).
+  useEffect(() => {
+    if (pin.length === 6) {
+      const stored = localStorage.getItem("zappi_txn_pin")
+      const t = setTimeout(() => {
+        if (pin === stored) onSuccess()
+        else { setError("Wrong transaction PIN"); setPin("") }
+      }, 300)
+      return () => clearTimeout(t)
     }
-  }
+    if (pin.length === 0) setError("")
+  }, [pin])
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 9999, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
