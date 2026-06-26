@@ -3,6 +3,7 @@ import { usePi } from "./context/PiContext.jsx"
 import { useTheme } from "./context/ThemeContext.jsx"
 import NotificationBell from "./components/NotificationBell.jsx"
 import PiRateTicker from "./components/PiRateTicker.jsx"
+import TransactionReceipt from "./components/TransactionReceipt.jsx"
 import { PrivacyPolicy, TermsOfService } from "./pages/LegalPages.jsx"
 import SupportPage from "./pages/SupportPage.jsx"
 import { SplashScreen, RegisterScreen, LoginScreen, ForgotScreen, TxnPinModal, ProfileScreen } from "./ZappiAuth"
@@ -183,6 +184,8 @@ const [toastType, setToastType] = useState("success")
 const [bonusClaimed, setBonusClaimed] = useState(() => localStorage.getItem("zappi_bonus_date") === new Date().toDateString())
 const [showNotif, setShowNotif] = useState(false)
 const [txnPinModal, setTxnPinModal] = useState(null) // {label, onSuccess}
+const [receiptTx, setReceiptTx] = useState(null)
+const txToReceipt = (tx) => ({ status: tx.status || "success", type: tx.type, amount: Number(String(tx.pi).replace(/[^0-9.]/g,"")) || 0, nairaAmount: Number(String(tx.amount).replace(/[^0-9.]/g,"")) || 0, provider: tx.label, recipient: tx.sub, reference: "ZAP-" + String(tx.id).slice(-10).toUpperCase(), date: tx.ts ? new Date(tx.ts) : new Date() })
 const [notifications, setNotifications] = useState([
 {id:1,text:"Your ₦500 MTN airtime was delivered!",time:"10 mins ago",read:false,icon:"📱"},
 {id:2,text:"Daily bonus of π0.05 is ready to claim!",time:"1 hour ago",read:false,icon:"🎁"},
@@ -306,12 +309,15 @@ if (piCost > balance) return showToast("Insufficient Pi balance","danger")
 requireTxnPin(`Confirm ${service}`,()=>{
 setTxnPinModal(null)
 updateBalance(-piCost)
-addTransaction({
+const newTx = {
+id: Date.now(), ts: Date.now(), status: "success",
 type: tx.type, label: tx.label, sub: tx.sub,
 amount: `₦${Math.round(Number(tx.ngn)).toLocaleString()}`,
 pi: `π${piCost.toFixed(2)}`,
 color: tx.color || "#EDE9FE", icon: tx.icon || "💳",
-})
+}
+addTransaction(newTx)
+setReceiptTx(newTx)
 showToast(`${service} payment successful! 🎉`,"success")
 setSubPage(null)
 setAmount(""); setPhone(""); setNetwork(""); setBundle(null)
@@ -373,6 +379,7 @@ return (
 {toast&&<div style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",background:toastType==="success"?C.success:C.danger,color:"white",padding:"12px 24px",borderRadius:24,fontSize:13,fontWeight:600,zIndex:9999,boxShadow:"0 4px 20px rgba(0,0,0,0.2)",whiteSpace:"nowrap"}}>{toast}</div>}
 
 {txnPinModal&&<TxnPinModal label={txnPinModal.label} onSuccess={txnPinModal.onSuccess} onCancel={()=>setTxnPinModal(null)}/>}
+{receiptTx&&<TransactionReceipt receipt={txToReceipt(receiptTx)} onDone={()=>setReceiptTx(null)}/>}
 
 {showNotif&&(
 <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:500}} onClick={()=>setShowNotif(false)}>
@@ -457,7 +464,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <button onClick={()=>setPage("history")} style={{background:"none",border:"none",color:C.primary,fontSize:12,cursor:"pointer",fontWeight:600}}>See all →</button>
 </div>
 {transactions.slice(0,3).map(tx=>(
-<div key={tx.id} style={{background:"white",borderRadius:14,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 6px rgba(0,0,0,0.05)"}}>
+<div key={tx.id} onClick={()=>setReceiptTx(tx)} style={{background:"white",borderRadius:14,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 6px rgba(0,0,0,0.05)",cursor:"pointer"}}>
 <div style={{width:42,height:42,borderRadius:12,background:tx.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{tx.icon}</div>
 <div style={{flex:1}}>
 <p style={{margin:0,fontSize:13,fontWeight:700,color:"#1a1a1a"}}>{tx.label}</p>
@@ -691,7 +698,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div style={{padding:"8px 16px"}}>
 {filteredTx.length===0&&<p style={{color:"#aaa",textAlign:"center",padding:40,fontSize:14}}>No transactions found</p>}
 {filteredTx.map(tx=>(
-<div key={tx.id} style={{background:"white",borderRadius:14,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 6px rgba(0,0,0,0.05)"}}>
+<div key={tx.id} onClick={()=>setReceiptTx(tx)} style={{background:"white",borderRadius:14,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 6px rgba(0,0,0,0.05)",cursor:"pointer"}}>
 <div style={{width:44,height:44,borderRadius:12,background:tx.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{tx.icon}</div>
 <div style={{flex:1}}>
 <p style={{margin:0,fontSize:13,fontWeight:700,color:"#1a1a1a"}}>{tx.label}</p>
