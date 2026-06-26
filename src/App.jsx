@@ -152,19 +152,6 @@ return () => { cancelled = true; clearInterval(interval) }
 const [authScreen, setAuthScreen] = useState("splash") // splash|register|login|forgot
 const [isLoggedIn, setIsLoggedIn] = useState(false)
 const [showProfile, setShowProfile] = useState(false)
-// Google OAuth return: catch #token=... from the backend redirect
-useEffect(() => {
-const h = new URLSearchParams(window.location.hash.slice(1));
-const token = h.get("token");
-if (token) {
-localStorage.setItem("zappi_token", token);
-history.replaceState(null, "", window.location.pathname);
-setIsLoggedIn(true);
-} else if (h.get("auth_error")) {
-history.replaceState(null, "", window.location.pathname);
-alert("Google sign-in failed — please try again.");
-}
-}, []);
 
 // Persist login session across reloads (zappi_token = Pi session JWT)
 useEffect(() => {
