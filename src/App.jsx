@@ -26,6 +26,18 @@ const TRANSACTIONS = [
 { id:6, type:"data", label:"Airtel 2GB Data", sub:"08091157430", amount:"₦600", pi:"π1.00", date:"5 days ago", color:"#ECFDF5", icon:"📶", status:"failed" },
 ]
 
+// Render a stored timestamp as friendly relative time. Seed rows keep their string date.
+function relativeTime(ts){
+if(!ts) return ""
+const s=Math.floor((Date.now()-ts)/1000)
+if(s<60) return "Just now"
+const m=Math.floor(s/60); if(m<60) return `${m} min${m>1?"s":""} ago`
+const h=Math.floor(m/60); if(h<24) return `${h} hour${h>1?"s":""} ago`
+const d=Math.floor(h/24); if(d===1) return "Yesterday"
+if(d<7) return `${d} days ago`
+return new Date(ts).toLocaleDateString("en-NG",{day:"numeric",month:"short"})
+}
+
 const BENEFICIARIES = [
 { name:"Adaeze", initials:"AD", username:"adaeze" },
 { name:"Tunde", initials:"TU", username:"tunde" },
@@ -125,6 +137,7 @@ const [liveRate, setLiveRate] = useState(() => {
 const cached = Number(localStorage.getItem("zappi_rate"))
 return cached > 0 ? cached : 2150
 })
+const [rateLive, setRateLive] = useState(false)
 
 useEffect(() => {
 let cancelled = false
@@ -135,6 +148,7 @@ const r = await fetch(`${API}/api/pi-rate`)
 const d = await r.json()
 if (!cancelled && d && d.ngnPerPi > 0) {
 setLiveRate(d.ngnPerPi)
+setRateLive(d.source === "live" && !d.stale)
 localStorage.setItem("zappi_rate", String(d.ngnPerPi))
 }
 } catch {
@@ -152,11 +166,6 @@ return () => { cancelled = true; clearInterval(interval) }
 const [authScreen, setAuthScreen] = useState("splash") // splash|register|login|forgot
 const [isLoggedIn, setIsLoggedIn] = useState(false)
 const [showProfile, setShowProfile] = useState(false)
-
-// Persist login session across reloads (zappi_token = Pi session JWT)
-useEffect(() => {
-if (localStorage.getItem("zappi_token")) setIsLoggedIn(true)
-}, []);
 
 // Check if user exists on load
 useEffect(() => {
@@ -200,7 +209,7 @@ localStorage.setItem("zappi_balance", String(nb))
 return nb
 })
 const addTransaction = (tx) => setTransactions(prev => {
-const next = [{ id: Date.now(), date: "Just now", status: "success", ...tx }, ...prev]
+const next = [{ id: Date.now(), ts: Date.now(), status: "success", ...tx }, ...prev]
 localStorage.setItem("zappi_txs", JSON.stringify(next))
 return next
 })
@@ -389,7 +398,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 
 {page==="home"&&!subPage&&(
 <div>
-<div style={{background:`linear-gradient(135deg,${C.primary} 0%,#9F67F5 100%)`,padding:"20px 16px 40px"}}>
+<div style={{background:`linear-gradient(135deg,${C.primary} 0%,#9F67F5 100%)`,padding:"calc(env(safe-area-inset-top, 0px) + 24px) 16px 40px"}}>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
 <div>
 <p style={{color:"rgba(255,255,255,0.8)",fontSize:12,margin:0}}>Good day, Pioneer 👋</p>
@@ -406,7 +415,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <p style={{color:"rgba(255,255,255,0.75)",fontSize:12,margin:0}}>Pi Balance</p>
 <p style={{color:"white",fontSize:34,fontWeight:800,margin:"4px 0 2px",letterSpacing:"-1px"}}>π {balance.toFixed(2)}</p>
 <p style={{color:"rgba(255,255,255,0.65)",fontSize:12,margin:0}}>≈ ₦{Math.round(balance * liveRate).toLocaleString()} · Rate: ₦{liveRate}/π</p>
-<div style={{marginTop:10}}><PiRateTicker /></div>
+<div style={{marginTop:10}}><PiRateTicker rate={liveRate} live={rateLive} /></div>
 </div>
 </div>
 
@@ -452,7 +461,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div style={{width:42,height:42,borderRadius:12,background:tx.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{tx.icon}</div>
 <div style={{flex:1}}>
 <p style={{margin:0,fontSize:13,fontWeight:700,color:"#1a1a1a"}}>{tx.label}</p>
-<p style={{margin:"2px 0 0",fontSize:11,color:"#aaa"}}>{tx.sub} · {tx.date}</p>
+<p style={{margin:"2px 0 0",fontSize:11,color:"#aaa"}}>{tx.sub} · {tx.ts ? relativeTime(tx.ts) : tx.date}</p>
 </div>
 <div style={{textAlign:"right"}}>
 <p style={{margin:0,fontSize:13,fontWeight:700,color:tx.type==="receive"?"#22C55E":"#1a1a1a"}}>{tx.type==="receive"?"+":"-"}{tx.pi}</p>
@@ -687,7 +696,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div style={{flex:1}}>
 <p style={{margin:0,fontSize:13,fontWeight:700,color:"#1a1a1a"}}>{tx.label}</p>
 <p style={{margin:"2px 0",fontSize:11,color:"#bbb"}}>{tx.sub}</p>
-<p style={{margin:0,fontSize:11,color:"#bbb"}}>{tx.date}</p>
+<p style={{margin:0,fontSize:11,color:"#bbb"}}>{tx.ts ? relativeTime(tx.ts) : tx.date}</p>
 </div>
 <div style={{textAlign:"right"}}>
 <p style={{margin:0,fontSize:13,fontWeight:700,color:tx.type==="receive"?"#22C55E":"#1a1a1a"}}>{tx.type==="receive"?"+":"-"}{tx.pi}</p>

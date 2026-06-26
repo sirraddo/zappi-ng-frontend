@@ -516,14 +516,14 @@ export function ProfileScreen({ onBack, onLogout }) {
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg }}>
-      <div style={{ background: `linear-gradient(135deg,${C.primary},#9F67F5)`, padding: "40px 20px 24px", textAlign: "center" , position: "relative" }}>
+      <div style={{ background: `linear-gradient(135deg,${C.primary},#9F67F5)`, padding: "calc(env(safe-area-inset-top, 0px) + 40px) 20px 32px", textAlign: "center" , position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", left: 16, top: 40, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 10, padding: "6px 14px", cursor: "pointer", fontSize: 14, fontWeight: 500 }}>←</button>
         <div style={{ width: 70, height: 70, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, margin: "0 auto 12px", border: "3px solid rgba(255,255,255,0.4)" }}>{user.avatar || "⚡"}</div>
         <h2 style={{ color: "white", margin: "0 0 4px", fontSize: 20, fontWeight: 800 }}>{user.fullName || "User"}</h2>
         <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, margin: 0 }}>{user.email}</p>
       </div>
 
-      <div style={{ display: "flex", gap: 0, margin: "0 16px", marginTop: -20, background: "white", borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}>
+      <div style={{ display: "flex", gap: 0, margin: "0 16px", marginTop: -12, background: "white", borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}>
         {stats.map((s, i) => (
           <div key={s.label} style={{ flex: 1, padding: "16px 8px", textAlign: "center", borderRight: i < 2 ? "1px solid #F3F4F6" : "none" }}>
             <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: C.primary }}>{s.value}</p>
