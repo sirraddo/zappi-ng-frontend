@@ -121,13 +121,32 @@ return (
 export default function App() {
 const { piAuth, piUser, isSandbox } = usePi()
 const { theme, toggleTheme } = useTheme()
-const [liveRate, setLiveRate] = useState(2150)
+const [liveRate, setLiveRate] = useState(() => {
+const cached = Number(localStorage.getItem("zappi_rate"))
+return cached > 0 ? cached : 2150
+})
 
 useEffect(() => {
-fetch(`${import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"}/api/pi-rate`)
-.then(r => r.json())
-.then(d => { if (d.ngnPerPi) setLiveRate(d.ngnPerPi) })
-.catch(() => {}) // silently fall back to 600
+let cancelled = false
+const API = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const fetchRate = async (attempt = 0) => {
+try {
+const r = await fetch(`${API}/api/pi-rate`)
+const d = await r.json()
+if (!cancelled && d && d.ngnPerPi > 0) {
+setLiveRate(d.ngnPerPi)
+localStorage.setItem("zappi_rate", String(d.ngnPerPi))
+}
+} catch {
+// Render free tier can cold-start (~50s); back off and retry a few times
+if (!cancelled && attempt < 5) {
+setTimeout(() => fetchRate(attempt + 1), Math.min(2000 * 2 ** attempt, 30000))
+}
+}
+}
+fetchRate()
+const interval = setInterval(() => fetchRate(), 60000) // refresh while app is open
+return () => { cancelled = true; clearInterval(interval) }
 }, [])
 
 const [authScreen, setAuthScreen] = useState("splash") // splash|register|login|forgot
@@ -145,6 +164,11 @@ setIsLoggedIn(true);
 history.replaceState(null, "", window.location.pathname);
 alert("Google sign-in failed — please try again.");
 }
+}, []);
+
+// Persist login session across reloads (zappi_token = Pi session JWT)
+useEffect(() => {
+if (localStorage.getItem("zappi_token")) setIsLoggedIn(true)
 }, []);
 
 // Check if user exists on load
@@ -342,7 +366,7 @@ if (authScreen === "forgot") return <ForgotScreen onBack={()=>setAuthScreen("log
 // Keep Profile inside the same phone-width shell as the rest of the app
 if (showProfile) return (
 <div style={{maxWidth:430,margin:"0 auto",fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",position:"relative"}}>
-<ProfileScreen onBack={()=>setShowProfile(false)} onLogout={()=>{ setIsLoggedIn(false); setAuthScreen("login"); setShowProfile(false) }} />
+<ProfileScreen onBack={()=>setShowProfile(false)} onLogout={()=>{ localStorage.removeItem("zappi_token"); setIsLoggedIn(false); setAuthScreen("login"); setShowProfile(false) }} />
 </div>
 )
 
