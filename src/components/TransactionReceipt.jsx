@@ -1,50 +1,22 @@
 /**
  * TransactionReceipt.jsx
- * Full-screen receipt shown after every bill payment
- * Place in: frontend/src/components/TransactionReceipt.jsx
+ * Full-screen receipt for any transaction. Opened from History / Home (tap a row)
+ * and shown automatically after a payment.
  *
  * Props:
- *   receipt: {
- *     status: 'success' | 'pending' | 'failed',
- *     type: 'airtime' | 'data' | 'electricity' | 'cable' | 'internet' | 'betting',
- *     amount: number,        // Pi amount paid
- *     nairaAmount: number,   // Naira equivalent
- *     reference: string,     // VTPass reference ID
- *     txid: string,          // Pi blockchain txid
- *     recipient: string,     // phone / meter number / smartcard
- *     provider: string,      // MTN, EEDC, DSTV etc
- *     token: string,         // electricity token (if applicable)
- *     date: Date,
- *   }
+ *   receipt: { status, type, amount (Pi), nairaAmount, reference, txid,
+ *              recipient, provider, token, date, sandbox }
  *   onDone: () => void
- *   onRetry: () => void  (only shown on failure)
+ *   onRetry?: () => void  (only shown on failure)
  */
 
 import { useState } from "react";
 import "./TransactionReceipt.css";
 
 const STATUS_CONFIG = {
-  success: {
-    icon: "✓",
-    label: "Payment Successful",
-    color: "#16a34a",
-    bg: "#f0fdf4",
-    border: "#bbf7d0",
-  },
-  pending: {
-    icon: "⏳",
-    label: "Payment Pending",
-    color: "#d97706",
-    bg: "#fffbeb",
-    border: "#fde68a",
-  },
-  failed: {
-    icon: "✕",
-    label: "Payment Failed",
-    color: "#dc2626",
-    bg: "#fef2f2",
-    border: "#fecaca",
-  },
+  success: { icon: "✓", label: "Payment Successful", color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
+  pending: { icon: "⏳", label: "Payment Pending", color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
+  failed:  { icon: "✕", label: "Payment Failed", color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
 };
 
 const TYPE_LABELS = {
@@ -54,18 +26,20 @@ const TYPE_LABELS = {
   cable: "Cable TV Subscription",
   internet: "Internet Subscription",
   betting: "Betting Wallet Funding",
+  send: "Pi Transfer",
+  receive: "Money Received",
+  transport: "Transport Payment",
+  hotel: "Hotel Booking",
 };
 
 export default function TransactionReceipt({ receipt, onDone, onRetry }) {
   const [copied, setCopied] = useState(false);
   const [tokenCopied, setTokenCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const cfg = STATUS_CONFIG[receipt.status] || STATUS_CONFIG.pending;
   const typeLabel = TYPE_LABELS[receipt.type] || receipt.type;
-  const dateStr = new Date(receipt.date).toLocaleString("en-NG", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  const dateStr = new Date(receipt.date).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" });
 
   function copyRef() {
     navigator.clipboard.writeText(receipt.reference);
@@ -79,102 +53,156 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
     setTimeout(() => setTokenCopied(false), 2000);
   }
 
-  function shareReceipt() {
-    const text = `Zappi NG Receipt\n${typeLabel}\nAmount: π${receipt.amount} (₦${receipt.nairaAmount?.toLocaleString()})\nRef: ${receipt.reference}\nDate: ${dateStr}\n${receipt.token ? `Token: ${receipt.token}` : ""}`;
-    if (navigator.share) {
-      navigator.share({ title: "Zappi NG Receipt", text });
-    } else {
-      navigator.clipboard.writeText(text);
+  // Draw the receipt onto a canvas and return a PNG blob. No external deps.
+  function receiptBlob() {
+    const rows = [
+      ["Type", typeLabel],
+      receipt.provider && ["Provider", String(receipt.provider)],
+      receipt.recipient && ["Recipient", String(receipt.recipient)],
+      ["Date", dateStr],
+      ["Reference", String(receipt.reference || "—")],
+      receipt.token && ["Token", String(receipt.token)],
+      ["Status", cfg.label],
+    ].filter(Boolean);
+
+    const S = 2, W = 720, pad = 48, rowH = 62, top = 360;
+    const H = top + rows.length * rowH + 110;
+    const c = document.createElement("canvas");
+    c.width = W * S; c.height = H * S;
+    const x = c.getContext("2d");
+    x.scale(S, S);
+    const FONT = "-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif";
+
+    x.fillStyle = "#ffffff"; x.fillRect(0, 0, W, H);
+    const g = x.createLinearGradient(0, 0, W, 0);
+    g.addColorStop(0, "#6C3AED"); g.addColorStop(1, "#9F67F5");
+    x.fillStyle = g; x.fillRect(0, 0, W, 150);
+    x.fillStyle = "#ffffff";
+    x.font = "800 38px " + FONT; x.fillText("Zappi NG", pad, 66);
+    x.font = "400 20px " + FONT; x.fillStyle = "rgba(255,255,255,0.85)";
+    x.fillText("Pi Network Bill Payments", pad, 100);
+
+    x.fillStyle = cfg.color; x.font = "700 26px " + FONT;
+    x.fillText(cfg.icon + "  " + cfg.label, pad, 215);
+    x.fillStyle = "#111111"; x.font = "800 50px " + FONT;
+    x.fillText("\u03C0" + receipt.amount, pad, 280);
+    if (receipt.nairaAmount) {
+      x.fillStyle = "#777777"; x.font = "400 24px " + FONT;
+      x.fillText("\u2248 \u20A6" + Number(receipt.nairaAmount).toLocaleString(), pad, 315);
     }
+
+    let y = top;
+    x.textBaseline = "middle";
+    for (const [k, v] of rows) {
+      x.strokeStyle = "#eeeeee"; x.beginPath(); x.moveTo(pad, y - rowH / 2); x.lineTo(W - pad, y - rowH / 2); x.stroke();
+      x.fillStyle = "#888888"; x.font = "400 22px " + FONT; x.textAlign = "left"; x.fillText(k, pad, y);
+      x.fillStyle = "#111111"; x.font = "600 22px " + FONT; x.textAlign = "right";
+      const val = v.length > 30 ? v.slice(0, 29) + "\u2026" : v;
+      x.fillText(val, W - pad, y);
+      y += rowH;
+    }
+    x.textAlign = "center"; x.fillStyle = "#9aa0a6"; x.font = "400 18px " + FONT;
+    x.fillText("Powered by Pi Network  \u00B7  zappi-ng-frontend.vercel.app", W / 2, H - 45);
+
+    return new Promise((res) => c.toBlob(res, "image/png"));
+  }
+
+  function fileName() {
+    return "zappi-receipt-" + (receipt.reference || "tx") + ".png";
+  }
+
+  async function downloadReceipt() {
+    setBusy(true);
+    try {
+      const blob = await receiptBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = fileName();
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (_) {}
+    setBusy(false);
+  }
+
+  async function shareReceipt() {
+    const text = "Zappi NG Receipt\n" + typeLabel +
+      "\nAmount: \u03C0" + receipt.amount + (receipt.nairaAmount ? " (\u20A6" + Number(receipt.nairaAmount).toLocaleString() + ")" : "") +
+      "\nRef: " + (receipt.reference || "—") + "\nDate: " + dateStr;
+    setBusy(true);
+    try {
+      const blob = await receiptBlob();
+      const file = new File([blob], fileName(), { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: "Zappi NG Receipt", text });
+        setBusy(false); return;
+      }
+    } catch (_) { setBusy(false); return; } // user dismissed the share sheet
+    try {
+      if (navigator.share) { await navigator.share({ title: "Zappi NG Receipt", text }); setBusy(false); return; }
+    } catch (_) { setBusy(false); return; }
+    try { await navigator.clipboard.writeText(text); } catch (_) {}
+    setBusy(false);
   }
 
   return (
     <div className="receipt-overlay">
       <div className="receipt-card">
-        {/* Status icon */}
         <div className="receipt-status" style={{ background: cfg.bg, borderColor: cfg.border }}>
-          <div className="receipt-icon" style={{ background: cfg.color }}>
-            {cfg.icon}
-          </div>
-          <div className="receipt-status-label" style={{ color: cfg.color }}>
-            {cfg.label}
-          </div>
+          <div className="receipt-icon" style={{ background: cfg.color }}>{cfg.icon}</div>
+          <div className="receipt-status-label" style={{ color: cfg.color }}>{cfg.label}</div>
           <div className="receipt-type">{typeLabel}</div>
         </div>
 
-        {/* Amount */}
         <div className="receipt-amount-block">
           <span className="receipt-pi">π{receipt.amount}</span>
           {receipt.nairaAmount && (
-            <span className="receipt-naira">≈ ₦{receipt.nairaAmount.toLocaleString()}</span>
+            <span className="receipt-naira">≈ ₦{Number(receipt.nairaAmount).toLocaleString()}</span>
           )}
         </div>
 
-        {/* Electricity token — most prominent element */}
         {receipt.token && receipt.status === "success" && (
           <div className="receipt-token-block">
             <div className="receipt-token-label">⚡ Electricity Token</div>
             <div className="receipt-token-value">{receipt.token}</div>
-            <button className="receipt-token-copy" onClick={copyToken}>
-              {tokenCopied ? "✓ Copied!" : "Copy Token"}
-            </button>
-            <div className="receipt-token-hint">
-              Enter this token on your prepaid meter
-            </div>
+            <button className="receipt-token-copy" onClick={copyToken}>{tokenCopied ? "✓ Copied!" : "Copy Token"}</button>
+            <div className="receipt-token-hint">Enter this token on your prepaid meter</div>
           </div>
         )}
 
-        {/* Details table */}
         <div className="receipt-details">
-          <Row label="Provider" value={receipt.provider} />
-          <Row label="Recipient" value={receipt.recipient} />
+          {receipt.provider && <Row label="Provider" value={receipt.provider} />}
+          {receipt.recipient && <Row label="Recipient" value={receipt.recipient} />}
           <Row label="Date" value={dateStr} />
-          <Row
-            label="Reference"
-            value={
-              <span className="receipt-ref">
-                {receipt.reference}
-                <button className="copy-btn" onClick={copyRef} title="Copy reference">
-                  {copied ? "✓" : "⎘"}
-                </button>
-              </span>
-            }
-          />
+          <Row label="Reference" value={
+            <span className="receipt-ref">
+              {receipt.reference}
+              <button className="copy-btn" onClick={copyRef} title="Copy reference">{copied ? "✓" : "⎘"}</button>
+            </span>
+          } />
           {receipt.txid && (
-            <Row
-              label="Pi TxID"
-              value={
-                <a
-                  href={`https://blockexplorer.minepi.com/tx/${receipt.txid}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="receipt-txlink"
-                >
-                  {receipt.txid.slice(0, 12)}…{receipt.txid.slice(-6)}
-                </a>
-              }
-            />
+            <Row label="Pi TxID" value={
+              <a href={`https://blockexplorer.minepi.com/tx/${receipt.txid}`} target="_blank" rel="noopener noreferrer" className="receipt-txlink">
+                {receipt.txid.slice(0, 12)}…{receipt.txid.slice(-6)}
+              </a>
+            } />
           )}
         </div>
 
-        {/* Sandbox badge */}
-        {receipt.sandbox && (
-          <div className="receipt-sandbox-badge">🧪 Testnet Transaction</div>
-        )}
+        {receipt.sandbox && <div className="receipt-sandbox-badge">🧪 Testnet Transaction</div>}
 
-        {/* Actions */}
         <div className="receipt-actions">
-          <button className="receipt-share-btn" onClick={shareReceipt}>
-            Share Receipt
-          </button>
-          {receipt.status === "failed" && onRetry && (
-            <button className="receipt-retry-btn" onClick={onRetry}>
-              Try Again
+          <div style={{ display: "flex", gap: 10 }}>
+            <button className="receipt-share-btn" style={{ flex: 1 }} onClick={shareReceipt} disabled={busy}>
+              {busy ? "…" : "Share"}
             </button>
+            <button className="receipt-share-btn" style={{ flex: 1, background: "#fff", color: "#6C3AED", border: "2px solid #6C3AED" }} onClick={downloadReceipt} disabled={busy}>
+              {busy ? "…" : "Download"}
+            </button>
+          </div>
+          {receipt.status === "failed" && onRetry && (
+            <button className="receipt-retry-btn" onClick={onRetry}>Try Again</button>
           )}
-          <button className="receipt-done-btn" onClick={onDone}>
-            Done
-          </button>
+          <button className="receipt-done-btn" onClick={onDone}>Done</button>
         </div>
       </div>
     </div>
