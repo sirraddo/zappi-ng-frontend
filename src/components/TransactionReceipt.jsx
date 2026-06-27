@@ -36,6 +36,7 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
   const [copied, setCopied] = useState(false);
   const [tokenCopied, setTokenCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null);
 
   const cfg = STATUS_CONFIG[receipt.status] || STATUS_CONFIG.pending;
   const typeLabel = TYPE_LABELS[receipt.type] || receipt.type;
@@ -111,17 +112,22 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
     return "zappi-receipt-" + (receipt.reference || "tx") + ".png";
   }
 
-  async function downloadReceipt() {
+  // Generate the image and show it in an in-app preview. Works everywhere,
+  // including in-app browsers (Pi Browser) where programmatic downloads are blocked:
+  // the user can press-and-hold the image to save it.
+  async function buildAndPreview() {
     setBusy(true);
     try {
       const blob = await receiptBlob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = fileName();
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(URL.createObjectURL(blob));
     } catch (_) {}
     setBusy(false);
+  }
+
+  function closePreview() {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
   }
 
   async function shareReceipt() {
@@ -134,17 +140,25 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
       const file = new File([blob], fileName(), { type: "image/png" });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file], title: "Zappi NG Receipt", text });
-        setBusy(false); return;
+        setBusy(false);
+        return;
       }
-    } catch (_) { setBusy(false); return; } // user dismissed the share sheet
-    try {
-      if (navigator.share) { await navigator.share({ title: "Zappi NG Receipt", text }); setBusy(false); return; }
-    } catch (_) { setBusy(false); return; }
+      if (navigator.share) {
+        await navigator.share({ title: "Zappi NG Receipt", text });
+        setBusy(false);
+        return;
+      }
+    } catch (_) {
+      setBusy(false);
+      return; // user dismissed the share sheet
+    }
+    // No share support (or no file share): fall back to the image preview + copy text.
     try { await navigator.clipboard.writeText(text); } catch (_) {}
-    setBusy(false);
+    await buildAndPreview();
   }
 
   return (
+    <>
     <div className="receipt-overlay">
       <div className="receipt-card">
         <div className="receipt-status" style={{ background: cfg.bg, borderColor: cfg.border }}>
@@ -195,7 +209,7 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
             <button className="receipt-share-btn" style={{ flex: 1 }} onClick={shareReceipt} disabled={busy}>
               {busy ? "…" : "Share"}
             </button>
-            <button className="receipt-share-btn" style={{ flex: 1, background: "#fff", color: "#6C3AED", border: "2px solid #6C3AED" }} onClick={downloadReceipt} disabled={busy}>
+            <button className="receipt-share-btn" style={{ flex: 1, background: "#fff", color: "#6C3AED", border: "2px solid #6C3AED" }} onClick={buildAndPreview} disabled={busy}>
               {busy ? "…" : "Download"}
             </button>
           </div>
@@ -206,6 +220,20 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
         </div>
       </div>
     </div>
+
+    {previewUrl && (
+      <div className="receipt-overlay" style={{ zIndex: 10000 }} onClick={closePreview}>
+        <div style={{ background: "#fff", borderRadius: 16, padding: 16, width: "90%", maxWidth: 360, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+          <p style={{ margin: "0 0 10px", fontSize: 13, color: "#555", fontWeight: 600 }}>Press &amp; hold the image to save it 📥</p>
+          <img src={previewUrl} alt="Receipt" style={{ width: "100%", borderRadius: 12, border: "1px solid #eee", display: "block" }} />
+          <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+            <a href={previewUrl} download={fileName()} className="receipt-share-btn" style={{ flex: 1, textDecoration: "none", lineHeight: "2.8" }}>Download</a>
+            <button className="receipt-share-btn" style={{ flex: 1, background: "#fff", color: "#6C3AED", border: "2px solid #6C3AED" }} onClick={closePreview}>Close</button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
