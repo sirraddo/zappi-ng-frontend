@@ -24,16 +24,10 @@ function isPiBrowser() {
 
 const API_URL = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
 function dbg(msg) {
-  let el = document.getElementById("pi-debug");
-  if (!el) {
-    el = document.createElement("div");
-    el.id = "pi-debug";
-    el.style.cssText =
-      "position:fixed;bottom:0;left:0;right:0;background:#111;color:#0f0;" +
-      "font:11px monospace;padding:6px;z-index:99999;white-space:pre-wrap;max-height:35vh;overflow:auto";
-    document.body.appendChild(el);
-  }
-  el.textContent += msg + "\n";
+  // On-screen debug overlay removed; keep console logging only.
+  try { console.log("[pi]", msg); } catch (_) {}
+  const old = document.getElementById("pi-debug");
+  if (old) old.remove();
 }
 async function piLogin(onSuccess) {
   dbg("1: piLogin started");
@@ -516,7 +510,7 @@ export function ProfileScreen({ onBack, onLogout }) {
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg }}>
-      <div style={{ background: `linear-gradient(135deg,${C.primary},#9F67F5)`, padding: "calc(env(safe-area-inset-top, 0px) + 40px) 20px 32px", textAlign: "center" , position: "relative" }}>
+      <div style={{ background: `linear-gradient(135deg,${C.primary},#9F67F5)`, padding: "calc(env(safe-area-inset-top, 0px) + 48px) 20px 32px", textAlign: "center" , position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", left: 16, top: 40, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 10, padding: "6px 14px", cursor: "pointer", fontSize: 14, fontWeight: 500 }}>←</button>
         <div style={{ width: 70, height: 70, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, margin: "0 auto 12px", border: "3px solid rgba(255,255,255,0.4)" }}>{user.avatar || "⚡"}</div>
         <h2 style={{ color: "white", margin: "0 0 4px", fontSize: 20, fontWeight: 800 }}>{user.fullName || "User"}</h2>
