@@ -405,7 +405,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 
 {page==="home"&&!subPage&&(
 <div>
-<div style={{background:`linear-gradient(135deg,${C.primary} 0%,#9F67F5 100%)`,padding:"calc(env(safe-area-inset-top, 0px) + 24px) 16px 40px"}}>
+<div style={{background:`linear-gradient(135deg,${C.primary} 0%,#9F67F5 100%)`,padding:"calc(env(safe-area-inset-top, 0px) + 52px) 16px 40px"}}>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
 <div>
 <p style={{color:"rgba(255,255,255,0.8)",fontSize:12,margin:0}}>Good day, Pioneer 👋</p>
