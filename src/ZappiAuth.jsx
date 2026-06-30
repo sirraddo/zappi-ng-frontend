@@ -105,19 +105,27 @@ function PinPad({ onPress, onDelete }) {
 }
 
 // ── SPLASH SCREEN ─────────────────────────────────────────────────────────────
-export function SplashScreen({ onContinue }) {
+export function SplashScreen({ onContinue, onSuccess }) {
+  const [busy, setBusy] = useState(false)
+
+  async function handlePi() {
+    setBusy(true)
+    await piLogin(onSuccess)
+    setBusy(false)
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: `linear-gradient(160deg,${C.primary} 0%,#9F67F5 60%,#C4B5FD 100%)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ width: 90, height: 90, borderRadius: 28, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 44, marginBottom: 20, backdropFilter: "blur(10px)", border: "2px solid rgba(255,255,255,0.3)" }}>⚡</div>
       <h1 style={{ color: "white", fontSize: 36, fontWeight: 900, margin: "0 0 8px", letterSpacing: "-1px" }}>Zappi NG</h1>
       <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 15, margin: "0 0 60px", textAlign: "center", lineHeight: 1.5 }}>Pay bills. Send Pi. Live better.</p>
-      <button onClick={() => onContinue("register")} style={{ width: "100%", maxWidth: 320, background: "white", border: "none", borderRadius: 16, padding: 16, fontSize: 16, fontWeight: 800, color: C.primary, cursor: "pointer", boxShadow: "0 8px 24px rgba(0,0,0,0.2)", marginBottom: 12 }}>
-        Create Account
+      <button onClick={handlePi} disabled={busy} style={{ width: "100%", maxWidth: 320, background: "white", border: "none", borderRadius: 16, padding: 16, fontSize: 16, fontWeight: 800, color: C.primary, cursor: busy ? "default" : "pointer", boxShadow: "0 8px 24px rgba(0,0,0,0.2)", marginBottom: 16, opacity: busy ? 0.8 : 1 }}>
+        {busy ? "Connecting…" : "⚡ Continue with Pi"}
       </button>
-      <button onClick={() => onContinue("login")} style={{ width: "100%", maxWidth: 320, background: "rgba(255,255,255,0.15)", border: "2px solid rgba(255,255,255,0.4)", borderRadius: 16, padding: 16, fontSize: 16, fontWeight: 700, color: "white", cursor: "pointer", backdropFilter: "blur(10px)" }}>
-        Sign In
+      <button onClick={() => onContinue("login")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "underline", padding: 8 }}>
+        Having trouble? Use email instead
       </button>
-      <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 32, textAlign: "center" }}>Powered by Pi Network · Made for Nigerians 🇳🇬</p>
+      <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 24, textAlign: "center" }}>Powered by Pi Network · Made for Nigerians 🇳🇬</p>
     </div>
   )
 }
@@ -392,7 +400,7 @@ export function LoginScreen({ onSuccess, onRegister, onForgot }) {
         )}
 
         <p style={{ textAlign: "center", fontSize: 13, color: "#777", marginTop: 20 }}>
-          Don't have an account? <button onClick={onRegister} style={{ background: "none", border: "none", color: C.primary, fontWeight: 700, cursor: "pointer", fontSize: 13 }}>Sign up</button>
+          Prefer Pi login? <button onClick={onRegister} style={{ background: "none", border: "none", color: C.primary, fontWeight: 700, cursor: "pointer", fontSize: 13 }}>Continue with Pi</button>
         </p>
       </div>
     </div>
