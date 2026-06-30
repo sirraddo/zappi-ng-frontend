@@ -360,9 +360,9 @@ const filteredTx = txFilter==="all"?transactions:transactions.filter(t=>t.type==
 
 // ── AUTH SCREENS ────────────────────────────────────────────────────────────
 if (!isLoggedIn) {
-if (authScreen === "splash") return <SplashScreen onContinue={setAuthScreen} />
+if (authScreen === "splash") return <SplashScreen onContinue={setAuthScreen} onSuccess={()=>{setIsLoggedIn(true);setTxnPinReady(!!localStorage.getItem("zappi_txn_pin"))}} />
 if (authScreen === "register") return <RegisterScreen onSuccess={()=>{setIsLoggedIn(true);setTxnPinReady(!!localStorage.getItem("zappi_txn_pin"))}} onLogin={()=>setAuthScreen("login")} />
-if (authScreen === "login") return <LoginScreen onSuccess={()=>{setIsLoggedIn(true);setTxnPinReady(!!localStorage.getItem("zappi_txn_pin"))}} onRegister={()=>setAuthScreen("register")} onForgot={()=>setAuthScreen("forgot")} />
+if (authScreen === "login") return <LoginScreen onSuccess={()=>{setIsLoggedIn(true);setTxnPinReady(!!localStorage.getItem("zappi_txn_pin"))}} onRegister={()=>setAuthScreen("splash")} onForgot={()=>setAuthScreen("forgot")} />
 if (authScreen === "forgot") return <ForgotScreen onBack={()=>setAuthScreen("login")} />
 }
 
