@@ -10,8 +10,8 @@ import { SplashScreen, RegisterScreen, LoginScreen, ForgotScreen, TxnPinModal, P
 
 const RATE = 600 // fallback only — app uses live rate from backend
 const C = {
-primary: "#6C3AED", light: "#EDE9FE",
-success: "#22C55E", danger: "#EF4444", bg: "#F5F3FF",
+primary: "#6C3AED", light: "var(--primary-light)",
+success: "#22C55E", danger: "#EF4444", bg: "var(--bg-secondary)",
 }
 
 const REFERRAL_CODE = "ZAPPI50" // TODO: per-user code from backend (backlog)
@@ -62,11 +62,11 @@ const INTERNET_PROVIDERS=[{id:"smile",label:"Smile",icon:"😊",price:3000},{id:
 function NavBar({ page, setPage }) {
 const tabs=[{id:"home",icon:"🏠",label:"Home"},{id:"bills",icon:"📋",label:"Bills"},{id:"send",icon:"💸",label:"Send"},{id:"more",icon:"⚡",label:"More"},{id:"history",icon:"🕐",label:"History"}]
 return (
-<div style={{position:"sticky",bottom:0,background:"white",borderTop:"1px solid #eee",display:"flex",padding:"8px 0 calc(env(safe-area-inset-bottom, 0px) + 22px)",zIndex:100}}>
+<div style={{position:"sticky",bottom:0,background:"var(--nav-bg)",borderTop:"1px solid var(--border)",display:"flex",padding:"8px 0 calc(env(safe-area-inset-bottom, 0px) + 22px)",zIndex:100}}>
 {tabs.map(t=>(
 <button key={t.id} onClick={()=>setPage(t.id)} style={{flex:1,background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
 <span style={{fontSize:20}}>{t.icon}</span>
-<span style={{fontSize:10,color:page===t.id?C.primary:"#999",fontWeight:page===t.id?700:400}}>{t.label}</span>
+<span style={{fontSize:10,color:page===t.id?C.primary:"var(--text-tertiary)",fontWeight:page===t.id?700:400}}>{t.label}</span>
 {page===t.id&&<div style={{width:4,height:4,borderRadius:2,background:C.primary,marginTop:1}}/>}
 </button>
 ))}
@@ -106,16 +106,16 @@ return <button onClick={onClick} disabled={disabled} style={{width:"100%",backgr
 }
 
 function FL({ children }) {
-return <p style={{fontSize:12,fontWeight:700,color:"#555",margin:"0 0 6px",textTransform:"uppercase",letterSpacing:"0.5px"}}>{children}</p>
+return <p style={{fontSize:12,fontWeight:700,color:"var(--text-secondary)",margin:"0 0 6px",textTransform:"uppercase",letterSpacing:"0.5px"}}>{children}</p>
 }
 
 function SCard({ icon, label, desc, bg, onClick }) {
 return (
-<button onClick={onClick} style={{width:"100%",background:"white",border:"none",borderRadius:14,padding:14,marginBottom:10,display:"flex",alignItems:"center",gap:14,cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.06)",textAlign:"left"}}
+<button onClick={onClick} style={{width:"100%",background:"var(--card-bg)",border:"none",borderRadius:14,padding:14,marginBottom:10,display:"flex",alignItems:"center",gap:14,cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.06)",textAlign:"left"}}
 onMouseDown={e=>e.currentTarget.style.transform="scale(0.98)"} onMouseUp={e=>e.currentTarget.style.transform="scale(1)"}>
 <div style={{width:46,height:46,borderRadius:13,background:bg||C.light,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{icon}</div>
-<div style={{flex:1}}><p style={{margin:0,fontSize:14,fontWeight:700,color:"#1a1a1a"}}>{label}</p>{desc&&<p style={{margin:"2px 0 0",fontSize:12,color:"#999"}}>{desc}</p>}</div>
-<span style={{color:"#ccc",fontSize:20}}>›</span>
+<div style={{flex:1}}><p style={{margin:0,fontSize:14,fontWeight:700,color:"var(--text-primary)"}}>{label}</p>{desc&&<p style={{margin:"2px 0 0",fontSize:12,color:"var(--text-tertiary)"}}>{desc}</p>}</div>
+<span style={{color:"var(--text-tertiary)",fontSize:20}}>›</span>
 </button>
 )
 }
@@ -124,7 +124,7 @@ function NetGrid({ selected, onSelect }) {
 return (
 <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:16}}>
 {["MTN","Airtel","Glo","9mobile"].map(n=>(
-<button key={n} onClick={()=>onSelect(n)} style={{padding:10,borderRadius:10,border:`2px solid ${selected===n?C.primary:"#E5E7EB"}`,background:selected===n?C.light:"white",cursor:"pointer",fontWeight:600,fontSize:14}}>{n}</button>
+<button key={n} onClick={()=>onSelect(n)} style={{padding:10,borderRadius:10,border:`2px solid ${selected===n?C.primary:"var(--border)"}`,background:selected===n?C.light:"white",cursor:"pointer",fontWeight:600,fontSize:14}}>{n}</button>
 ))}
 </div>
 )
@@ -387,17 +387,17 @@ return (
 
 {showNotif&&(
 <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:500}} onClick={()=>setShowNotif(false)}>
-<div style={{position:"absolute",top:0,right:0,width:300,height:"100vh",background:"white",padding:16,overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+<div style={{position:"absolute",top:0,right:0,width:300,height:"100vh",background:"var(--card-bg)",padding:16,overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
 <p style={{margin:0,fontSize:16,fontWeight:700}}>Notifications</p>
 <button onClick={()=>setShowNotif(false)} style={{background:"none",border:"none",fontSize:20,cursor:"pointer"}}>✕</button>
 </div>
 {notifications.map(n=>(
 <div key={n.id} onClick={()=>setNotifications(prev=>prev.map(x=>x.id===n.id?{...x,read:true}:x))}
-style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0EBFF",border:`1px solid ${n.read?"#eee":"#DDD6FE"}`,cursor:"pointer"}}>
+style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0EBFF",border:`1px solid ${n.read?"var(--border)":"#DDD6FE"}`,cursor:"pointer"}}>
 <div style={{display:"flex",gap:10}}>
 <span style={{fontSize:20}}>{n.icon}</span>
-<div><p style={{margin:0,fontSize:13,fontWeight:n.read?400:600}}>{n.text}</p><p style={{margin:"4px 0 0",fontSize:11,color:"#999"}}>{n.time}</p></div>
+<div><p style={{margin:0,fontSize:13,fontWeight:n.read?400:600}}>{n.text}</p><p style={{margin:"4px 0 0",fontSize:11,color:"var(--text-tertiary)"}}>{n.time}</p></div>
 </div>
 </div>
 ))}
@@ -436,26 +436,26 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <p style={{color:"white",fontWeight:700,fontSize:14,margin:0}}>🎁 Daily Bonus Available!</p>
 <p style={{color:"rgba(255,255,255,0.85)",fontSize:12,margin:"2px 0 0"}}>Claim your π0.05 daily reward</p>
 </div>
-<button onClick={claimDailyBonus} style={{background:"white",border:"none",borderRadius:10,padding:"8px 14px",fontWeight:700,fontSize:13,color:"#F59E0B",cursor:"pointer"}}>Claim</button>
+<button onClick={claimDailyBonus} style={{background:"var(--card-bg)",border:"none",borderRadius:10,padding:"8px 14px",fontWeight:700,fontSize:13,color:"#F59E0B",cursor:"pointer"}}>Claim</button>
 </div>
 )}
 
 <div style={{display:"flex",gap:10,padding:"16px 16px 0",marginTop:bonusClaimed?"-12px":8}}>
 {[{label:"Send Pi",icon:"💸",action:()=>navTo("send")},{label:"Refer & Earn",icon:"🎯",action:()=>navTo("home","refer")},{label:"History",icon:"🕐",action:()=>navTo("history")},{label:"Profile",icon:"👤",action:()=>setShowProfile(true)}].map(a=>(
-<button key={a.label} onClick={a.action} style={{flex:1,background:"white",border:"none",borderRadius:12,padding:"12px 4px",cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.07)",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+<button key={a.label} onClick={a.action} style={{flex:1,background:"var(--card-bg)",border:"none",borderRadius:12,padding:"12px 4px",cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.07)",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
 <span style={{fontSize:20}}>{a.icon}</span>
-<span style={{fontSize:10,color:"#555",fontWeight:600}}>{a.label}</span>
+<span style={{fontSize:10,color:"var(--text-secondary)",fontWeight:600}}>{a.label}</span>
 </button>
 ))}
 </div>
 
 <div style={{padding:"20px 16px 8px"}}>
-<p style={{fontSize:12,fontWeight:700,color:"#888",margin:"0 0 12px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Quick actions</p>
+<p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"0 0 12px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Quick actions</p>
 <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
 {[{label:"Buy Airtime",icon:"📱",bg:"#EDE9FE",color:"#7C3AED",sub:"airtime"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",color:"#059669",sub:"data"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",color:"#EA580C",sub:"electricity"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",color:"#A21CAF",sub:"cable"}].map(item=>(
-<button key={item.label} onClick={()=>{setPage("bills");setSubPage(item.sub)}} style={{background:"white",border:"none",borderRadius:14,padding:16,textAlign:"left",cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}} onMouseDown={e=>e.currentTarget.style.transform="scale(0.97)"} onMouseUp={e=>e.currentTarget.style.transform="scale(1)"}>
+<button key={item.label} onClick={()=>{setPage("bills");setSubPage(item.sub)}} style={{background:"var(--card-bg)",border:"none",borderRadius:14,padding:16,textAlign:"left",cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}} onMouseDown={e=>e.currentTarget.style.transform="scale(0.97)"} onMouseUp={e=>e.currentTarget.style.transform="scale(1)"}>
 <div style={{width:42,height:42,borderRadius:12,background:item.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,marginBottom:8}}>{item.icon}</div>
-<p style={{margin:0,fontSize:13,fontWeight:700,color:"#1a1a1a"}}>{item.label}</p>
+<p style={{margin:0,fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>{item.label}</p>
 <p style={{margin:"2px 0 0",fontSize:11,color:item.color,fontWeight:500}}>Pay with Pi</p>
 </button>
 ))}
@@ -464,18 +464,18 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 
 <div style={{padding:"8px 16px 16px"}}>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-<p style={{fontSize:12,fontWeight:700,color:"#888",margin:0,textTransform:"uppercase",letterSpacing:"0.5px"}}>Recent transactions</p>
+<p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:0,textTransform:"uppercase",letterSpacing:"0.5px"}}>Recent transactions</p>
 <button onClick={()=>setPage("history")} style={{background:"none",border:"none",color:C.primary,fontSize:12,cursor:"pointer",fontWeight:600}}>See all →</button>
 </div>
 {transactions.slice(0,3).map(tx=>(
-<div key={tx.id} onClick={()=>setReceiptTx(tx)} style={{background:"white",borderRadius:14,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 6px rgba(0,0,0,0.05)",cursor:"pointer"}}>
+<div key={tx.id} onClick={()=>setReceiptTx(tx)} style={{background:"var(--card-bg)",borderRadius:14,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 6px rgba(0,0,0,0.05)",cursor:"pointer"}}>
 <div style={{width:42,height:42,borderRadius:12,background:tx.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{tx.icon}</div>
 <div style={{flex:1}}>
-<p style={{margin:0,fontSize:13,fontWeight:700,color:"#1a1a1a"}}>{tx.label}</p>
-<p style={{margin:"2px 0 0",fontSize:11,color:"#aaa"}}>{tx.sub} · {tx.ts ? relativeTime(tx.ts) : tx.date}</p>
+<p style={{margin:0,fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>{tx.label}</p>
+<p style={{margin:"2px 0 0",fontSize:11,color:"var(--text-tertiary)"}}>{tx.sub} · {tx.ts ? relativeTime(tx.ts) : tx.date}</p>
 </div>
 <div style={{textAlign:"right"}}>
-<p style={{margin:0,fontSize:13,fontWeight:700,color:tx.type==="receive"?"#22C55E":"#1a1a1a"}}>{tx.type==="receive"?"+":"-"}{tx.pi}</p>
+<p style={{margin:0,fontSize:13,fontWeight:700,color:tx.type==="receive"?"#22C55E":"var(--text-primary)"}}>{tx.type==="receive"?"+":"-"}{tx.pi}</p>
 <span style={{background:tx.status==="success"?"#DCFCE7":"#FEE2E2",color:tx.status==="success"?"#166534":"#991B1B",fontSize:10,padding:"2px 8px",borderRadius:10,fontWeight:600}}>{tx.status==="success"?"✓":"✗"}</span>
 </div>
 </div>
@@ -493,20 +493,20 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <p style={{color:"white",fontWeight:700,fontSize:18,margin:"8px 0 4px"}}>Refer & Earn Pi</p>
 <p style={{color:"rgba(255,255,255,0.8)",fontSize:13,margin:0}}>Earn π0.50 for every Pioneer who makes their first payment</p>
 </div>
-<div style={{background:"white",borderRadius:14,padding:16,marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
-<p style={{fontSize:12,color:"#777",margin:"0 0 6px",fontWeight:600}}>Your referral code</p>
+<div style={{background:"var(--card-bg)",borderRadius:14,padding:16,marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+<p style={{fontSize:12,color:"var(--text-secondary)",margin:"0 0 6px",fontWeight:600}}>Your referral code</p>
 <div style={{display:"flex",gap:8,alignItems:"center"}}>
 <div style={{flex:1,background:C.light,borderRadius:10,padding:"12px 14px",fontWeight:700,fontSize:16,color:C.primary,letterSpacing:"2px"}}>{REFERRAL_CODE}</div>
 <button onClick={copyReferral} style={{background:C.primary,border:"none",borderRadius:10,padding:"12px 16px",color:"white",fontWeight:600,cursor:"pointer"}}>Copy</button>
 </div>
 </div>
-<div style={{background:"white",borderRadius:14,padding:16,boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+<div style={{background:"var(--card-bg)",borderRadius:14,padding:16,boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
 <p style={{fontSize:13,fontWeight:700,margin:"0 0 12px"}}>Your referral stats</p>
 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
 {[{label:"Referred",value:"7"},{label:"Active",value:"5"},{label:"Earned",value:"π2.50"}].map(s=>(
 <div key={s.label} style={{background:C.bg,borderRadius:10,padding:12,textAlign:"center"}}>
 <p style={{margin:0,fontSize:20,fontWeight:800,color:C.primary}}>{s.value}</p>
-<p style={{margin:"4px 0 0",fontSize:11,color:"#777"}}>{s.label}</p>
+<p style={{margin:"4px 0 0",fontSize:11,color:"var(--text-secondary)"}}>{s.label}</p>
 </div>
 ))}
 </div>
@@ -533,7 +533,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <FL>Network</FL><NetGrid selected={network} onSelect={setNetwork}/>
 <FL>Phone number</FL><Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
 <FL>Amount (₦)</FL>
-<div style={{display:"flex",gap:8,marginBottom:8}}>{[100,200,500,1000].map(a=><button key={a} onClick={()=>setAmount(String(a))} style={{flex:1,padding:10,borderRadius:10,border:`2px solid ${amount==a?C.primary:"#E5E7EB"}`,background:amount==a?C.light:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>₦{a}</button>)}</div>
+<div style={{display:"flex",gap:8,marginBottom:8}}>{[100,200,500,1000].map(a=><button key={a} onClick={()=>setAmount(String(a))} style={{flex:1,padding:10,borderRadius:10,border:`2px solid ${amount==a?C.primary:"var(--border)"}`,background:amount==a?C.light:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>₦{a}</button>)}</div>
 <Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Or enter amount"/>
 <PiSummary amount={amount} rate={liveRate}/>
 <Btn label={`Buy Airtime — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!network||!phone||!amount} onClick={()=>validate("airtime")&&handlePay("Airtime",{type:"airtime",label:`${network} Airtime`,sub:phone,ngn:Number(amount),icon:"📱",color:"#EDE9FE"})}/>
@@ -547,8 +547,8 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <FL>Phone number</FL><Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
 {network&&<><FL>Select bundle</FL>
 <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:16}}>
-{(DATA_BUNDLES[network]||[]).map(b=><button key={b.code} onClick={()=>setBundle(b)} style={{padding:14,borderRadius:12,border:`2px solid ${bundle?.code===b.code?C.primary:"#E5E7EB"}`,background:bundle?.code===b.code?C.light:"white",cursor:"pointer",textAlign:"left"}}>
-<p style={{margin:0,fontSize:16,fontWeight:800}}>{b.label}</p><p style={{margin:"2px 0 4px",fontSize:11,color:"#999"}}>{b.duration}</p><p style={{margin:0,fontSize:13,fontWeight:700,color:C.primary}}>₦{b.price.toLocaleString()}</p>
+{(DATA_BUNDLES[network]||[]).map(b=><button key={b.code} onClick={()=>setBundle(b)} style={{padding:14,borderRadius:12,border:`2px solid ${bundle?.code===b.code?C.primary:"var(--border)"}`,background:bundle?.code===b.code?C.light:"white",cursor:"pointer",textAlign:"left"}}>
+<p style={{margin:0,fontSize:16,fontWeight:800}}>{b.label}</p><p style={{margin:"2px 0 4px",fontSize:11,color:"var(--text-tertiary)"}}>{b.duration}</p><p style={{margin:0,fontSize:13,fontWeight:700,color:C.primary}}>₦{b.price.toLocaleString()}</p>
 </button>)}
 </div></>}
 {bundle&&<PiSummary amount={bundle.price} rate={liveRate}/>}
@@ -560,14 +560,14 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div><Header title="Electricity Bill" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
 <FL>Distribution company</FL>
-<select value={disco} onChange={e=>setDisco(e.target.value)} style={{width:"100%",padding:13,borderRadius:10,border:"1.5px solid #E5E7EB",marginBottom:16,boxSizing:"border-box",fontSize:14,outline:"none",background:"white",fontFamily:"inherit"}}>
+<select value={disco} onChange={e=>setDisco(e.target.value)} style={{width:"100%",padding:13,borderRadius:10,border:"1.5px solid #E5E7EB",marginBottom:16,boxSizing:"border-box",fontSize:14,outline:"none",background:"var(--card-bg)",fontFamily:"inherit"}}>
 <option value="">Select your DISCO</option>{DISCOS.map(d=><option key={d}>{d}</option>)}
 </select>
 <FL>Meter type</FL>
-<div style={{display:"flex",gap:8,marginBottom:16}}>{["prepaid","postpaid"].map(t=><button key={t} onClick={()=>setMeterType(t)} style={{flex:1,padding:12,borderRadius:10,border:`2px solid ${meterType===t?C.primary:"#E5E7EB"}`,background:meterType===t?C.light:"white",cursor:"pointer",fontWeight:600,textTransform:"capitalize"}}>{t}</button>)}</div>
+<div style={{display:"flex",gap:8,marginBottom:16}}>{["prepaid","postpaid"].map(t=><button key={t} onClick={()=>setMeterType(t)} style={{flex:1,padding:12,borderRadius:10,border:`2px solid ${meterType===t?C.primary:"var(--border)"}`,background:meterType===t?C.light:"white",cursor:"pointer",fontWeight:600,textTransform:"capitalize"}}>{t}</button>)}</div>
 <FL>Meter number</FL><Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Enter meter number"/>
 <FL>Amount (₦)</FL>
-<div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:8}}>{[1000,2000,5000,10000].map(a=><button key={a} onClick={()=>setAmount(String(a))} style={{padding:"10px 14px",borderRadius:10,border:`2px solid ${amount==a?C.primary:"#E5E7EB"}`,background:amount==a?C.light:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>₦{a.toLocaleString()}</button>)}</div>
+<div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:8}}>{[1000,2000,5000,10000].map(a=><button key={a} onClick={()=>setAmount(String(a))} style={{padding:"10px 14px",borderRadius:10,border:`2px solid ${amount==a?C.primary:"var(--border)"}`,background:amount==a?C.light:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>₦{a.toLocaleString()}</button>)}</div>
 <Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Or enter amount"/>
 <PiSummary amount={amount} bg="#FFF7ED" color="#EA580C" rate={liveRate}/>
 <Btn label={`Pay ₦${Number(amount||0).toLocaleString()} — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!disco||!meter||!amount} onClick={()=>validate("electricity")&&handlePay("Electricity",{type:"electricity",label:`${disco.split(" ")[0]} Electricity`,sub:`Meter: ${meter}`,ngn:Number(amount),icon:"⚡",color:"#FFF7ED"})}/>
@@ -578,10 +578,10 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div><Header title="Cable TV" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
 <FL>Provider</FL>
-<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>{["DStv","GOtv","Startimes"].map(p=><button key={p} onClick={()=>setNetwork(p)} style={{padding:14,borderRadius:10,border:`2px solid ${network===p?C.primary:"#E5E7EB"}`,background:network===p?C.light:"white",cursor:"pointer",fontWeight:700,fontSize:13}}>{p}</button>)}</div>
+<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>{["DStv","GOtv","Startimes"].map(p=><button key={p} onClick={()=>setNetwork(p)} style={{padding:14,borderRadius:10,border:`2px solid ${network===p?C.primary:"var(--border)"}`,background:network===p?C.light:"white",cursor:"pointer",fontWeight:700,fontSize:13}}>{p}</button>)}</div>
 <FL>Smart card / IUC number</FL><Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Enter smart card number"/>
 <FL>Select package</FL>
-<div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:12}}>{[{label:"Basic",price:2500},{label:"Compact",price:9000},{label:"Compact+",price:14250},{label:"Premium",price:29500}].map(pkg=><button key={pkg.label} onClick={()=>setAmount(String(pkg.price))} style={{padding:14,borderRadius:12,border:`2px solid ${amount==pkg.price?C.primary:"#E5E7EB"}`,background:amount==pkg.price?C.light:"white",cursor:"pointer",textAlign:"left"}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:12}}>{[{label:"Basic",price:2500},{label:"Compact",price:9000},{label:"Compact+",price:14250},{label:"Premium",price:29500}].map(pkg=><button key={pkg.label} onClick={()=>setAmount(String(pkg.price))} style={{padding:14,borderRadius:12,border:`2px solid ${amount==pkg.price?C.primary:"var(--border)"}`,background:amount==pkg.price?C.light:"white",cursor:"pointer",textAlign:"left"}}>
 <p style={{margin:0,fontSize:14,fontWeight:700}}>{pkg.label}</p><p style={{margin:"4px 0 0",fontSize:13,color:C.primary,fontWeight:700}}>₦{pkg.price.toLocaleString()}</p>
 </button>)}</div>
 <PiSummary amount={amount} bg="#FDF2F8" color="#A21CAF" rate={liveRate}/>
@@ -593,9 +593,9 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div><Header title="Internet" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
 <FL>Select provider</FL>
-{INTERNET_PROVIDERS.map(p=><button key={p.id} onClick={()=>setInternetProvider(p)} style={{width:"100%",background:"white",border:`2px solid ${internetProvider?.id===p.id?C.primary:"#E5E7EB"}`,borderRadius:12,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
+{INTERNET_PROVIDERS.map(p=><button key={p.id} onClick={()=>setInternetProvider(p)} style={{width:"100%",background:"var(--card-bg)",border:`2px solid ${internetProvider?.id===p.id?C.primary:"var(--border)"}`,borderRadius:12,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
 <span style={{fontSize:24}}>{p.icon}</span>
-<div style={{flex:1}}><p style={{margin:0,fontSize:14,fontWeight:700}}>{p.label}</p><p style={{margin:"2px 0 0",fontSize:12,color:"#999"}}>From ₦{p.price.toLocaleString()}/month</p></div>
+<div style={{flex:1}}><p style={{margin:0,fontSize:14,fontWeight:700}}>{p.label}</p><p style={{margin:"2px 0 0",fontSize:12,color:"var(--text-tertiary)"}}>From ₦{p.price.toLocaleString()}/month</p></div>
 {internetProvider?.id===p.id&&<span style={{color:C.primary,fontSize:18}}>✓</span>}
 </button>)}
 {internetProvider&&<><FL>Account number</FL><Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Account number"/><FL>Amount (₦)</FL><Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Enter amount" type="number"/><PiSummary amount={amount} bg="#EFF6FF" color="#2563EB" rate={liveRate}/><Btn label={`Pay — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!meter||!amount} onClick={()=>validate("internet")&&handlePay("Internet",{type:"internet",label:`${internetProvider.label} Internet`,sub:`Acct: ${meter}`,ngn:Number(amount),icon:"🌐",color:"#EFF6FF"})}/></>}
@@ -606,12 +606,12 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div><Header title="Betting Wallet" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
 <FL>Select betting site</FL>
-<div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:16}}>{BETTING_SITES.map(b=><button key={b.id} onClick={()=>setBettingSite(b)} style={{padding:14,borderRadius:12,border:`2px solid ${bettingSite?.id===b.id?C.primary:"#E5E7EB"}`,background:bettingSite?.id===b.id?C.light:"white",cursor:"pointer",textAlign:"center"}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:16}}>{BETTING_SITES.map(b=><button key={b.id} onClick={()=>setBettingSite(b)} style={{padding:14,borderRadius:12,border:`2px solid ${bettingSite?.id===b.id?C.primary:"var(--border)"}`,background:bettingSite?.id===b.id?C.light:"white",cursor:"pointer",textAlign:"center"}}>
 <span style={{fontSize:24}}>{b.icon}</span><p style={{margin:"6px 0 0",fontSize:13,fontWeight:700}}>{b.label}</p>
 </button>)}</div>
 {bettingSite&&<><FL>Betting ID</FL><Inp value={bettingId} onChange={e=>setBettingId(e.target.value)} placeholder={`${bettingSite.label} user ID`}/>
 <FL>Amount (₦)</FL>
-<div style={{display:"flex",gap:8,marginBottom:8}}>{[500,1000,2000,5000].map(a=><button key={a} onClick={()=>setAmount(String(a))} style={{flex:1,padding:10,borderRadius:10,border:`2px solid ${amount==a?C.primary:"#E5E7EB"}`,background:amount==a?C.light:"white",cursor:"pointer",fontSize:12,fontWeight:600}}>₦{a>=1000?a/1000+"k":a}</button>)}</div>
+<div style={{display:"flex",gap:8,marginBottom:8}}>{[500,1000,2000,5000].map(a=><button key={a} onClick={()=>setAmount(String(a))} style={{flex:1,padding:10,borderRadius:10,border:`2px solid ${amount==a?C.primary:"var(--border)"}`,background:amount==a?C.light:"white",cursor:"pointer",fontSize:12,fontWeight:600}}>₦{a>=1000?a/1000+"k":a}</button>)}</div>
 <Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Or enter amount" type="number"/>
 <PiSummary amount={amount} bg="#F0FDF4" color="#15803D" rate={liveRate}/>
 <Btn label={`Fund ${bettingSite.label} — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!bettingId||!amount} onClick={()=>validate("betting")&&handlePay(`${bettingSite.label} betting`,{type:"betting",label:`${bettingSite.label} Funding`,sub:`ID: ${bettingId}`,ngn:Number(amount),icon:"🎯",color:"#F0FDF4"})}/></>}
@@ -625,16 +625,16 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div style={{display:"flex",gap:12,marginBottom:20,overflowX:"auto",paddingBottom:4}}>
 {BENEFICIARIES.map(b=><button key={b.name} onClick={()=>setRecipient(b.username)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,flexShrink:0}}>
 <div style={{width:46,height:46,borderRadius:"50%",background:recipient===b.username?C.primary:C.light,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:recipient===b.username?"white":C.primary,border:`2px solid ${recipient===b.username?C.primary:"transparent"}`}}>{b.initials}</div>
-<span style={{fontSize:11,color:"#777"}}>{b.name}</span>
+<span style={{fontSize:11,color:"var(--text-secondary)"}}>{b.name}</span>
 </button>)}
 </div>
 <FL>Recipient username</FL>
-<div style={{display:"flex",alignItems:"center",border:"1.5px solid #E5E7EB",borderRadius:10,padding:"0 12px",marginBottom:16,background:"white"}}>
+<div style={{display:"flex",alignItems:"center",border:"1.5px solid #E5E7EB",borderRadius:10,padding:"0 12px",marginBottom:16,background:"var(--card-bg)"}}>
 <span style={{color:C.primary,fontWeight:700,fontSize:18}}>@</span>
 <input value={recipient} onChange={e=>setRecipient(e.target.value.toLowerCase())} placeholder="pioneer_username" style={{flex:1,padding:13,border:"none",outline:"none",fontSize:14,background:"transparent",fontFamily:"inherit"}}/>
 </div>
 <FL>Amount (π)</FL>
-<div style={{display:"flex",gap:8,marginBottom:8}}>{[1,5,10,20].map(a=><button key={a} onClick={()=>setPiAmount(String(a))} style={{flex:1,padding:10,borderRadius:10,border:`2px solid ${piAmount==a?C.primary:"#E5E7EB"}`,background:piAmount==a?C.light:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>π{a}</button>)}</div>
+<div style={{display:"flex",gap:8,marginBottom:8}}>{[1,5,10,20].map(a=><button key={a} onClick={()=>setPiAmount(String(a))} style={{flex:1,padding:10,borderRadius:10,border:`2px solid ${piAmount==a?C.primary:"var(--border)"}`,background:piAmount==a?C.light:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>π{a}</button>)}</div>
 <Inp value={piAmount} onChange={e=>setPiAmount(e.target.value)} placeholder="0.00" type="number"/>
 {piAmount>0&&<div style={{background:C.light,borderRadius:10,padding:14,marginBottom:12,display:"flex",justifyContent:"space-between"}}><span style={{color:"#5B21B6",fontSize:13}}>NGN equivalent</span><span style={{color:"#5B21B6",fontSize:14,fontWeight:700}}>₦{(Number(piAmount)*liveRate).toLocaleString()}</span></div>}
 <FL>Note (optional)</FL><Inp value={note} onChange={e=>setNote(e.target.value)} placeholder="What's this for?"/>
@@ -645,18 +645,18 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 {page==="more"&&!subPage&&(
 <div><Header title="More Services"/>
 <div style={{padding:16}}>
-<p style={{fontSize:12,fontWeight:700,color:"#aaa",margin:"0 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Travel & Lifestyle</p>
+<p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"0 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Travel & Lifestyle</p>
 <SCard icon="🏨" label="Hotels" desc="Book hotels across Nigeria" bg="#FEF9C3" onClick={()=>setSubPage("hotel")}/>
 <SCard icon="✈️" label="Travel & Transport" desc="Flights, rides, tolls & more" bg="#DBEAFE" onClick={()=>setSubPage("transport")}/>
-<p style={{fontSize:12,fontWeight:700,color:"#aaa",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Finance & Rewards</p>
+<p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Finance & Rewards</p>
 <SCard icon="🎯" label="Refer & Earn" desc="Earn π0.50 per referral" bg="#ECFDF5" onClick={()=>navTo("home","refer")}/>
 <SCard icon="📊" label="Pi Market Rate" desc="Live Pi/NGN exchange rate" bg="#FFF7ED" onClick={()=>showToast(`Current rate: ₦${liveRate}/π`,"success")}/>
 <SCard icon="💰" label="Pi Savings" desc="Save Pi and earn interest (Coming soon)" bg="#EDE9FE" onClick={()=>showToast("Pi Savings launching soon!","success")}/>
-<p style={{fontSize:12,fontWeight:700,color:"#aaa",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Account</p>
+<p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Account</p>
 <SCard icon="👤" label="My Profile" desc="Manage your account" bg="#F0F0FF" onClick={()=>setShowProfile(true)}/>
 <SCard icon="💬" label="Help & Support" desc="FAQ, WhatsApp, contact us" bg="#F0FDF4" onClick={()=>setLegalPage("support")}/>
 <SCard icon="🌙" label="Dark Mode" desc={theme==="dark"?"Switch to light mode":"Switch to dark mode"} bg="#F0F0FF" onClick={toggleTheme}/>
-<p style={{fontSize:12,fontWeight:700,color:"#aaa",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Legal</p>
+<p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Legal</p>
 <SCard icon="📄" label="Privacy Policy" desc="How we handle your data" bg="#F9FAFB" onClick={()=>setLegalPage("privacy")}/>
 <SCard icon="📋" label="Terms of Service" desc="Rules for using Zappi NG" bg="#F9FAFB" onClick={()=>setLegalPage("terms")}/>
 </div></div>
@@ -666,9 +666,9 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div><Header title="Book a Hotel" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
 <FL>Popular hotels</FL>
-{HOTELS.map(h=><button key={h.id} onClick={()=>setHotel(h)} style={{width:"100%",background:"white",border:`2px solid ${hotel?.id===h.id?C.primary:"#E5E7EB"}`,borderRadius:14,padding:14,marginBottom:10,display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
+{HOTELS.map(h=><button key={h.id} onClick={()=>setHotel(h)} style={{width:"100%",background:"var(--card-bg)",border:`2px solid ${hotel?.id===h.id?C.primary:"var(--border)"}`,borderRadius:14,padding:14,marginBottom:10,display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
 <span style={{fontSize:30}}>🏨</span>
-<div style={{flex:1}}><p style={{margin:0,fontSize:14,fontWeight:700}}>{h.label}</p><p style={{margin:"2px 0",fontSize:12,color:"#999"}}>{h.city} · {h.rating}</p><p style={{margin:0,fontSize:13,fontWeight:700,color:C.primary}}>₦{h.price.toLocaleString()}/night</p></div>
+<div style={{flex:1}}><p style={{margin:0,fontSize:14,fontWeight:700}}>{h.label}</p><p style={{margin:"2px 0",fontSize:12,color:"var(--text-tertiary)"}}>{h.city} · {h.rating}</p><p style={{margin:0,fontSize:13,fontWeight:700,color:C.primary}}>₦{h.price.toLocaleString()}/night</p></div>
 {hotel?.id===h.id&&<span style={{color:C.primary,fontSize:20}}>✓</span>}
 </button>)}
 {hotel&&<><FL>Number of nights</FL><Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="e.g. 2" type="number"/>
@@ -681,9 +681,9 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div><Header title="Travel & Transport" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
 <FL>Select service</FL>
-{TRANSPORT.map(t=><button key={t.id} onClick={()=>setTransport(t)} style={{width:"100%",background:"white",border:`2px solid ${transport?.id===t.id?C.primary:"#E5E7EB"}`,borderRadius:12,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
+{TRANSPORT.map(t=><button key={t.id} onClick={()=>setTransport(t)} style={{width:"100%",background:"var(--card-bg)",border:`2px solid ${transport?.id===t.id?C.primary:"var(--border)"}`,borderRadius:12,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
 <span style={{fontSize:26}}>{t.icon}</span>
-<div style={{flex:1}}><p style={{margin:0,fontSize:14,fontWeight:700}}>{t.label}</p><p style={{margin:"2px 0 0",fontSize:12,color:"#999"}}>{t.desc}</p></div>
+<div style={{flex:1}}><p style={{margin:0,fontSize:14,fontWeight:700}}>{t.label}</p><p style={{margin:"2px 0 0",fontSize:12,color:"var(--text-tertiary)"}}>{t.desc}</p></div>
 {transport?.id===t.id&&<span style={{color:C.primary,fontSize:18}}>✓</span>}
 </button>)}
 {transport&&<><FL>Amount (₦)</FL><Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Enter amount" type="number"/>
@@ -696,22 +696,22 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div><Header title="Transactions"/>
 <div style={{padding:"12px 16px 6px",display:"flex",gap:8,overflowX:"auto"}}>
 {[{id:"all",label:"All"},{id:"airtime",label:"Airtime"},{id:"data",label:"Data"},{id:"electricity",label:"Electric"},{id:"send",label:"Sent"},{id:"receive",label:"Received"}].map(f=>(
-<button key={f.id} onClick={()=>setTxFilter(f.id)} style={{padding:"6px 14px",borderRadius:20,border:"none",background:txFilter===f.id?C.primary:"#E5E7EB",color:txFilter===f.id?"white":"#555",cursor:"pointer",fontSize:12,fontWeight:600,whiteSpace:"nowrap",flexShrink:0}}>{f.label}</button>
+<button key={f.id} onClick={()=>setTxFilter(f.id)} style={{padding:"6px 14px",borderRadius:20,border:"none",background:txFilter===f.id?C.primary:"var(--border)",color:txFilter===f.id?"white":"var(--text-secondary)",cursor:"pointer",fontSize:12,fontWeight:600,whiteSpace:"nowrap",flexShrink:0}}>{f.label}</button>
 ))}
 </div>
 <div style={{padding:"8px 16px"}}>
-{filteredTx.length===0&&<p style={{color:"#aaa",textAlign:"center",padding:40,fontSize:14}}>No transactions found</p>}
+{filteredTx.length===0&&<p style={{color:"var(--text-tertiary)",textAlign:"center",padding:40,fontSize:14}}>No transactions found</p>}
 {filteredTx.map(tx=>(
-<div key={tx.id} onClick={()=>setReceiptTx(tx)} style={{background:"white",borderRadius:14,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 6px rgba(0,0,0,0.05)",cursor:"pointer"}}>
+<div key={tx.id} onClick={()=>setReceiptTx(tx)} style={{background:"var(--card-bg)",borderRadius:14,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 6px rgba(0,0,0,0.05)",cursor:"pointer"}}>
 <div style={{width:44,height:44,borderRadius:12,background:tx.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{tx.icon}</div>
 <div style={{flex:1}}>
-<p style={{margin:0,fontSize:13,fontWeight:700,color:"#1a1a1a"}}>{tx.label}</p>
-<p style={{margin:"2px 0",fontSize:11,color:"#bbb"}}>{tx.sub}</p>
-<p style={{margin:0,fontSize:11,color:"#bbb"}}>{tx.ts ? relativeTime(tx.ts) : tx.date}</p>
+<p style={{margin:0,fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>{tx.label}</p>
+<p style={{margin:"2px 0",fontSize:11,color:"var(--text-tertiary)"}}>{tx.sub}</p>
+<p style={{margin:0,fontSize:11,color:"var(--text-tertiary)"}}>{tx.ts ? relativeTime(tx.ts) : tx.date}</p>
 </div>
 <div style={{textAlign:"right"}}>
-<p style={{margin:0,fontSize:13,fontWeight:700,color:tx.type==="receive"?"#22C55E":"#1a1a1a"}}>{tx.type==="receive"?"+":"-"}{tx.pi}</p>
-<p style={{margin:"2px 0",fontSize:11,color:"#aaa"}}>{tx.amount}</p>
+<p style={{margin:0,fontSize:13,fontWeight:700,color:tx.type==="receive"?"#22C55E":"var(--text-primary)"}}>{tx.type==="receive"?"+":"-"}{tx.pi}</p>
+<p style={{margin:"2px 0",fontSize:11,color:"var(--text-tertiary)"}}>{tx.amount}</p>
 <span style={{background:tx.status==="success"?"#DCFCE7":"#FEE2E2",color:tx.status==="success"?"#166534":"#991B1B",fontSize:10,padding:"2px 8px",borderRadius:10,fontWeight:700}}>{tx.status==="success"?"✓ Success":"✗ Failed"}</span>
 </div>
 </div>
