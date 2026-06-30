@@ -62,7 +62,7 @@ const INTERNET_PROVIDERS=[{id:"smile",label:"Smile",icon:"😊",price:3000},{id:
 function NavBar({ page, setPage }) {
 const tabs=[{id:"home",icon:"🏠",label:"Home"},{id:"bills",icon:"📋",label:"Bills"},{id:"send",icon:"💸",label:"Send"},{id:"more",icon:"⚡",label:"More"},{id:"history",icon:"🕐",label:"History"}]
 return (
-<div style={{position:"sticky",bottom:0,background:"white",borderTop:"1px solid #eee",display:"flex",padding:"8px 0 12px",zIndex:100}}>
+<div style={{position:"sticky",bottom:0,background:"white",borderTop:"1px solid #eee",display:"flex",padding:"8px 0 calc(env(safe-area-inset-bottom, 0px) + 22px)",zIndex:100}}>
 {tabs.map(t=>(
 <button key={t.id} onClick={()=>setPage(t.id)} style={{flex:1,background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
 <span style={{fontSize:20}}>{t.icon}</span>
