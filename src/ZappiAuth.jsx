@@ -8,7 +8,7 @@ const C = {
   bg: "var(--bg-secondary)",
 }
 
-// ââ MOBILE BROWSER DETECTOR âââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── MOBILE BROWSER DETECTOR ───────────────────────────────────────────────────
 function isMobileBrowser() {
   const ua = navigator.userAgent || ""
   const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua)
@@ -40,7 +40,7 @@ async function piLogin(onSuccess) {
 
   try {
     window.Pi.init({ version: "2.0", sandbox: import.meta.env.VITE_PI_SANDBOX === "true" });
-    dbg("3: init called, authenticatingâ¦");
+    dbg("3: init called, authenticating…");
 
     const auth = await Promise.race([
       window.Pi.authenticate(["username"], (payment) => {
@@ -67,7 +67,7 @@ async function piLogin(onSuccess) {
   }
 }
 
-// ââ PIN DOTS ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── PIN DOTS ──────────────────────────────────────────────────────────────────
 function PinDots({ value, length, error }) {
   return (
     <div style={{ display: "flex", gap: 16, justifyContent: "center", margin: "28px 0 8px" }}>
@@ -83,18 +83,18 @@ function PinDots({ value, length, error }) {
   )
 }
 
-// ââ PIN PAD âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── PIN PAD ───────────────────────────────────────────────────────────────────
 function PinPad({ onPress, onDelete }) {
-  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "â«"]
+  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"]
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, maxWidth: 280, margin: "16px auto 0" }}>
       {keys.map((k, i) => (
-        <button key={i} onClick={() => k === "â«" ? onDelete() : k ? onPress(k) : null} disabled={!k}
+        <button key={i} onClick={() => k === "⌫" ? onDelete() : k ? onPress(k) : null} disabled={!k}
           style={{
             height: 62, borderRadius: 14, border: "none",
-            background: k === "â«" ? "#FEE2E2" : k ? "var(--card-bg)" : "transparent",
-            color: k === "â«" ? C.danger : "#1a1a1a",
-            fontSize: k === "â«" ? 20 : 22, fontWeight: 700, cursor: k ? "pointer" : "default",
+            background: k === "⌫" ? "#FEE2E2" : k ? "var(--card-bg)" : "transparent",
+            color: k === "⌫" ? C.danger : "#1a1a1a",
+            fontSize: k === "⌫" ? 20 : 22, fontWeight: 700, cursor: k ? "pointer" : "default",
             boxShadow: k ? "0 2px 8px rgba(0,0,0,0.08)" : "none", transition: "transform 0.1s"
           }}
           onMouseDown={e => k && (e.currentTarget.style.transform = "scale(0.93)")}
@@ -104,7 +104,7 @@ function PinPad({ onPress, onDelete }) {
   )
 }
 
-// ââ SPLASH SCREEN âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── SPLASH SCREEN ─────────────────────────────────────────────────────────────
 export function SplashScreen({ onContinue, onSuccess }) {
   const [busy, setBusy] = useState(false)
 
@@ -116,24 +116,24 @@ export function SplashScreen({ onContinue, onSuccess }) {
 
   return (
     <div style={{ minHeight: "100vh", background: `linear-gradient(160deg,${C.primary} 0%,#9F67F5 60%,#C4B5FD 100%)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ width: 90, height: 90, borderRadius: 28, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 44, marginBottom: 20, backdropFilter: "blur(10px)", border: "2px solid rgba(255,255,255,0.3)" }}>â¡</div>
+      <div style={{ width: 90, height: 90, borderRadius: 28, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 44, marginBottom: 20, backdropFilter: "blur(10px)", border: "2px solid rgba(255,255,255,0.3)" }}>⚡</div>
       <h1 style={{ color: "white", fontSize: 36, fontWeight: 900, margin: "0 0 8px", letterSpacing: "-1px" }}>Zappi NG</h1>
       <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 15, margin: "0 0 60px", textAlign: "center", lineHeight: 1.5 }}>Pay bills. Send Pi. Live better.</p>
       <button onClick={handlePi} disabled={busy} style={{ width: "100%", maxWidth: 320, background: "rgba(255,255,255,1)", border: "none", borderRadius: 16, padding: 16, fontSize: 16, fontWeight: 800, color: C.primary, cursor: busy ? "default" : "pointer", boxShadow: "0 8px 24px rgba(0,0,0,0.2)", marginBottom: 16, opacity: busy ? 0.8 : 1 }}>
-        {busy ? "Connectingâ¦" : "â¡ Continue with Pi"}
+        {busy ? "Connecting…" : "⚡ Continue with Pi"}
       </button>
       <button onClick={() => onContinue("login")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "underline", padding: 8 }}>
         Having trouble? Use email instead
       </button>
-      <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 24, textAlign: "center" }}>Powered by Pi Network Â· Made for Nigerians ð³ð¬</p>
+      <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 24, textAlign: "center" }}>Powered by Pi Network · Made for Nigerians 🇳🇬</p>
     </div>
   )
 }
 
-// ââ REGISTER ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── REGISTER ──────────────────────────────────────────────────────────────────
 export function RegisterScreen({ onSuccess, onLogin }) {
   const [step, setStep] = useState("form")
-  const [form, setForm] = useState({ fullName: "", email: "", phone: "", password: "", confirm: "", avatar: "ð" })
+  const [form, setForm] = useState({ fullName: "", email: "", phone: "", password: "", confirm: "", avatar: "😊" })
   const [errors, setErrors] = useState({})
   const [showPass, setShowPass] = useState(false)
   const [pin, setPin] = useState("")
@@ -144,7 +144,7 @@ export function RegisterScreen({ onSuccess, onLogin }) {
   const [txnStep, setTxnStep] = useState("create")
   const [pinError, setPinError] = useState("")
 
-  const avatars = ["ð", "ð¨ð¾", "ð©ð¾", "ð¦", "â¡", "ð¥", "ð", "ð¯", "ð", "ð¦"]
+  const avatars = ["😊", "👨🏾", "👩🏾", "🦁", "⚡", "🔥", "💎", "🎯", "🚀", "🦅"]
 
   const validate = () => {
     const e = {}
@@ -218,7 +218,7 @@ export function RegisterScreen({ onSuccess, onLogin }) {
           type={type === "password" ? (showPass ? "text" : "password") : type}
           placeholder={placeholder}
           style={{ width: "100%", padding: "13px 14px", borderRadius: 12, border: `1.5px solid ${errors[key] ? "#EF4444" : "var(--border)"}`, boxSizing: "border-box", fontSize: 14, outline: "none", fontFamily: "inherit", background: "var(--card-bg)" }} />
-        {type === "password" && <button onClick={() => setShowPass(s => !s)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16 }}>{showPass ? "ð" : "ðï¸"}</button>}
+        {type === "password" && <button onClick={() => setShowPass(s => !s)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16 }}>{showPass ? "🙈" : "👁️"}</button>}
       </div>
       {errors[key] && <p style={{ color: "#EF4444", fontSize: 11, margin: "4px 0 0", fontWeight: 500 }}>{errors[key]}</p>}
     </div>
@@ -226,7 +226,7 @@ export function RegisterScreen({ onSuccess, onLogin }) {
 
   if (step === "pin") return (
     <div style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>ð</div>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>🔐</div>
       <h2 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 800 }}>{pinStep === "create" ? "Create Login PIN" : "Confirm Login PIN"}</h2>
       <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", textAlign: "center" }}>4-digit PIN to unlock Zappi NG</p>
       <PinDots value={pinStep === "create" ? pin : confirmPin} length={4} error={!!pinError} />
@@ -237,7 +237,7 @@ export function RegisterScreen({ onSuccess, onLogin }) {
 
   if (step === "txnpin") return (
     <div style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>ð</div>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>🔑</div>
       <h2 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 800 }}>{txnStep === "create" ? "Create Transaction PIN" : "Confirm Transaction PIN"}</h2>
       <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", textAlign: "center", maxWidth: 260 }}>6-digit PIN required before every payment</p>
       <PinDots value={txnStep === "create" ? txnPin : confirmTxnPin} length={6} error={!!pinError} />
@@ -250,13 +250,13 @@ export function RegisterScreen({ onSuccess, onLogin }) {
   return (
     <div style={{ minHeight: "100vh", background: C.bg, overflowY: "auto" }}>
       <div style={{ background: `linear-gradient(135deg,${C.primary},#9F67F5)`, padding: "40px 24px 24px", textAlign: "center" }}>
-        <h1 style={{ color: "white", fontSize: 26, fontWeight: 900, margin: "0 0 4px" }}>â¡ Zappi NG</h1>
+        <h1 style={{ color: "white", fontSize: 26, fontWeight: 900, margin: "0 0 4px" }}>⚡ Zappi NG</h1>
         <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 14, margin: 0 }}>Create your account</p>
       </div>
       <div style={{ padding: 20 }}>
         <button onClick={() => piLogin(onSuccess)}
   style={{ width:'100%', padding:'12px', background:'#6C3AED', color:'white', border:'none', borderRadius:14, fontSize:15, fontWeight:700, cursor:'pointer' }}>
-   â¡ Authenticate with Pi
+   ⚡ Authenticate with Pi
 </button>
 
         <div style={{ textAlign: "center", margin: "20px 0", display: "flex", alignItems: "center", gap: 12 }}>
@@ -278,7 +278,7 @@ export function RegisterScreen({ onSuccess, onLogin }) {
         {field("password", "Password", "Create a password", "password")}
         {field("confirm", "Confirm password", "Re-enter password", "password")}
         <button onClick={handleRegister} style={{ width: "100%", background: C.primary, color: "white", border: "none", borderRadius: 14, padding: 16, fontSize: 16, fontWeight: 800, cursor: "pointer", marginTop: 4, boxShadow: "0 4px 16px rgba(108,58,237,0.3)" }}>
-          Create Account â
+          Create Account →
         </button>
         <p style={{ textAlign: "center", fontSize: 13, color: "var(--text-secondary)", marginTop: 16 }}>
           Already have an account? <button onClick={onLogin} style={{ background: "none", border: "none", color: C.primary, fontWeight: 700, cursor: "pointer", fontSize: 13 }}>Sign in</button>
@@ -289,7 +289,7 @@ export function RegisterScreen({ onSuccess, onLogin }) {
   )
 }
 
-// ââ LOGIN âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── LOGIN ─────────────────────────────────────────────────────────────────────
 export function LoginScreen({ onSuccess, onRegister, onForgot, onCreateAccount }) {
   const [method, setMethod] = useState("password")
   const [form, setForm] = useState({ email: "", password: "" })
@@ -335,14 +335,14 @@ export function LoginScreen({ onSuccess, onRegister, onForgot, onCreateAccount }
   return (
     <div style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column" }}>
       <div style={{ background: `linear-gradient(135deg,${C.primary},#9F67F5)`, padding: "50px 24px 30px", textAlign: "center" }}>
-        <div style={{ fontSize: 50, marginBottom: 8 }}>{user.avatar || "â¡"}</div>
+        <div style={{ fontSize: 50, marginBottom: 8 }}>{user.avatar || "⚡"}</div>
         <h1 style={{ color: "white", fontSize: 22, fontWeight: 900, margin: "0 0 4px" }}>Welcome back!</h1>
         <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 14, margin: 0 }}>{user.fullName || "Zappi NG User"}</p>
       </div>
 
       <div style={{ flex: 1, padding: 20 }}>
         <div style={{ display: "flex", gap: 8, background: "var(--card-bg)", borderRadius: 14, padding: 4, marginBottom: 24, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-          {[{ id: "password", label: "ð Password" }, { id: "pin", label: "ð¢ PIN" }].map(m => (
+          {[{ id: "password", label: "🔒 Password" }, { id: "pin", label: "🔢 PIN" }].map(m => (
             <button key={m.id} onClick={() => { setMethod(m.id); setError(""); setPinError(""); setPin("") }}
               style={{ flex: 1, padding: "10px 8px", borderRadius: 10, border: "none", background: method === m.id ? C.primary : "transparent", color: method === m.id ? "white" : "var(--text-secondary)", fontWeight: 700, fontSize: 13, cursor: "pointer", transition: "all 0.2s" }}>{m.label}</button>
           ))}
@@ -357,21 +357,21 @@ export function LoginScreen({ onSuccess, onRegister, onForgot, onCreateAccount }
             <div style={{ position: "relative", marginBottom: 8 }}>
               <input value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} type={showPass ? "text" : "password"} placeholder="Enter your password"
                 style={{ width: "100%", padding: 13, borderRadius: 12, border: "1.5px solid #E5E7EB", boxSizing: "border-box", fontSize: 14, outline: "none", fontFamily: "inherit" }} />
-              <button onClick={() => setShowPass(s => !s)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16 }}>{showPass ? "ð" : "ðï¸"}</button>
+              <button onClick={() => setShowPass(s => !s)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 16 }}>{showPass ? "🙈" : "👁️"}</button>
             </div>
             <button onClick={onForgot} style={{ background: "none", border: "none", color: C.primary, fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "4px 0", marginBottom: 16 }}>Forgot password?</button>
             {error && <p style={{ color: C.danger, fontSize: 13, fontWeight: 600, margin: "0 0 12px", textAlign: "center" }}>{error}</p>}
             <button onClick={handlePasswordLogin} style={{ width: "100%", background: C.primary, color: "white", border: "none", borderRadius: 14, padding: 16, fontSize: 16, fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 16px rgba(108,58,237,0.3)" }}>Sign In</button>
 
-            {/* Fingerprint â hidden on mobile browsers, shown on desktop / Pi Browser */}
+            {/* Fingerprint — hidden on mobile browsers, shown on desktop / Pi Browser */}
             {!mobileBrowser ? (
               <button style={{ width: "100%", background: "var(--card-bg)", border: "1.5px solid #E5E7EB", borderRadius: 14, padding: 14, fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", marginTop: 10 }}
                 onClick={() => alert("Fingerprint authentication requires a real device. This will work on your phone!")}>
-                <span style={{ fontSize: 22 }}>ð</span> Sign in with Fingerprint
+                <span style={{ fontSize: 22 }}>👆</span> Sign in with Fingerprint
               </button>
             ) : (
               <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#FEF9C3", borderRadius: 12, padding: "10px 14px", marginTop: 10 }}>
-                <span style={{ fontSize: 16, marginTop: 1 }}>â¹ï¸</span>
+                <span style={{ fontSize: 16, marginTop: 1 }}>ℹ️</span>
                 <p style={{ margin: 0, fontSize: 12, color: "#854D0E", lineHeight: 1.5 }}>
                   Fingerprint login is only available in the <strong>Pi Browser app</strong>. Use your password or PIN on mobile browsers.
                 </p>
@@ -386,7 +386,7 @@ export function LoginScreen({ onSuccess, onRegister, onForgot, onCreateAccount }
             {!locked && <PinDots value={pin} length={4} error={!!pinError} />}
             {locked ? (
               <div style={{ background: "#FEE2E2", borderRadius: 12, padding: 16, margin: "20px 0" }}>
-                <p style={{ margin: 0, color: C.danger, fontWeight: 700 }}>ð Account Locked</p>
+                <p style={{ margin: 0, color: C.danger, fontWeight: 700 }}>🔒 Account Locked</p>
                 <p style={{ margin: "6px 0 0", color: "#991B1B", fontSize: 13 }}>Use password to sign in</p>
               </div>
             ) : (
@@ -410,7 +410,7 @@ export function LoginScreen({ onSuccess, onRegister, onForgot, onCreateAccount }
   )
 }
 
-// ââ FORGOT PASSWORD âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── FORGOT PASSWORD ───────────────────────────────────────────────────────────
 export function ForgotScreen({ onBack }) {
   const [step, setStep] = useState("email")
   const [email, setEmail] = useState("")
@@ -425,7 +425,7 @@ export function ForgotScreen({ onBack }) {
 
   if (step === "success") return (
     <div style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
-      <div style={{ fontSize: 60, marginBottom: 20 }}>ð§</div>
+      <div style={{ fontSize: 60, marginBottom: 20 }}>📧</div>
       <h2 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 12px" }}>Check your email!</h2>
       <p style={{ fontSize: 14, color: "var(--text-secondary)", maxWidth: 280, lineHeight: 1.6, margin: "0 0 32px" }}>We've sent a password reset link to <strong>{email}</strong>. Check your inbox and follow the instructions.</p>
       <button onClick={onBack} style={{ background: C.primary, color: "white", border: "none", borderRadius: 14, padding: "14px 32px", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>Back to Login</button>
@@ -434,8 +434,8 @@ export function ForgotScreen({ onBack }) {
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <button onClick={onBack} style={{ alignSelf: "flex-start", background: "none", border: "none", color: C.primary, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 24, padding: 0 }}>â Back</button>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>ð</div>
+      <button onClick={onBack} style={{ alignSelf: "flex-start", background: "none", border: "none", color: C.primary, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 24, padding: 0 }}>← Back</button>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>🔓</div>
       <h2 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 8px", textAlign: "center" }}>Forgot Password?</h2>
       <p style={{ fontSize: 14, color: "var(--text-secondary)", textAlign: "center", margin: "0 0 28px", maxWidth: 280 }}>Enter your email or phone number and we'll send you a reset link.</p>
       <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email or phone number"
@@ -448,7 +448,7 @@ export function ForgotScreen({ onBack }) {
   )
 }
 
-// ââ TRANSACTION PIN MODAL âââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── TRANSACTION PIN MODAL ─────────────────────────────────────────────────────
 export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment" }) {
   const [pin, setPin] = useState("")
   const [error, setError] = useState("")
@@ -475,7 +475,7 @@ export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment" }) 
         <div style={{ width: 40, height: 4, background: "var(--border)", borderRadius: 2, margin: "0 auto 20px" }} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{label}</h3>
-          <button onClick={onCancel} style={{ background: "#f0f0f0", border: "none", borderRadius: 50, width: 32, height: 32, fontSize: 18, cursor: "pointer" }}>â</button>
+          <button onClick={onCancel} style={{ background: "#f0f0f0", border: "none", borderRadius: 50, width: 32, height: 32, fontSize: 18, cursor: "pointer" }}>✕</button>
         </div>
         <p style={{ margin: "0 0 4px", fontSize: 13, color: "var(--text-tertiary)" }}>Enter your 6-digit transaction PIN to proceed</p>
         <PinDots value={pin} length={6} error={!!error} />
@@ -486,8 +486,8 @@ export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment" }) 
   )
 }
 
-// ââ PROFILE SCREEN ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-// ââ CHANGE / SET PIN FLOW (login = 4-digit, txn = 6-digit) ââââââââââââââââââââ
+// ── PROFILE SCREEN ────────────────────────────────────────────────────────────
+// ── CHANGE / SET PIN FLOW (login = 4-digit, txn = 6-digit) ────────────────────
 export function ChangePinFlow({ kind = "txn", forceSetup = false, onBack, onDone }) {
   const isLogin = kind === "login"
   const len = isLogin ? 4 : 6
@@ -524,7 +524,7 @@ export function ChangePinFlow({ kind = "txn", forceSetup = false, onBack, onDone
 
   if (done) return (
     <div style={wrap}>
-      <div style={{ fontSize: 56, marginBottom: 8 }}>â</div>
+      <div style={{ fontSize: 56, marginBottom: 8 }}>✅</div>
       <h3 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 800 }}>{title} {changing ? "updated" : "set"}!</h3>
       <p style={{ margin: "0 0 20px", fontSize: 13, color: "var(--text-secondary)", maxWidth: 280 }}>
         {isLogin ? "Use this PIN to unlock the app." : "You'll enter this PIN to approve every payment."}
@@ -537,8 +537,8 @@ export function ChangePinFlow({ kind = "txn", forceSetup = false, onBack, onDone
 
   return (
     <div style={wrap}>
-      {!forceSetup && <button onClick={onBack} style={{ alignSelf: "flex-start", background: "none", border: "none", color: C.primary, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 24 }}>â Back</button>}
-      <div style={{ fontSize: 48, marginBottom: 12 }}>{isLogin ? "ð" : "ð"}</div>
+      {!forceSetup && <button onClick={onBack} style={{ alignSelf: "flex-start", background: "none", border: "none", color: C.primary, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 24 }}>← Back</button>}
+      <div style={{ fontSize: 48, marginBottom: 12 }}>{isLogin ? "🔐" : "🔑"}</div>
       <h3 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 800 }}>{heading}</h3>
       <p style={{ margin: "0 0 4px", fontSize: 13, color: "var(--text-secondary)", maxWidth: 300 }}>
         {forceSetup && stage !== "confirm" ? `Secure your payments with a ${len}-digit PIN.` : `Enter your ${len}-digit ${title.toLowerCase()}.`}
@@ -550,7 +550,7 @@ export function ChangePinFlow({ kind = "txn", forceSetup = false, onBack, onDone
   )
 }
 
-// ââ CHANGE PASSWORD (local accounts only; Pi accounts have no password) âââââââ
+// ── CHANGE PASSWORD (local accounts only; Pi accounts have no password) ───────
 export function ChangePasswordFlow({ onBack }) {
   const user = JSON.parse(localStorage.getItem("zappi_user") || "{}")
   const hasPw = !!user.password
@@ -577,17 +577,17 @@ export function ChangePasswordFlow({ onBack }) {
 
   return (
     <div style={wrap}>
-      <button onClick={onBack} style={{ alignSelf: "flex-start", background: "none", border: "none", color: C.primary, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 24 }}>â Back</button>
-      <div style={{ fontSize: 48, marginBottom: 12 }}>ð</div>
+      <button onClick={onBack} style={{ alignSelf: "flex-start", background: "none", border: "none", color: C.primary, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 24 }}>← Back</button>
+      <div style={{ fontSize: 48, marginBottom: 12 }}>🔒</div>
       <h3 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 800 }}>Change Password</h3>
       {done ? (
         <>
-          <p style={{ margin: "0 0 20px", fontSize: 13, color: "#16a34a", fontWeight: 600 }}>â Password updated!</p>
+          <p style={{ margin: "0 0 20px", fontSize: 13, color: "#16a34a", fontWeight: 600 }}>✓ Password updated!</p>
           <button onClick={onBack} style={{ background: C.primary, color: "white", border: "none", borderRadius: 12, padding: "12px 28px", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Done</button>
         </>
       ) : !hasPw ? (
         <>
-          <p style={{ margin: "0 0 20px", fontSize: 13, color: "var(--text-secondary)", maxWidth: 300 }}>You sign in with Pi Network, so there's no password to change here â your Pi account secures your login.</p>
+          <p style={{ margin: "0 0 20px", fontSize: 13, color: "var(--text-secondary)", maxWidth: 300 }}>You sign in with Pi Network, so there's no password to change here — your Pi account secures your login.</p>
           <button onClick={onBack} style={{ background: C.primary, color: "white", border: "none", borderRadius: 12, padding: "12px 28px", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Got it</button>
         </>
       ) : (
@@ -618,12 +618,12 @@ export function ProfileScreen({ onBack, onLogout }) {
     setTimeout(() => setSaved(false), 2000)
   }
 
-  const avatars = ["ð", "ð¨ð¾", "ð©ð¾", "ð¦", "â¡", "ð¥", "ð", "ð¯", "ð", "ð¦"]
+  const avatars = ["😊", "👨🏾", "👩🏾", "🦁", "⚡", "🔥", "💎", "🎯", "🚀", "🦅"]
 
   const stats = [
     { label: "Transactions", value: "24" },
-    { label: "Pi Sent", value: "Ï45.5" },
-    { label: "Saved", value: "â¦12k" },
+    { label: "Pi Sent", value: "π45.5" },
+    { label: "Saved", value: "₦12k" },
   ]
 
   if (section === "changePin") return <ChangePinFlow kind="login" onBack={() => setSection(null)} />
@@ -633,8 +633,8 @@ export function ProfileScreen({ onBack, onLogout }) {
   return (
     <div style={{ minHeight: "100vh", background: C.bg }}>
       <div style={{ background: `linear-gradient(135deg,${C.primary},#9F67F5)`, padding: "calc(env(safe-area-inset-top, 0px) + 48px) 20px 32px", textAlign: "center" , position: "relative" }}>
-        <button onClick={onBack} style={{ position: "absolute", left: 16, top: 40, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 10, padding: "6px 14px", cursor: "pointer", fontSize: 14, fontWeight: 500 }}>â</button>
-        <div style={{ width: 70, height: 70, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, margin: "0 auto 12px", border: "3px solid rgba(255,255,255,0.4)" }}>{user.avatar || "â¡"}</div>
+        <button onClick={onBack} style={{ position: "absolute", left: 16, top: 40, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 10, padding: "6px 14px", cursor: "pointer", fontSize: 14, fontWeight: 500 }}>←</button>
+        <div style={{ width: 70, height: 70, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, margin: "0 auto 12px", border: "3px solid rgba(255,255,255,0.4)" }}>{user.avatar || "⚡"}</div>
         <h2 style={{ color: "white", margin: "0 0 4px", fontSize: 20, fontWeight: 800 }}>{user.fullName || "User"}</h2>
         <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, margin: 0 }}>{user.email}</p>
       </div>
@@ -649,7 +649,7 @@ export function ProfileScreen({ onBack, onLogout }) {
       </div>
 
       <div style={{ padding: 16 }}>
-        {saved && <div style={{ background: "#DCFCE7", borderRadius: 12, padding: 12, marginBottom: 12, textAlign: "center", color: "#166534", fontWeight: 600, fontSize: 13 }}>â Profile saved!</div>}
+        {saved && <div style={{ background: "#DCFCE7", borderRadius: 12, padding: 12, marginBottom: 12, textAlign: "center", color: "#166534", fontWeight: 600, fontSize: 13 }}>✓ Profile saved!</div>}
 
         <div style={{ background: "var(--card-bg)", borderRadius: 16, padding: 16, marginBottom: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -671,7 +671,7 @@ export function ProfileScreen({ onBack, onLogout }) {
               <p style={{ fontSize: 11, color: "var(--text-tertiary)", margin: "0 0 4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>{f.label}</p>
               {editing
                 ? <input value={form[f.key] || ""} onChange={e => setForm({ ...form, [f.key]: e.target.value })} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1.5px solid #E5E7EB", boxSizing: "border-box", fontSize: 14, outline: "none" }} />
-                : <p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{user[f.key] || "â"}</p>
+                : <p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{user[f.key] || "—"}</p>
               }
             </div>
           ))}
@@ -680,10 +680,10 @@ export function ProfileScreen({ onBack, onLogout }) {
         <div style={{ background: "var(--card-bg)", borderRadius: 16, padding: 4, marginBottom: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
           <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-tertiary)", margin: "12px 14px 8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Security</p>
           {[
-            { icon: "ð", label: "Change Login PIN", sub: "Update your 4-digit unlock PIN", action: () => setSection("changePin") },
-            { icon: "ð", label: "Change Transaction PIN", sub: "Update your 6-digit payment PIN", action: () => setSection("changeTxnPin") },
-            { icon: "ð", label: "Change Password", sub: "Update your account password", action: () => setSection("changePassword") },
-            ...(!mobileBrowser ? [{ icon: "ð", label: "Fingerprint Login", sub: "Enable biometric authentication", action: () => alert("Fingerprint login is available on supported devices") }] : []),
+            { icon: "🔐", label: "Change Login PIN", sub: "Update your 4-digit unlock PIN", action: () => setSection("changePin") },
+            { icon: "🔑", label: "Change Transaction PIN", sub: "Update your 6-digit payment PIN", action: () => setSection("changeTxnPin") },
+            { icon: "🔒", label: "Change Password", sub: "Update your account password", action: () => setSection("changePassword") },
+            ...(!mobileBrowser ? [{ icon: "👆", label: "Fingerprint Login", sub: "Enable biometric authentication", action: () => alert("Fingerprint login is available on supported devices") }] : []),
           ].map(item => (
             <button key={item.label} onClick={item.action} style={{ width: "100%", background: "none", border: "none", padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", borderRadius: 12, textAlign: "left" }}>
               <span style={{ fontSize: 22, width: 36, textAlign: "center" }}>{item.icon}</span>
@@ -691,19 +691,19 @@ export function ProfileScreen({ onBack, onLogout }) {
                 <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{item.label}</p>
                 <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-tertiary)" }}>{item.sub}</p>
               </div>
-              <span style={{ color: "var(--text-tertiary)", fontSize: 18 }}>âº</span>
+              <span style={{ color: "var(--text-tertiary)", fontSize: 18 }}>›</span>
             </button>
           ))}
           {mobileBrowser && (
             <div style={{ margin: "4px 14px 12px", display: "flex", alignItems: "flex-start", gap: 8, background: "#FEF9C3", borderRadius: 10, padding: "10px 12px" }}>
-              <span style={{ fontSize: 14 }}>â¹ï¸</span>
+              <span style={{ fontSize: 14 }}>ℹ️</span>
               <p style={{ margin: 0, fontSize: 12, color: "#854D0E", lineHeight: 1.5 }}>Fingerprint login works in the <strong>Pi Browser app</strong>, not in mobile browsers.</p>
             </div>
           )}
         </div>
 
         <button onClick={onLogout} style={{ width: "100%", background: "#FEE2E2", color: C.danger, border: "none", borderRadius: 14, padding: 15, fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
-          ðª Sign Out
+          🚪 Sign Out
         </button>
       </div>
     </div>
