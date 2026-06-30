@@ -149,7 +149,7 @@ const r = await fetch(`${API}/api/pi-rate`)
 const d = await r.json()
 if (!cancelled && d && d.ngnPerPi > 0) {
 setLiveRate(d.ngnPerPi)
-setRateLive(d.source === "live" && !d.stale)
+setRateLive((d.source === "live" || d.source === "live-cached") && !d.stale)
 localStorage.setItem("zappi_rate", String(d.ngnPerPi))
 }
 } catch {
