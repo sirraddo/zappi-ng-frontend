@@ -290,7 +290,7 @@ export function RegisterScreen({ onSuccess, onLogin }) {
 }
 
 // ── LOGIN ─────────────────────────────────────────────────────────────────────
-export function LoginScreen({ onSuccess, onRegister, onForgot }) {
+export function LoginScreen({ onSuccess, onRegister, onForgot, onCreateAccount }) {
   const [method, setMethod] = useState("password")
   const [form, setForm] = useState({ email: "", password: "" })
   const [showPass, setShowPass] = useState(false)
@@ -401,6 +401,9 @@ export function LoginScreen({ onSuccess, onRegister, onForgot }) {
 
         <p style={{ textAlign: "center", fontSize: 13, color: "var(--text-secondary)", marginTop: 20 }}>
           Prefer Pi login? <button onClick={onRegister} style={{ background: "none", border: "none", color: C.primary, fontWeight: 700, cursor: "pointer", fontSize: 13 }}>Continue with Pi</button>
+        </p>
+        <p style={{ textAlign: "center", fontSize: 13, color: "var(--text-secondary)", marginTop: 12 }}>
+          New here? <button onClick={onCreateAccount} style={{ background: "none", border: "none", color: C.primary, fontWeight: 700, cursor: "pointer", fontSize: 13 }}>Create an account →</button>
         </p>
       </div>
     </div>
