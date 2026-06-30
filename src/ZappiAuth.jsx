@@ -399,9 +399,14 @@ export function LoginScreen({ onSuccess, onRegister, onForgot, onCreateAccount }
           </div>
         )}
 
-        <p style={{ textAlign: "center", fontSize: 13, color: "var(--text-secondary)", marginTop: 20 }}>
-          Prefer Pi login? <button onClick={onRegister} style={{ background: "none", border: "none", color: C.primary, fontWeight: 700, cursor: "pointer", fontSize: 13 }}>Continue with Pi</button>
-        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "22px 0 14px" }}>
+          <div style={{ flex: 1, height: 1, background: "#E5E7EB" }} />
+          <span style={{ fontSize: 12, color: "#9CA3AF", fontWeight: 700, letterSpacing: 0.5 }}>OR</span>
+          <div style={{ flex: 1, height: 1, background: "#E5E7EB" }} />
+        </div>
+        <button onClick={onRegister} style={{ width: "100%", background: C.primary, color: "white", border: "none", borderRadius: 14, padding: 14, fontSize: 15, fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 16px rgba(108,58,237,0.3)" }}>
+          ⚡ Continue with Pi
+        </button>
         <p style={{ textAlign: "center", fontSize: 13, color: "var(--text-secondary)", marginTop: 12 }}>
           New here? <button onClick={onCreateAccount} style={{ background: "none", border: "none", color: C.primary, fontWeight: 700, cursor: "pointer", fontSize: 13 }}>Create an account →</button>
         </p>
