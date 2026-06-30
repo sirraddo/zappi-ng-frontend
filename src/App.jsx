@@ -6,7 +6,7 @@ import PiRateTicker from "./components/PiRateTicker.jsx"
 import TransactionReceipt from "./components/TransactionReceipt.jsx"
 import { PrivacyPolicy, TermsOfService } from "./pages/LegalPages.jsx"
 import SupportPage from "./pages/SupportPage.jsx"
-import { SplashScreen, RegisterScreen, LoginScreen, ForgotScreen, TxnPinModal, ProfileScreen } from "./ZappiAuth"
+import { SplashScreen, RegisterScreen, LoginScreen, ForgotScreen, TxnPinModal, ProfileScreen, ChangePinFlow } from "./ZappiAuth"
 
 const RATE = 600 // fallback only — app uses live rate from backend
 const C = {
@@ -62,7 +62,7 @@ const INTERNET_PROVIDERS=[{id:"smile",label:"Smile",icon:"😊",price:3000},{id:
 function NavBar({ page, setPage }) {
 const tabs=[{id:"home",icon:"🏠",label:"Home"},{id:"bills",icon:"📋",label:"Bills"},{id:"send",icon:"💸",label:"Send"},{id:"more",icon:"⚡",label:"More"},{id:"history",icon:"🕐",label:"History"}]
 return (
-<div style={{position:"sticky",bottom:0,background:"white",borderTop:"1px solid #eee",display:"flex",padding:"8px 0 12px",zIndex:100}}>
+<div style={{position:"sticky",bottom:0,background:"white",borderTop:"1px solid #eee",display:"flex",padding:"8px 0 calc(env(safe-area-inset-bottom, 0px) + 22px)",zIndex:100}}>
 {tabs.map(t=>(
 <button key={t.id} onClick={()=>setPage(t.id)} style={{flex:1,background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
 <span style={{fontSize:20}}>{t.icon}</span>
@@ -166,6 +166,7 @@ return () => { cancelled = true; clearInterval(interval) }
 
 const [authScreen, setAuthScreen] = useState("splash") // splash|register|login|forgot
 const [isLoggedIn, setIsLoggedIn] = useState(false)
+const [txnPinReady, setTxnPinReady] = useState(!!localStorage.getItem("zappi_txn_pin"))
 const [showProfile, setShowProfile] = useState(false)
 
 // Check if user exists on load
@@ -360,10 +361,13 @@ const filteredTx = txFilter==="all"?transactions:transactions.filter(t=>t.type==
 // ── AUTH SCREENS ────────────────────────────────────────────────────────────
 if (!isLoggedIn) {
 if (authScreen === "splash") return <SplashScreen onContinue={setAuthScreen} />
-if (authScreen === "register") return <RegisterScreen onSuccess={()=>setIsLoggedIn(true)} onLogin={()=>setAuthScreen("login")} />
-if (authScreen === "login") return <LoginScreen onSuccess={()=>setIsLoggedIn(true)} onRegister={()=>setAuthScreen("register")} onForgot={()=>setAuthScreen("forgot")} />
+if (authScreen === "register") return <RegisterScreen onSuccess={()=>{setIsLoggedIn(true);setTxnPinReady(!!localStorage.getItem("zappi_txn_pin"))}} onLogin={()=>setAuthScreen("login")} />
+if (authScreen === "login") return <LoginScreen onSuccess={()=>{setIsLoggedIn(true);setTxnPinReady(!!localStorage.getItem("zappi_txn_pin"))}} onRegister={()=>setAuthScreen("register")} onForgot={()=>setAuthScreen("forgot")} />
 if (authScreen === "forgot") return <ForgotScreen onBack={()=>setAuthScreen("login")} />
 }
+
+// First-login: require a transaction PIN before entering the app
+if (!txnPinReady) return <ChangePinFlow kind="txn" forceSetup onDone={()=>setTxnPinReady(true)} />
 
 // Keep Profile inside the same phone-width shell as the rest of the app
 if (showProfile) return (

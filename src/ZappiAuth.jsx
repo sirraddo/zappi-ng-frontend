@@ -476,6 +476,123 @@ export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment" }) 
 }
 
 // ── PROFILE SCREEN ────────────────────────────────────────────────────────────
+// ── CHANGE / SET PIN FLOW (login = 4-digit, txn = 6-digit) ────────────────────
+export function ChangePinFlow({ kind = "txn", forceSetup = false, onBack, onDone }) {
+  const isLogin = kind === "login"
+  const len = isLogin ? 4 : 6
+  const storageKey = isLogin ? "zappi_login_pin" : "zappi_txn_pin"
+  const title = isLogin ? "Login PIN" : "Transaction PIN"
+  const existing = localStorage.getItem(storageKey)
+  const changing = existing && !forceSetup
+  const [stage, setStage] = useState(changing ? "current" : "new") // current | new | confirm
+  const [entry, setEntry] = useState("")
+  const [draft, setDraft] = useState("")
+  const [error, setError] = useState("")
+  const [done, setDone] = useState(false)
+
+  useEffect(() => {
+    if (entry.length !== len) { if (entry.length === 0) setError(""); return }
+    const t = setTimeout(() => {
+      if (stage === "current") {
+        if (entry === existing) { setStage("new"); setEntry(""); setError("") }
+        else { setError("Incorrect current PIN"); setEntry("") }
+      } else if (stage === "new") {
+        setDraft(entry); setStage("confirm"); setEntry(""); setError("")
+      } else {
+        if (entry === draft) { localStorage.setItem(storageKey, draft); setDone(true) }
+        else { setError("PINs didn't match. Start again."); setStage("new"); setDraft(""); setEntry("") }
+      }
+    }, 250)
+    return () => clearTimeout(t)
+  }, [entry])
+
+  const press = (d) => setEntry(p => (p.length < len ? p + d : p))
+  const del = () => { setError(""); setEntry(p => p.slice(0, -1)) }
+
+  const wrap = { minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }
+
+  if (done) return (
+    <div style={wrap}>
+      <div style={{ fontSize: 56, marginBottom: 8 }}>✅</div>
+      <h3 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 800 }}>{title} {changing ? "updated" : "set"}!</h3>
+      <p style={{ margin: "0 0 20px", fontSize: 13, color: "#777", maxWidth: 280 }}>
+        {isLogin ? "Use this PIN to unlock the app." : "You'll enter this PIN to approve every payment."}
+      </p>
+      <button onClick={onDone || onBack} style={{ background: C.primary, color: "white", border: "none", borderRadius: 12, padding: "12px 28px", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Continue</button>
+    </div>
+  )
+
+  const heading = stage === "current" ? `Enter current ${title}` : stage === "confirm" ? `Confirm new ${title}` : (changing ? `Enter new ${title}` : `Create your ${title}`)
+
+  return (
+    <div style={wrap}>
+      {!forceSetup && <button onClick={onBack} style={{ alignSelf: "flex-start", background: "none", border: "none", color: C.primary, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 24 }}>← Back</button>}
+      <div style={{ fontSize: 48, marginBottom: 12 }}>{isLogin ? "🔐" : "🔑"}</div>
+      <h3 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 800 }}>{heading}</h3>
+      <p style={{ margin: "0 0 4px", fontSize: 13, color: "#777", maxWidth: 300 }}>
+        {forceSetup && stage !== "confirm" ? `Secure your payments with a ${len}-digit PIN.` : `Enter your ${len}-digit ${title.toLowerCase()}.`}
+      </p>
+      <PinDots value={entry} length={len} error={!!error} />
+      {error && <p style={{ color: C.danger, fontSize: 13, fontWeight: 600, margin: "0 0 8px" }}>{error}</p>}
+      <PinPad onPress={press} onDelete={del} />
+    </div>
+  )
+}
+
+// ── CHANGE PASSWORD (local accounts only; Pi accounts have no password) ───────
+export function ChangePasswordFlow({ onBack }) {
+  const user = JSON.parse(localStorage.getItem("zappi_user") || "{}")
+  const hasPw = !!user.password
+  const [cur, setCur] = useState("")
+  const [pw, setPw] = useState("")
+  const [cf, setCf] = useState("")
+  const [error, setError] = useState("")
+  const [done, setDone] = useState(false)
+
+  function submit() {
+    if (cur !== user.password) return setError("Current password is incorrect")
+    if (pw.length < 6) return setError("New password must be at least 6 characters")
+    if (pw !== cf) return setError("New passwords do not match")
+    localStorage.setItem("zappi_user", JSON.stringify({ ...user, password: pw }))
+    setDone(true)
+  }
+
+  const inp = (val, set, ph) => (
+    <input type="password" value={val} onChange={e => { set(e.target.value); setError("") }} placeholder={ph}
+      style={{ width: "100%", padding: 12, borderRadius: 10, border: "1.5px solid #E5E7EB", boxSizing: "border-box", fontSize: 14, outline: "none", marginBottom: 10 }} />
+  )
+
+  const wrap = { minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }
+
+  return (
+    <div style={wrap}>
+      <button onClick={onBack} style={{ alignSelf: "flex-start", background: "none", border: "none", color: C.primary, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 24 }}>← Back</button>
+      <div style={{ fontSize: 48, marginBottom: 12 }}>🔒</div>
+      <h3 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 800 }}>Change Password</h3>
+      {done ? (
+        <>
+          <p style={{ margin: "0 0 20px", fontSize: 13, color: "#16a34a", fontWeight: 600 }}>✓ Password updated!</p>
+          <button onClick={onBack} style={{ background: C.primary, color: "white", border: "none", borderRadius: 12, padding: "12px 28px", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Done</button>
+        </>
+      ) : !hasPw ? (
+        <>
+          <p style={{ margin: "0 0 20px", fontSize: 13, color: "#777", maxWidth: 300 }}>You sign in with Pi Network, so there's no password to change here — your Pi account secures your login.</p>
+          <button onClick={onBack} style={{ background: C.primary, color: "white", border: "none", borderRadius: 12, padding: "12px 28px", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Got it</button>
+        </>
+      ) : (
+        <div style={{ width: "100%", maxWidth: 320 }}>
+          {inp(cur, setCur, "Current password")}
+          {inp(pw, setPw, "New password (min 6 chars)")}
+          {inp(cf, setCf, "Confirm new password")}
+          {error && <p style={{ color: C.danger, fontSize: 13, fontWeight: 600, margin: "0 0 8px" }}>{error}</p>}
+          <button onClick={submit} style={{ width: "100%", background: C.primary, color: "white", border: "none", borderRadius: 12, padding: 14, fontWeight: 700, fontSize: 15, cursor: "pointer", marginTop: 4 }}>Update Password</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 export function ProfileScreen({ onBack, onLogout }) {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem("zappi_user") || "{}"))
   const [editing, setEditing] = useState(false)
@@ -498,15 +615,9 @@ export function ProfileScreen({ onBack, onLogout }) {
     { label: "Saved", value: "₦12k" },
   ]
 
-  if (section) return (
-    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <button onClick={() => setSection(null)} style={{ alignSelf: "flex-start", background: "none", border: "none", color: C.primary, fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 24 }}>← Back</button>
-      <div style={{ fontSize: 48, marginBottom: 12 }}>{section === "changePin" ? "🔐" : section === "changeTxnPin" ? "🔑" : "🔒"}</div>
-      <h3 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 800 }}>{section === "changePin" ? "Change Login PIN" : section === "changeTxnPin" ? "Change Transaction PIN" : "Change Password"}</h3>
-      <p style={{ margin: "0 0 8px", fontSize: 13, color: "#777", textAlign: "center" }}>Feature coming soon in next update!</p>
-      <button onClick={() => setSection(null)} style={{ background: C.primary, color: "white", border: "none", borderRadius: 12, padding: "12px 28px", fontWeight: 700, fontSize: 14, cursor: "pointer", marginTop: 12 }}>Got it</button>
-    </div>
-  )
+  if (section === "changePin") return <ChangePinFlow kind="login" onBack={() => setSection(null)} />
+  if (section === "changeTxnPin") return <ChangePinFlow kind="txn" onBack={() => setSection(null)} />
+  if (section === "changePassword") return <ChangePasswordFlow onBack={() => setSection(null)} />
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg }}>
