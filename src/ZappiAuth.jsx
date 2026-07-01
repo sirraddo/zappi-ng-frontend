@@ -299,7 +299,17 @@ export function LoginScreen({ onSuccess, onRegister, onForgot, onCreateAccount }
   const [pinError, setPinError] = useState("")
   const [attempts, setAttempts] = useState(0)
   const [locked, setLocked] = useState(false)
-  const [mobileBrowser] = useState(() => isMobileBrowser())
+  const [mobileBrowser, setMobileBrowser] = useState(() => isMobileBrowser())
+  useEffect(() => {
+    let cancelled = false
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000))
+    Promise.race([window.Pi?.getPiHostAppInfo?.(), timeout])
+      .then(result => {
+        if (!cancelled && result?.hostApp === "pi-browser") setMobileBrowser(false)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   const handlePasswordLogin = () => {
     const user = JSON.parse(localStorage.getItem("zappi_user") || "{}")
@@ -615,7 +625,17 @@ export function ProfileScreen({ onBack, onLogout }) {
   const [form, setForm] = useState(user)
   const [saved, setSaved] = useState(false)
   const [section, setSection] = useState(null)
-  const [mobileBrowser] = useState(() => isMobileBrowser())
+  const [mobileBrowser, setMobileBrowser] = useState(() => isMobileBrowser())
+  useEffect(() => {
+    let cancelled = false
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000))
+    Promise.race([window.Pi?.getPiHostAppInfo?.(), timeout])
+      .then(result => {
+        if (!cancelled && result?.hostApp === "pi-browser") setMobileBrowser(false)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   const save = () => {
     localStorage.setItem("zappi_user", JSON.stringify(form))
