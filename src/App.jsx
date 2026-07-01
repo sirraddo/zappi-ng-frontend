@@ -6,7 +6,7 @@ import PiRateTicker from "./components/PiRateTicker.jsx"
 import TransactionReceipt from "./components/TransactionReceipt.jsx"
 import { PrivacyPolicy, TermsOfService } from "./pages/LegalPages.jsx"
 import SupportPage from "./pages/SupportPage.jsx"
-import { SplashScreen, RegisterScreen, LoginScreen, ForgotScreen, TxnPinModal, ProfileScreen, ChangePinFlow } from "./ZappiAuth"
+import { SplashScreen, LoginScreen, TxnPinModal, ProfileScreen, ChangePinFlow } from "./ZappiAuth"
 
 const RATE = 600 // fallback only — app uses live rate from backend
 const C = {
@@ -164,7 +164,7 @@ const interval = setInterval(() => fetchRate(), 60000) // refresh while app is o
 return () => { cancelled = true; clearInterval(interval) }
 }, [])
 
-const [authScreen, setAuthScreen] = useState("splash") // splash|register|login|forgot
+const [authScreen, setAuthScreen] = useState("splash") // splash|login
 const [isLoggedIn, setIsLoggedIn] = useState(false)
 const [txnPinReady, setTxnPinReady] = useState(!!localStorage.getItem("zappi_txn_pin"))
 const [showProfile, setShowProfile] = useState(false)
@@ -173,8 +173,7 @@ const [showProfile, setShowProfile] = useState(false)
 useEffect(() => {
 const user = localStorage.getItem("zappi_user")
 const pin = localStorage.getItem("zappi_login_pin")
-if (user && pin) setAuthScreen("login")
-else if (user) setAuthScreen("login")
+if (user) setAuthScreen("login")
 }, [])
 
 const [page, setPage] = useState("home")
@@ -361,9 +360,7 @@ const filteredTx = txFilter==="all"?transactions:transactions.filter(t=>t.type==
 // ── AUTH SCREENS ────────────────────────────────────────────────────────────
 if (!isLoggedIn) {
 if (authScreen === "splash") return <SplashScreen onContinue={setAuthScreen} onSuccess={()=>{setIsLoggedIn(true);setTxnPinReady(!!localStorage.getItem("zappi_txn_pin"))}} />
-if (authScreen === "register") return <RegisterScreen onSuccess={()=>{setIsLoggedIn(true);setTxnPinReady(!!localStorage.getItem("zappi_txn_pin"))}} onLogin={()=>setAuthScreen("login")} />
-if (authScreen === "login") return <LoginScreen onSuccess={()=>{setIsLoggedIn(true);setTxnPinReady(!!localStorage.getItem("zappi_txn_pin"))}} onRegister={()=>setAuthScreen("splash")} onCreateAccount={()=>setAuthScreen("register")} onForgot={()=>setAuthScreen("forgot")} />
-if (authScreen === "forgot") return <ForgotScreen onBack={()=>setAuthScreen("login")} />
+if (authScreen === "login") return <LoginScreen onSuccess={()=>{setIsLoggedIn(true);setTxnPinReady(!!localStorage.getItem("zappi_txn_pin"))}} />
 }
 
 // First-login: require a transaction PIN before entering the app
