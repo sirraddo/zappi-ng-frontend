@@ -727,7 +727,7 @@ export function ProfileScreen({ onBack, onLogout }) {
           )}
         </div>
 
-        <button onClick={onLogout} style={{ width: "100%", background: "#FEE2E2", color: C.danger, border: "none", borderRadius: 14, padding: 15, fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+        <button onClick={onLogout} style={{ width: "100%", background: "#FEE2E2", color: C.danger, border: "none", borderRadius: 14, padding: 15, fontSize: 15, fontWeight: 700, cursor: "pointer", marginBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}>
           🚪 Sign Out
         </button>
       </div>
