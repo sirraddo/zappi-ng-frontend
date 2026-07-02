@@ -136,7 +136,7 @@ export function usePiNetwork() {
               }
             );
             const data = await res.json();
-            onSuccess?.(txid, data);
+            onSuccess?.(txid, data, paymentId);
           } catch (e) {
             onError?.(e);
           }
