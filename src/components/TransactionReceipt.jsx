@@ -213,7 +213,7 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
           {receipt.txid && (
             <Row label="Pi TxID" value={
               <a href={`https://blockexplorer.minepi.com/tx/${receipt.txid}`} target="_blank" rel="noopener noreferrer" className="receipt-txlink">
-                {receipt.txid.slice(0, 12)}…{receipt.txid.slice(-6)}
+                {receipt.txid.slice(0, 12)}¦₦{receipt.txid.slice(-6)}
               </a>
             } />
           )}
