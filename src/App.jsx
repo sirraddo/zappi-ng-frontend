@@ -7,6 +7,15 @@ import TransactionReceipt from "./components/TransactionReceipt.jsx"
 import { PrivacyPolicy, TermsOfService } from "./pages/LegalPages.jsx"
 import SupportPage from "./pages/SupportPage.jsx"
 import { SplashScreen, LoginScreen, TxnPinModal, ProfileScreen, ChangePinFlow } from "./ZappiAuth"
+import { hasServerPin, hasLegacyPin, REAL_PAYMENTS, completeBillPayment } from "./hooks/useTxnConfirmation"
+
+// VTPass serviceID mappings for the real-payments path (VITE_REAL_PAYMENTS).
+// NOTE: data-bundle/cable variation codes are still local placeholders — the
+// catalog should come from /api/payments/services + /variations (follow-up).
+const VTPASS_AIRTIME = { MTN: "mtn", Airtel: "airtel", Glo: "glo", "9mobile": "etisalat" }
+const VTPASS_DATA = { MTN: "mtn-data", Airtel: "airtel-data", Glo: "glo-data", "9mobile": "etisalat-data" }
+const VTPASS_CABLE = { DStv: "dstv", GOtv: "gotv", Startimes: "startimes" }
+const VTPASS_DISCO = { IKEDC: "ikeja-electric", EKEDC: "eko-electric", AEDC: "abuja-electric", PHED: "portharcourt-electric", EEDC: "enugu-electric", KEDCO: "kano-electric" }
 
 const RATE = 600 // fallback only — app uses live rate from backend
 const C = {
@@ -132,7 +141,7 @@ return (
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function App() {
-const { piAuth, piUser, isSandbox } = usePi()
+const { piAuth, piUser, isSandbox, createPayment, isReady } = usePi()
 const { theme, toggleTheme } = useTheme()
 const [liveRate, setLiveRate] = useState(() => {
 const cached = Number(localStorage.getItem("zappi_rate"))
@@ -166,7 +175,7 @@ return () => { cancelled = true; clearInterval(interval) }
 
 const [authScreen, setAuthScreen] = useState("splash") // splash|login
 const [isLoggedIn, setIsLoggedIn] = useState(false)
-const [txnPinReady, setTxnPinReady] = useState(!!localStorage.getItem("zappi_txn_pin"))
+const [txnPinReady, setTxnPinReady] = useState(hasServerPin())
 const [showProfile, setShowProfile] = useState(false)
 
 // Check if user exists on load
@@ -239,11 +248,10 @@ const user = JSON.parse(localStorage.getItem("zappi_user")||"{}")
 
 const showToast=(msg,type="success")=>{ setToast(msg); setToastType(type); setTimeout(()=>setToast(null),3500) }
 
-const requireTxnPin=(label,onSuccess)=>{
-const hasTxnPin=localStorage.getItem("zappi_txn_pin")
-if(hasTxnPin){ setTxnPinModal({label,onSuccess}) }
-else { onSuccess() }
-}
+// Opens the PIN/passkey modal; onConfirmed receives a single-use confirmation
+// token bound to txnFields (required by /api/payments/complete). Setup is
+// guaranteed by the txnPinReady gate, so confirmation is never skippable.
+const requireTxnConfirmation=(label,txnFields,onConfirmed)=>setTxnPinModal({label,txnFields,onConfirmed})
 
 const validate=(type)=>{
 if(type==="airtime"){
@@ -301,13 +309,26 @@ return true
 return true
 }
 
-// handlePay(service, tx): tx = { type, label, sub, ngn, pi?, icon?, color? }
+const resetInputs=()=>{
+setAmount(""); setPhone(""); setNetwork(""); setBundle(null)
+setDisco(""); setMeter(""); setRecipient(""); setPiAmount(""); setNote("")
+setBettingSite(null); setBettingId(""); setHotel(null); setTransport(null); setInternetProvider(null)
+}
+
+// The five fields the confirmation token is cryptographically bound to.
+// They must be sent identically to the confirm endpoint and /api/payments/complete.
+const buildTxnFields=(tx)=>{
+switch(tx.type){
+case "airtime": return { serviceID: VTPASS_AIRTIME[network]||"", billType:"airtime", amount: tx.ngn, phone, billersCode: phone }
+case "data": return { serviceID: VTPASS_DATA[network]||"", billType:"data", amount: tx.ngn, phone, billersCode: phone }
+case "electricity": return { serviceID: VTPASS_DISCO[disco.split(" ")[0]]||"", billType:"electricity", amount: tx.ngn, phone: meter, billersCode: meter }
+case "cable": return { serviceID: VTPASS_CABLE[network]||"", billType:"cable", amount: tx.ngn, phone: meter, billersCode: meter }
+default: return { serviceID: tx.type, billType: tx.type, amount: tx.ngn, phone: tx.sub||"", billersCode: "" }
+}
+}
+
 // Deducts the balance and records the transaction so History/Home stay truthful.
-const handlePay=(service, tx)=>{
-const piCost = tx.pi != null ? Number(tx.pi) : Number(tx.ngn) / liveRate
-if (piCost > balance) return showToast("Insufficient Pi balance","danger")
-requireTxnPin(`Confirm ${service}`,()=>{
-setTxnPinModal(null)
+const finishPayment=(service, tx, piCost)=>{
 updateBalance(-piCost)
 const newTx = {
 id: Date.now(), ts: Date.now(), status: "success",
@@ -320,9 +341,53 @@ addTransaction(newTx)
 setReceiptTx(newTx)
 showToast(`${service} payment successful! 🎉`,"success")
 setSubPage(null)
-setAmount(""); setPhone(""); setNetwork(""); setBundle(null)
-setDisco(""); setMeter(""); setRecipient(""); setPiAmount(""); setNote("")
-setBettingSite(null); setBettingId(""); setHotel(null); setTransport(null); setInternetProvider(null)
+resetInputs()
+}
+
+// Real path: Pi payment on-chain, then VTPass delivery via /api/payments/complete.
+// If the 120s confirmation token expires while the Pi wallet ceremony runs, the
+// delivery returns 401 — we re-confirm (Pi is NOT re-charged) and retry delivery only.
+const runRealPayment=(service, tx, txnFields, piCost, confirmationToken)=>{
+const extras = {
+variation_code: tx.type==="data" ? bundle?.code : undefined,
+piAmount: piCost,
+}
+const deliver = async (token, piPaymentId) => {
+await completeBillPayment(txnFields, { ...extras, piPaymentId }, token)
+finishPayment(service, tx, piCost)
+}
+createPayment(
+{ amount: Number(piCost.toFixed(7)), memo: `Zappi NG — ${service}`, metadata: { billType: txnFields.billType, serviceID: txnFields.serviceID } },
+async (txid, piData, paymentId) => {
+try { await deliver(confirmationToken, paymentId) }
+catch (e) {
+if (e.status === 401) {
+requireTxnConfirmation(`Confirm ${service} delivery`, txnFields, async (fresh) => {
+setTxnPinModal(null)
+try { await deliver(fresh, paymentId) }
+catch (e2) { showToast(e2.message || "Bill delivery failed — please contact support","danger") }
+})
+} else showToast(e.message || "Bill delivery failed — please contact support","danger")
+}
+},
+(err)=>showToast(err?.message || "Pi payment failed","danger")
+)
+}
+
+// handlePay(service, tx): tx = { type, label, sub, ngn, pi?, icon?, color? }
+const handlePay=(service, tx)=>{
+const piCost = tx.pi != null ? Number(tx.pi) : Number(tx.ngn) / liveRate
+if (piCost > balance) return showToast("Insufficient Pi balance","danger")
+const txnFields = buildTxnFields(tx)
+requireTxnConfirmation(`Confirm ${service}`, txnFields, (confirmationToken)=>{
+setTxnPinModal(null)
+const vtpassEligible = ["airtime","data","electricity","cable"].includes(tx.type) && !!txnFields.serviceID
+if (REAL_PAYMENTS && vtpassEligible && isReady && window.Pi) {
+runRealPayment(service, tx, txnFields, piCost, confirmationToken)
+} else {
+// Mock ledger (simulated delivery) — confirmation is still server-verified.
+finishPayment(service, tx, piCost)
+}
 })
 }
 
@@ -359,12 +424,14 @@ const filteredTx = txFilter==="all"?transactions:transactions.filter(t=>t.type==
 
 // ── AUTH SCREENS ────────────────────────────────────────────────────────────
 if (!isLoggedIn) {
-if (authScreen === "splash") return <SplashScreen onContinue={setAuthScreen} onSuccess={()=>{setIsLoggedIn(true);setTxnPinReady(!!localStorage.getItem("zappi_txn_pin"))}} />
-if (authScreen === "login") return <LoginScreen onSuccess={()=>{setIsLoggedIn(true);setTxnPinReady(!!localStorage.getItem("zappi_txn_pin"))}} />
+if (authScreen === "splash") return <SplashScreen onContinue={setAuthScreen} onSuccess={()=>{setIsLoggedIn(true);setTxnPinReady(hasServerPin())}} />
+if (authScreen === "login") return <LoginScreen onSuccess={()=>{setIsLoggedIn(true);setTxnPinReady(hasServerPin())}} />
 }
 
-// First-login: require a transaction PIN before entering the app
-if (!txnPinReady) return <ChangePinFlow kind="txn" forceSetup onDone={()=>setTxnPinReady(true)} />
+// First-login (or migration from the old on-device PIN): require a
+// server-side transaction PIN before entering the app
+if (!txnPinReady) return <ChangePinFlow kind="txn" forceSetup onDone={()=>setTxnPinReady(true)}
+subtitle={hasLegacyPin() ? "We've upgraded PIN security — please set your transaction PIN again. It's now verified on our servers, never stored on your device." : undefined} />
 
 // Keep Profile inside the same phone-width shell as the rest of the app
 if (showProfile) return (
@@ -379,7 +446,7 @@ return (
 
 {toast&&<div style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",background:toastType==="success"?C.success:C.danger,color:"white",padding:"12px 24px",borderRadius:24,fontSize:13,fontWeight:600,zIndex:9999,boxShadow:"0 4px 20px rgba(0,0,0,0.2)",whiteSpace:"nowrap"}}>{toast}</div>}
 
-{txnPinModal&&<TxnPinModal label={txnPinModal.label} onSuccess={txnPinModal.onSuccess} onCancel={()=>setTxnPinModal(null)}/>}
+{txnPinModal&&<TxnPinModal label={txnPinModal.label} txnFields={txnPinModal.txnFields} onSuccess={txnPinModal.onConfirmed} onCancel={()=>setTxnPinModal(null)}/>}
 {receiptTx&&<TransactionReceipt receipt={txToReceipt(receiptTx)} onDone={()=>setReceiptTx(null)}/>}
 
 {showNotif&&(
