@@ -1,4 +1,8 @@
 import { useState, useEffect } from "react"
+import {
+  verifyTxnPin, setTxnPin, hasServerPin,
+  confirmWithPasskey, registerPasskey, hasPasskey, webauthnSupported,
+} from "./hooks/useTxnConfirmation"
 
 const C = {
   primary: "#6C3AED",
@@ -6,14 +10,6 @@ const C = {
   success: "#22C55E",
   danger: "#EF4444",
   bg: "var(--bg-secondary)",
-}
-
-// ── MOBILE BROWSER DETECTOR ───────────────────────────────────────────────────
-function isMobileBrowser() {
-  const ua = navigator.userAgent || ""
-  const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua)
-  const isPiBrowser = /PiBrowser|pi-browser/i.test(ua)
-  return isMobile && !isPiBrowser
 }
 
 function isPiBrowser() {
@@ -73,9 +69,9 @@ function PinDots({ value, length, error }) {
     <div style={{ display: "flex", gap: 16, justifyContent: "center", margin: "28px 0 8px" }}>
       {Array.from({ length }).map((_, i) => (
         <div key={i} style={{
-          width: 16, height: 16, borderRadius: "50%", transition: "all 0.2s",
+          width: 18, height: 18, borderRadius: "50%", transition: "all 0.2s",
           background: error ? C.danger : i < value.length ? C.primary : "transparent",
-          border: `2.5px solid ${error ? C.danger : i < value.length ? C.primary : "var(--border)"}`,
+          border: `2.5px solid ${error ? C.danger : i < value.length ? C.primary : "rgba(124,124,140,0.65)"}`,
           transform: error ? "scale(1.3)" : "scale(1)"
         }} />
       ))}
@@ -91,10 +87,11 @@ function PinPad({ onPress, onDelete }) {
       {keys.map((k, i) => (
         <button key={i} onClick={() => k === "⌫" ? onDelete() : k ? onPress(k) : null} disabled={!k}
           style={{
-            height: 62, borderRadius: 14, border: "none",
-            background: k === "⌫" ? "#FEE2E2" : k ? "var(--card-bg)" : "transparent",
-            color: k === "⌫" ? C.danger : "#1a1a1a",
-            fontSize: k === "⌫" ? 20 : 22, fontWeight: 700, cursor: k ? "pointer" : "default",
+            height: 62, borderRadius: 14,
+            border: k && k !== "⌫" ? "1px solid rgba(124,124,140,0.30)" : "none",
+            background: k === "⌫" ? "#FEE2E2" : k ? "rgba(124,124,140,0.16)" : "transparent",
+            color: k === "⌫" ? C.danger : "var(--text-primary)",
+            fontSize: k === "⌫" ? 20 : 24, fontWeight: 700, cursor: k ? "pointer" : "default",
             boxShadow: k ? "0 2px 8px rgba(0,0,0,0.08)" : "none", transition: "transform 0.1s"
           }}
           onMouseDown={e => k && (e.currentTarget.style.transform = "scale(0.93)")}
@@ -151,38 +148,65 @@ export function LoginScreen({ onSuccess }) {
 }
 
 // ── TRANSACTION PIN MODAL ─────────────────────────────────────────────────────
-export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment" }) {
+// Server-verified: the PIN (or a passkey assertion) is checked by the backend,
+// which returns a single-use confirmation token bound to `txnFields`. That
+// token is passed to onSuccess and is what /api/payments/complete requires.
+export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment", txnFields = {} }) {
   const [pin, setPin] = useState("")
   const [error, setError] = useState("")
+  const [busy, setBusy] = useState(false)
+  const passkeyReady = hasPasskey()
 
-    // Functional update -- never drops a tap, even when typed faster than React re-renders.
-  const handlePress = (d) => setPin(prev => (prev.length < 6 ? prev + d : prev))
+  // Functional update -- never drops a tap, even when typed faster than React re-renders.
+  const handlePress = (d) => setPin(prev => (prev.length < 6 && !busy ? prev + d : prev))
 
   // Verify once all 6 digits are committed (reads real state, not a stale closure).
   useEffect(() => {
-    if (pin.length === 6) {
-      const stored = localStorage.getItem("zappi_txn_pin")
-      const t = setTimeout(() => {
-        if (pin === stored) onSuccess()
-        else { setError("Wrong transaction PIN"); setPin("") }
-      }, 300)
-      return () => clearTimeout(t)
-    }
-    if (pin.length === 0) setError("")
+    if (pin.length !== 6) { if (pin.length === 0) setError(""); return }
+    let cancelled = false
+    setBusy(true)
+    verifyTxnPin(pin, txnFields)
+      .then(token => { if (!cancelled) onSuccess(token) })
+      .catch(e => {
+        if (cancelled) return
+        // Server messages cover wrong PIN (401), lockout countdown (429), no PIN set (400)
+        setError(e.status ? e.message : "Network error — check your connection and try again")
+        setPin("")
+        setBusy(false)
+      })
+    return () => { cancelled = true }
   }, [pin])
+
+  async function usePasskey() {
+    if (busy) return
+    setBusy(true); setError("")
+    try {
+      onSuccess(await confirmWithPasskey(txnFields))
+    } catch (e) {
+      setError(e.status ? e.message : (e.message || "Passkey confirmation failed"))
+      setBusy(false)
+    }
+  }
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 9999, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div style={{ width: "100%", maxWidth: 430, background: "var(--card-bg)", borderRadius: "24px 24px 0 0", padding: "24px 20px 48px" }}>
+      <div style={{ width: "100%", maxWidth: 430, background: "var(--card-bg)", borderRadius: "24px 24px 0 0", padding: "24px 20px calc(env(safe-area-inset-bottom, 0px) + 40px)" }}>
         <div style={{ width: 40, height: 4, background: "var(--border)", borderRadius: 2, margin: "0 auto 20px" }} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{label}</h3>
           <button onClick={onCancel} style={{ background: "#f0f0f0", border: "none", borderRadius: 50, width: 32, height: 32, fontSize: 18, cursor: "pointer" }}>✕</button>
         </div>
-        <p style={{ margin: "0 0 4px", fontSize: 13, color: "var(--text-tertiary)" }}>Enter your 6-digit transaction PIN to proceed</p>
+        <p style={{ margin: "0 0 4px", fontSize: 13, color: "var(--text-tertiary)" }}>
+          {busy ? "Verifying…" : "Enter your 6-digit transaction PIN to proceed"}
+        </p>
         <PinDots value={pin} length={6} error={!!error} />
         {error && <p style={{ color: C.danger, fontSize: 13, fontWeight: 600, margin: "0 0 8px", textAlign: "center" }}>{error}</p>}
         <PinPad onPress={handlePress} onDelete={() => { setError(""); setPin(p => p.slice(0, -1)) }} />
+        {passkeyReady && (
+          <button onClick={usePasskey} disabled={busy} style={{ width: "100%", marginTop: 16, background: "none", border: `1.5px solid ${C.primary}`, borderRadius: 12, padding: 12, fontSize: 14, fontWeight: 700, color: C.primary, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
+            👆 Use passkey instead
+          </button>
+        )}
       </div>
     </div>
   )
@@ -190,33 +214,53 @@ export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment" }) 
 
 // ── PROFILE SCREEN ────────────────────────────────────────────────────────────
 // ── CHANGE / SET PIN FLOW (login = 4-digit, txn = 6-digit) ────────────────────
-export function ChangePinFlow({ kind = "txn", forceSetup = false, onBack, onDone }) {
+export function ChangePinFlow({ kind = "txn", forceSetup = false, onBack, onDone, subtitle }) {
   const isLogin = kind === "login"
   const len = isLogin ? 4 : 6
-  const storageKey = isLogin ? "zappi_login_pin" : "zappi_txn_pin"
+  const storageKey = isLogin ? "zappi_login_pin" : null // txn PIN is server-side only — never stored on-device
   const title = isLogin ? "Login PIN" : "Transaction PIN"
-  const existing = localStorage.getItem(storageKey)
-  const changing = existing && !forceSetup
+  const changing = (isLogin ? !!localStorage.getItem(storageKey) : hasServerPin()) && !forceSetup
   const [stage, setStage] = useState(changing ? "current" : "new") // current | new | confirm
   const [entry, setEntry] = useState("")
   const [draft, setDraft] = useState("")
   const [error, setError] = useState("")
+  const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
 
   useEffect(() => {
     if (entry.length !== len) { if (entry.length === 0) setError(""); return }
-    const t = setTimeout(() => {
+    let cancelled = false
+    const t = setTimeout(async () => {
       if (stage === "current") {
-        if (entry === existing) { setStage("new"); setEntry(""); setError("") }
-        else { setError("Incorrect current PIN"); setEntry("") }
+        if (isLogin) {
+          if (entry === localStorage.getItem(storageKey)) { setStage("new"); setEntry(""); setError("") }
+          else { setError("Incorrect current PIN"); setEntry("") }
+          return
+        }
+        // Server-verify the current txn PIN (uses a sentinel txn binding; the
+        // issued token is discarded). Wrong entries count toward the lockout.
+        setBusy(true)
+        try {
+          await verifyTxnPin(entry, { serviceID: "pin-change", billType: "pin-change" })
+          if (!cancelled) { setStage("new"); setEntry(""); setError("") }
+        } catch (e) {
+          if (!cancelled) { setError(e.status ? e.message : "Network error — try again"); setEntry("") }
+        } finally { if (!cancelled) setBusy(false) }
       } else if (stage === "new") {
         setDraft(entry); setStage("confirm"); setEntry(""); setError("")
       } else {
-        if (entry === draft) { localStorage.setItem(storageKey, draft); setDone(true) }
-        else { setError("PINs didn't match. Start again."); setStage("new"); setDraft(""); setEntry("") }
+        if (entry !== draft) { setError("PINs didn't match. Start again."); setStage("new"); setDraft(""); setEntry(""); return }
+        if (isLogin) { localStorage.setItem(storageKey, draft); setDone(true); return }
+        setBusy(true)
+        try {
+          await setTxnPin(draft) // bcrypt-hashed server-side; also clears the legacy plaintext PIN
+          if (!cancelled) setDone(true)
+        } catch (e) {
+          if (!cancelled) { setError(e.status ? e.message : "Couldn't save PIN — check your connection"); setStage("new"); setDraft(""); setEntry("") }
+        } finally { if (!cancelled) setBusy(false) }
       }
     }, 250)
-    return () => clearTimeout(t)
+    return () => { cancelled = true; clearTimeout(t) }
   }, [entry])
 
   const press = (d) => setEntry(p => (p.length < len ? p + d : p))
@@ -243,7 +287,7 @@ export function ChangePinFlow({ kind = "txn", forceSetup = false, onBack, onDone
       <div style={{ fontSize: 48, marginBottom: 12 }}>{isLogin ? "🔐" : "🔑"}</div>
       <h3 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 800 }}>{heading}</h3>
       <p style={{ margin: "0 0 4px", fontSize: 13, color: "var(--text-secondary)", maxWidth: 300 }}>
-        {forceSetup && stage !== "confirm" ? `Secure your payments with a ${len}-digit PIN.` : `Enter your ${len}-digit ${title.toLowerCase()}.`}
+        {busy ? "Verifying…" : subtitle && stage !== "confirm" ? subtitle : forceSetup && stage !== "confirm" ? `Secure your payments with a ${len}-digit PIN.` : `Enter your ${len}-digit ${title.toLowerCase()}.`}
       </p>
       <PinDots value={entry} length={len} error={!!error} />
       {error && <p style={{ color: C.danger, fontSize: 13, fontWeight: 600, margin: "0 0 8px" }}>{error}</p>}
@@ -258,18 +302,24 @@ export function ProfileScreen({ onBack, onLogout }) {
   const [form, setForm] = useState(user)
   const [saved, setSaved] = useState(false)
   const [section, setSection] = useState(null)
-  const [mobileBrowser, setMobileBrowser] = useState(() => isMobileBrowser())
-  useEffect(() => {
-    let cancelled = false
-    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000))
-    Promise.race([window.Pi?.getPiHostAppInfo?.(), timeout])
-      .then(result => {
-        if (!cancelled && result?.hostApp === "pi-browser") setMobileBrowser(false)
-      })
-      .catch(() => {})
-    return () => { cancelled = true }
-  }, [])
-
+  const [passkeyDone, setPasskeyDone] = useState(() => hasPasskey())
+  const [passkeyBusy, setPasskeyBusy] = useState(false)
+  const [passkeyError, setPasskeyError] = useState("")
+  async function addPasskey() {
+    if (passkeyBusy) return
+    setPasskeyBusy(true); setPasskeyError("")
+    try {
+      await registerPasskey("This device")
+      setPasskeyDone(true)
+    } catch (e) {
+      // 409 = this authenticator is already registered — treat as enabled
+      if (e.status === 409) { localStorage.setItem("zappi_has_passkey", "1"); setPasskeyDone(true) }
+      else if (e.name === "NotAllowedError" || e.name === "AbortError") { /* user cancelled — no error shown */ }
+      else if (e.name === "NotSupportedError" || e.name === "SecurityError") {
+        setPasskeyError("This device or browser can't set up a passkey. Your transaction PIN still keeps payments secure.")
+      } else setPasskeyError(e.message || "Couldn't add a passkey right now. Please try again.")
+    } finally { setPasskeyBusy(false) }
+  }
   const save = () => {
     localStorage.setItem("zappi_user", JSON.stringify(form))
     setUser(form); setEditing(false); setSaved(true)
@@ -337,7 +387,12 @@ export function ProfileScreen({ onBack, onLogout }) {
           <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-tertiary)", margin: "12px 14px 8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Security</p>
           {[
             { icon: "🔑", label: "Change Transaction PIN", sub: "Update your 6-digit payment PIN", action: () => setSection("changeTxnPin") },
-            ...(!mobileBrowser ? [{ icon: "👆", label: "Fingerprint Login", sub: "Enable biometric authentication", action: () => alert("Fingerprint login is available on supported devices") }] : []),
+            ...(webauthnSupported() ? [{
+              icon: "👆",
+              label: passkeyDone ? "Passkey enabled" : "Add a Passkey",
+              sub: passkeyDone ? "Confirm payments with Face ID / fingerprint" : "Approve payments with Face ID, fingerprint, or your device PIN",
+              action: addPasskey,
+            }] : []),
           ].map(item => (
             <button key={item.label} onClick={item.action} style={{ width: "100%", background: "none", border: "none", padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", borderRadius: 12, textAlign: "left" }}>
               <span style={{ fontSize: 22, width: 36, textAlign: "center" }}>{item.icon}</span>
@@ -348,10 +403,16 @@ export function ProfileScreen({ onBack, onLogout }) {
               <span style={{ color: "var(--text-tertiary)", fontSize: 18 }}>›</span>
             </button>
           ))}
-          {mobileBrowser && (
+          {passkeyError && (
+            <div style={{ margin: "4px 14px 12px", display: "flex", alignItems: "flex-start", gap: 8, background: "#FEE2E2", borderRadius: 10, padding: "10px 12px" }}>
+              <span style={{ fontSize: 14 }}>⚠️</span>
+              <p style={{ margin: 0, fontSize: 12, color: "#991B1B", lineHeight: 1.5 }}>{passkeyError}</p>
+            </div>
+          )}
+          {!webauthnSupported() && (
             <div style={{ margin: "4px 14px 12px", display: "flex", alignItems: "flex-start", gap: 8, background: "#FEF9C3", borderRadius: 10, padding: "10px 12px" }}>
               <span style={{ fontSize: 14 }}>ℹ️</span>
-              <p style={{ margin: 0, fontSize: 12, color: "#854D0E", lineHeight: 1.5 }}>Fingerprint login works in the <strong>Pi Browser app</strong>, not in mobile browsers.</p>
+              <p style={{ margin: 0, fontSize: 12, color: "#854D0E", lineHeight: 1.5 }}>Passkeys aren't supported in this browser — your transaction PIN keeps payments protected.</p>
             </div>
           )}
         </div>

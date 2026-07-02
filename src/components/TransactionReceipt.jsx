@@ -112,15 +112,32 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
     return "zappi-receipt-" + (receipt.reference || "tx") + ".png";
   }
 
-  // Generate the image and show it in an in-app preview. Works everywhere,
-  // including in-app browsers (Pi Browser) where programmatic downloads are blocked:
-  // the user can press-and-hold the image to save it.
-  async function buildAndPreview() {
+  // Save the receipt image. Ordered by what actually works on each platform:
+  //  1) native share-to-gallery/files (most reliable inside Pi Browser's webview,
+  //     where the <a download> attribute is silently ignored)
+  //  2) a real <a download> click (desktop + most mobile browsers)
+  //  3) in-app image preview -> press & hold to save (last-resort fallback)
+  async function downloadReceipt() {
     setBusy(true);
     try {
       const blob = await receiptBlob();
+      const file = new File([blob], fileName(), { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: "Zappi NG Receipt" });
+          setBusy(false);
+          return;
+        } catch (_) { /* dismissed or failed — fall through to anchor + preview */ }
+      }
+      const url = URL.createObjectURL(blob);
+      try {
+        const a = document.createElement("a");
+        a.href = url; a.download = fileName(); a.rel = "noopener";
+        document.body.appendChild(a); a.click(); a.remove();
+      } catch (_) { /* download attr blocked (in-app webview) */ }
+      // Always surface the preview so press-and-hold works where the above is blocked.
       if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(URL.createObjectURL(blob));
+      setPreviewUrl(url);
     } catch (_) {}
     setBusy(false);
   }
@@ -152,9 +169,9 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
       setBusy(false);
       return; // user dismissed the share sheet
     }
-    // No share support (or no file share): fall back to the image preview + copy text.
+    // No share support (or no file share): fall back to save flow + copy text.
     try { await navigator.clipboard.writeText(text); } catch (_) {}
-    await buildAndPreview();
+    await downloadReceipt();
   }
 
   return (
@@ -209,7 +226,7 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
             <button className="receipt-share-btn" style={{ flex: 1 }} onClick={shareReceipt} disabled={busy}>
               {busy ? "…" : "Share"}
             </button>
-            <button className="receipt-share-btn" style={{ flex: 1, background: "#fff", color: "#6C3AED", border: "2px solid #6C3AED" }} onClick={buildAndPreview} disabled={busy}>
+            <button className="receipt-share-btn" style={{ flex: 1, background: "#fff", color: "#6C3AED", border: "2px solid #6C3AED" }} onClick={downloadReceipt} disabled={busy}>
               {busy ? "…" : "Download"}
             </button>
           </div>
@@ -223,7 +240,7 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
 
     {previewUrl && (
       <div className="receipt-overlay" style={{ zIndex: 10000 }} onClick={closePreview}>
-        <div style={{ background: "#fff", borderRadius: 16, padding: 16, width: "90%", maxWidth: 360, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ background: "#fff", borderRadius: 16, padding: 16, width: "90%", maxWidth: 360, textAlign: "center", marginBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }} onClick={(e) => e.stopPropagation()}>
           <p style={{ margin: "0 0 10px", fontSize: 13, color: "#555", fontWeight: 600 }}>Press &amp; hold the image to save it 📥</p>
           <img src={previewUrl} alt="Receipt" style={{ width: "100%", borderRadius: 12, border: "1px solid #eee", display: "block" }} />
           <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
