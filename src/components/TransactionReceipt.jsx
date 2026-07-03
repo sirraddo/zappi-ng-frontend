@@ -37,6 +37,7 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
   const [tokenCopied, setTokenCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [saveError, setSaveError] = useState("");
 
   const cfg = STATUS_CONFIG[receipt.status] || STATUS_CONFIG.pending;
   const typeLabel = TYPE_LABELS[receipt.type] || receipt.type;
@@ -105,7 +106,23 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
     x.textAlign = "center"; x.fillStyle = "#9aa0a6"; x.font = "400 18px " + FONT;
     x.fillText("Powered by Pi Network  \u00B7  zappi-ng-frontend.vercel.app", W / 2, H - 45);
 
-    return new Promise((res) => c.toBlob(res, "image/png"));
+    return new Promise((resolve, reject) => {
+      const fallback = () => {
+        try {
+          const dataUrl = c.toDataURL("image/png");
+          const bin = atob(dataUrl.split(",")[1]);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          resolve(new Blob([bytes], { type: "image/png" }));
+        } catch (e) { reject(e); }
+      };
+      // Some in-app webviews either lack canvas.toBlob or silently resolve null.
+      if (typeof c.toBlob === "function") {
+        c.toBlob((b) => (b ? resolve(b) : fallback()), "image/png");
+      } else {
+        fallback();
+      }
+    });
   }
 
   function fileName() {
@@ -118,7 +135,7 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
   //  2) a real <a download> click (desktop + most mobile browsers)
   //  3) in-app image preview -> press & hold to save (last-resort fallback)
   async function downloadReceipt() {
-    setBusy(true);
+    setBusy(true); setSaveError("");
     try {
       const blob = await receiptBlob();
       const file = new File([blob], fileName(), { type: "image/png" });
@@ -127,18 +144,26 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
           await navigator.share({ files: [file], title: "Zappi NG Receipt" });
           setBusy(false);
           return;
-        } catch (_) { /* dismissed or failed — fall through to anchor + preview */ }
+        } catch (shareErr) {
+          // AbortError = user closed the share sheet themselves; nothing to report.
+          if (shareErr?.name !== "AbortError") console.warn("[receipt] share failed, falling back:", shareErr);
+        }
       }
       const url = URL.createObjectURL(blob);
       try {
         const a = document.createElement("a");
         a.href = url; a.download = fileName(); a.rel = "noopener";
         document.body.appendChild(a); a.click(); a.remove();
-      } catch (_) { /* download attr blocked (in-app webview) */ }
+      } catch (downloadErr) {
+        console.warn("[receipt] anchor download failed, falling back to preview:", downloadErr);
+      }
       // Always surface the preview so press-and-hold works where the above is blocked.
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(url);
-    } catch (_) {}
+    } catch (e) {
+      console.error("[receipt] could not generate the receipt image:", e);
+      setSaveError("Couldn't generate the receipt image on this device. Please try again or take a screenshot instead.");
+    }
     setBusy(false);
   }
 
@@ -151,7 +176,7 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
     const text = "Zappi NG Receipt\n" + typeLabel +
       "\nAmount: \u03C0" + receipt.amount + (receipt.nairaAmount ? " (\u20A6" + Number(receipt.nairaAmount).toLocaleString() + ")" : "") +
       "\nRef: " + (receipt.reference || "—") + "\nDate: " + dateStr;
-    setBusy(true);
+    setBusy(true); setSaveError("");
     try {
       const blob = await receiptBlob();
       const file = new File([blob], fileName(), { type: "image/png" });
@@ -165,11 +190,13 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
         setBusy(false);
         return;
       }
-    } catch (_) {
+    } catch (e) {
       setBusy(false);
-      return; // user dismissed the share sheet
+      if (e?.name === "AbortError") return; // user dismissed the share sheet themselves
+      console.warn("[receipt] share failed, falling back to download:", e);
+      // fall through to the download path below rather than giving up silently
     }
-    // No share support (or no file share): fall back to save flow + copy text.
+    // No share support (or share failed for a real reason): fall back to save flow + copy text.
     try { await navigator.clipboard.writeText(text); } catch (_) {}
     await downloadReceipt();
   }
@@ -222,6 +249,11 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
         {receipt.sandbox && <div className="receipt-sandbox-badge">🧪 Testnet Transaction</div>}
 
         <div className="receipt-actions">
+          {saveError && (
+            <div style={{ background: "#FEE2E2", borderRadius: 10, padding: "10px 12px", fontSize: 12, color: "#991B1B", fontWeight: 600, textAlign: "left" }}>
+              {saveError}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 10 }}>
             <button className="receipt-share-btn" style={{ flex: 1 }} onClick={shareReceipt} disabled={busy}>
               {busy ? "…" : "Share"}
