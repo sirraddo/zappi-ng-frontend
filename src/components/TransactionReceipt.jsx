@@ -13,6 +13,13 @@
 import { useState } from "react";
 import "./TransactionReceipt.css";
 
+function formatFacts(f) {
+  return "share fn:" + (f.hasShare ? "y" : "n") + " canShare fn:" + (f.hasCanShare ? "y" : "n")
+    + " | share:" + f.shareResult
+    + " | anchor:" + (f.anchorTried ? (f.anchorError === "none" ? "clicked ok" : "error(" + f.anchorError + ")") : "skipped")
+    + " | image:" + (f.dataUrlLen > 100 ? f.dataUrlLen + "b generated" : "FAILED (" + f.dataUrlLen + "b)");
+}
+
 const STATUS_CONFIG = {
   success: { icon: "✓", label: "Payment Successful", color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
   pending: { icon: "⏳", label: "Payment Pending", color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
@@ -38,6 +45,7 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
   const [busy, setBusy] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [saveError, setSaveError] = useState("");
+  const [saveDebug, setSaveDebug] = useState("");
 
   const cfg = STATUS_CONFIG[receipt.status] || STATUS_CONFIG.pending;
   const typeLabel = TYPE_LABELS[receipt.type] || receipt.type;
@@ -150,35 +158,57 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
   //  3) in-app image preview (same data: URI) -> press & hold to save,
   //     since data: URIs are long-press-saveable even where (1) and (2) are blocked
   async function downloadReceipt() {
-    setBusy(true); setSaveError("");
+    setBusy(true); setSaveError(""); setSaveDebug("");
+    const facts = {
+      hasShare: typeof navigator.share === "function",
+      hasCanShare: typeof navigator.canShare === "function",
+      shareTried: false, shareResult: "skipped",
+      anchorTried: false, anchorError: "none",
+      dataUrlLen: 0,
+    };
     try {
       const dataUrl = receiptDataUrl();
+      facts.dataUrlLen = dataUrl ? dataUrl.length : 0;
       if (navigator.canShare) {
+        facts.shareTried = true;
         try {
           const blob = await receiptBlob();
           const file = new File([blob], fileName(), { type: "image/png" });
           if (navigator.canShare({ files: [file] })) {
             await navigator.share({ files: [file], title: "Zappi NG Receipt" });
+            facts.shareResult = "ok";
+            setSaveDebug(formatFacts(facts));
             setBusy(false);
             return;
+          } else {
+            facts.shareResult = "canShare()=false for this file";
           }
         } catch (shareErr) {
           // AbortError = user closed the share sheet themselves; nothing to report.
-          if (shareErr?.name !== "AbortError") console.warn("[receipt] share failed, falling back:", shareErr);
+          if (shareErr?.name === "AbortError") {
+            facts.shareResult = "user dismissed share sheet";
+          } else {
+            facts.shareResult = "error: " + (shareErr?.name || "") + " " + (shareErr?.message || shareErr);
+            console.warn("[receipt] share failed, falling back:", shareErr);
+          }
         }
       }
+      facts.anchorTried = true;
       try {
         const a = document.createElement("a");
         a.href = dataUrl; a.download = fileName(); a.rel = "noopener";
         document.body.appendChild(a); a.click(); a.remove();
       } catch (downloadErr) {
+        facts.anchorError = (downloadErr?.name || "") + " " + (downloadErr?.message || downloadErr);
         console.warn("[receipt] anchor download failed, falling back to preview:", downloadErr);
       }
       // Always surface the preview so press-and-hold works where the above is blocked.
+      setSaveDebug(formatFacts(facts));
       setPreviewUrl(dataUrl);
     } catch (e) {
       console.error("[receipt] could not generate the receipt image:", e);
       setSaveError("Couldn't generate the receipt image on this device. Please try again or take a screenshot instead.");
+      setSaveDebug(formatFacts(facts) + " | generateError: " + (e?.message || e));
     }
     setBusy(false);
   }
@@ -267,6 +297,7 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
           {saveError && (
             <div style={{ background: "#FEE2E2", borderRadius: 10, padding: "10px 12px", fontSize: 12, color: "#991B1B", fontWeight: 600, textAlign: "left" }}>
               {saveError}
+              {saveDebug && <div style={{ marginTop: 6, fontSize: 10, color: "#991B1B", fontWeight: 400, fontFamily: "monospace", wordBreak: "break-word" }}>{saveDebug}</div>}
             </div>
           )}
           <div style={{ display: "flex", gap: 10 }}>
@@ -289,6 +320,7 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
       <div className="receipt-overlay" style={{ zIndex: 10000 }} onClick={closePreview}>
         <div style={{ background: "#fff", borderRadius: 16, padding: 16, width: "90%", maxWidth: 360, textAlign: "center", marginBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }} onClick={(e) => e.stopPropagation()}>
           <p style={{ margin: "0 0 10px", fontSize: 13, color: "#555", fontWeight: 600 }}>Press &amp; hold the image to save it 📥</p>
+          {saveDebug && <p style={{ margin: "-4px 0 10px", fontSize: 10, color: "#999", fontFamily: "monospace", wordBreak: "break-word" }}>{saveDebug}</p>}
           <img src={previewUrl} alt="Receipt" style={{ width: "100%", borderRadius: 12, border: "1px solid #eee", display: "block" }} />
           <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
             <a href={previewUrl} download={fileName()} className="receipt-share-btn" style={{ flex: 1, textDecoration: "none", lineHeight: "2.8" }}>Download</a>
