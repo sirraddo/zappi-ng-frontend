@@ -63,7 +63,7 @@ async function piLogin(onSuccess) {
   }
 }
 
-// ── PIN DOTS ──────────────────────────────────────────────────────────────────
+// -- PIN DOTS --
 function PinDots({ value, length, error }) {
   return (
     <div style={{ display: "flex", gap: 16, justifyContent: "center", margin: "28px 0 8px" }}>
@@ -79,7 +79,7 @@ function PinDots({ value, length, error }) {
   )
 }
 
-// ── PIN PAD ───────────────────────────────────────────────────────────────────
+// -- PIN PAD --
 function PinPad({ onPress, onDelete }) {
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"]
   return (
@@ -101,7 +101,7 @@ function PinPad({ onPress, onDelete }) {
   )
 }
 
-// ── SPLASH SCREEN ─────────────────────────────────────────────────────────────
+// -- SPLASH SCREEN --
 export function SplashScreen({ onContinue, onSuccess }) {
   const [busy, setBusy] = useState(false)
 
@@ -124,7 +124,7 @@ export function SplashScreen({ onContinue, onSuccess }) {
   )
 }
 
-// ── LOGIN ─────────────────────────────────────────────────────────────────────
+// -- LOGIN --
 export function LoginScreen({ onSuccess }) {
   const [busy, setBusy] = useState(false)
 
@@ -147,7 +147,7 @@ export function LoginScreen({ onSuccess }) {
   )
 }
 
-// ── TRANSACTION PIN MODAL ─────────────────────────────────────────────────────
+// -- TRANSACTION PIN MODAL --
 // Server-verified: the PIN (or a passkey assertion) is checked by the backend,
 // which returns a single-use confirmation token bound to `txnFields`. That
 // token is passed to onSuccess and is what /api/payments/complete requires.
@@ -190,7 +190,7 @@ export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment", tx
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 9999, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div style={{ width: "100%", maxWidth: 430, background: "var(--card-bg)", borderRadius: "24px 24px 0 0", padding: "24px 20px calc(env(safe-area-inset-bottom, 0px) + 40px)" }}>
+      <div style={{ width: "100%", maxWidth: 430, background: "var(--card-bg)", borderRadius: "24px 24px 0 0", padding: "24px 20px max(48px, calc(env(safe-area-inset-bottom, 0px) + 24px))" }}>
         <div style={{ width: 40, height: 4, background: "var(--border)", borderRadius: 2, margin: "0 auto 20px" }} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{label}</h3>
@@ -212,8 +212,8 @@ export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment", tx
   )
 }
 
-// ── PROFILE SCREEN ────────────────────────────────────────────────────────────
-// ── CHANGE / SET PIN FLOW (login = 4-digit, txn = 6-digit) ────────────────────
+// -- PROFILE SCREEN --
+// -- CHANGE / SET PIN FLOW (login = 4-digit, txn = 6-digit) --
 export function ChangePinFlow({ kind = "txn", forceSetup = false, onBack, onDone, subtitle }) {
   const isLogin = kind === "login"
   const len = isLogin ? 4 : 6
@@ -266,7 +266,7 @@ export function ChangePinFlow({ kind = "txn", forceSetup = false, onBack, onDone
   const press = (d) => setEntry(p => (p.length < len ? p + d : p))
   const del = () => { setError(""); setEntry(p => p.slice(0, -1)) }
 
-  const wrap = { minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }
+  const wrap = { minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 24px max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px))", textAlign: "center" }
 
   if (done) return (
     <div style={wrap}>
