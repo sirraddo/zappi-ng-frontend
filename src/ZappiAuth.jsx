@@ -38,7 +38,7 @@ async function piLogin(onSuccess) {
     dbg("3: init called, authenticating…");
 
     const auth = await Promise.race([
-      window.Pi.authenticate(["username"], (payment) => {
+      window.Pi.authenticate(["username", "payments"], (payment) => {
         console.log("incomplete payment", payment);
       }),
       new Promise((_, rej) => setTimeout(() => rej(new Error("Pi.authenticate timed out (30s)")), 30000)),
