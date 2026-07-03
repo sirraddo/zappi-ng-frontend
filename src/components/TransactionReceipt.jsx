@@ -55,8 +55,8 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
     setTimeout(() => setTokenCopied(false), 2000);
   }
 
-  // Draw the receipt onto a canvas and return a PNG blob. No external deps.
-  function receiptBlob() {
+  // Draw the receipt onto a canvas. No external deps.
+  function receiptCanvas() {
     const rows = [
       ["Type", typeLabel],
       receipt.provider && ["Provider", String(receipt.provider)],
@@ -106,6 +106,21 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
     x.textAlign = "center"; x.fillStyle = "#9aa0a6"; x.font = "400 18px " + FONT;
     x.fillText("Powered by Pi Network  \u00B7  zappi-ng-frontend.vercel.app", W / 2, H - 45);
 
+    return c;
+  }
+
+  // data: URI of the receipt image. Used for the press-and-hold preview and
+  // the anchor download — data: URIs are far more reliably long-press-saveable
+  // than blob: URLs in locked-down in-app webviews (Pi Browser included; some
+  // of these webviews simply refuse to offer "Save image" on a blob: src).
+  function receiptDataUrl() {
+    return receiptCanvas().toDataURL("image/png");
+  }
+
+  // Blob/File version, needed only for the Web Share API (navigator.share
+  // requires a real File, a data: URI won't do).
+  function receiptBlob() {
+    const c = receiptCanvas();
     return new Promise((resolve, reject) => {
       const fallback = () => {
         try {
@@ -130,36 +145,37 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
   }
 
   // Save the receipt image. Ordered by what actually works on each platform:
-  //  1) native share-to-gallery/files (most reliable inside Pi Browser's webview,
-  //     where the <a download> attribute is silently ignored)
-  //  2) a real <a download> click (desktop + most mobile browsers)
-  //  3) in-app image preview -> press & hold to save (last-resort fallback)
+  //  1) native share-to-gallery/files (needs a real File/Blob)
+  //  2) a real <a download> click using a data: URI
+  //  3) in-app image preview (same data: URI) -> press & hold to save,
+  //     since data: URIs are long-press-saveable even where (1) and (2) are blocked
   async function downloadReceipt() {
     setBusy(true); setSaveError("");
     try {
-      const blob = await receiptBlob();
-      const file = new File([blob], fileName(), { type: "image/png" });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      const dataUrl = receiptDataUrl();
+      if (navigator.canShare) {
         try {
-          await navigator.share({ files: [file], title: "Zappi NG Receipt" });
-          setBusy(false);
-          return;
+          const blob = await receiptBlob();
+          const file = new File([blob], fileName(), { type: "image/png" });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: "Zappi NG Receipt" });
+            setBusy(false);
+            return;
+          }
         } catch (shareErr) {
           // AbortError = user closed the share sheet themselves; nothing to report.
           if (shareErr?.name !== "AbortError") console.warn("[receipt] share failed, falling back:", shareErr);
         }
       }
-      const url = URL.createObjectURL(blob);
       try {
         const a = document.createElement("a");
-        a.href = url; a.download = fileName(); a.rel = "noopener";
+        a.href = dataUrl; a.download = fileName(); a.rel = "noopener";
         document.body.appendChild(a); a.click(); a.remove();
       } catch (downloadErr) {
         console.warn("[receipt] anchor download failed, falling back to preview:", downloadErr);
       }
       // Always surface the preview so press-and-hold works where the above is blocked.
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(url);
+      setPreviewUrl(dataUrl);
     } catch (e) {
       console.error("[receipt] could not generate the receipt image:", e);
       setSaveError("Couldn't generate the receipt image on this device. Please try again or take a screenshot instead.");
@@ -168,7 +184,6 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
   }
 
   function closePreview() {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
   }
 
