@@ -46,6 +46,7 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [saveError, setSaveError] = useState("");
   const [saveDebug, setSaveDebug] = useState("");
+  const [noShareApi, setNoShareApi] = useState(false);
 
   const cfg = STATUS_CONFIG[receipt.status] || STATUS_CONFIG.pending;
   const typeLabel = TYPE_LABELS[receipt.type] || receipt.type;
@@ -166,6 +167,7 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
       anchorTried: false, anchorError: "none",
       dataUrlLen: 0,
     };
+    setNoShareApi(!facts.hasShare);
     try {
       const dataUrl = receiptDataUrl();
       facts.dataUrlLen = dataUrl ? dataUrl.length : 0;
@@ -319,12 +321,19 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
     {previewUrl && (
       <div className="receipt-overlay" style={{ zIndex: 10000 }} onClick={closePreview}>
         <div style={{ background: "#fff", borderRadius: 16, padding: 16, width: "90%", maxWidth: 360, textAlign: "center", marginBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }} onClick={(e) => e.stopPropagation()}>
-          <p style={{ margin: "0 0 10px", fontSize: 13, color: "#555", fontWeight: 600 }}>Press &amp; hold the image to save it 📥</p>
+          <p style={{ margin: "0 0 4px", fontSize: 13, color: "#555", fontWeight: 600 }}>
+            {noShareApi
+              ? "This browser can't save images automatically \u2014 take a screenshot now to keep this receipt \ud83d\udcf8"
+              : "Press & hold the image to save it \ud83d\udce5"}
+          </p>
+          {noShareApi && (
+            <p style={{ margin: "0 0 10px", fontSize: 11, color: "#999" }}>Most phones: press the power + volume-down buttons together</p>
+          )}
           {saveDebug && <p style={{ margin: "-4px 0 10px", fontSize: 10, color: "#999", fontFamily: "monospace", wordBreak: "break-word" }}>{saveDebug}</p>}
           <img src={previewUrl} alt="Receipt" style={{ width: "100%", borderRadius: 12, border: "1px solid #eee", display: "block" }} />
           <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-            <a href={previewUrl} download={fileName()} className="receipt-share-btn" style={{ flex: 1, textDecoration: "none", lineHeight: "2.8" }}>Download</a>
-            <button className="receipt-share-btn" style={{ flex: 1, background: "#fff", color: "#6C3AED", border: "2px solid #6C3AED" }} onClick={closePreview}>Close</button>
+            {!noShareApi && <a href={previewUrl} download={fileName()} className="receipt-share-btn" style={{ flex: 1, textDecoration: "none", lineHeight: "2.8" }}>Download</a>}
+            <button className="receipt-share-btn" style={{ flex: 1, background: "#fff", color: "#6C3AED", border: "2px solid #6C3AED" }} onClick={closePreview}>{noShareApi ? "Done" : "Close"}</button>
           </div>
         </div>
       </div>
