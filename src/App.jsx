@@ -248,7 +248,7 @@ const user = JSON.parse(localStorage.getItem("zappi_user")||"{}")
 
 const showToast=(msg,type="success")=>{ setToast(msg); setToastType(type); setTimeout(()=>setToast(null),3500) }
 
-// Opens the PIN/passkey modal; onConfirmed receives a single-use confirmation
+// Opens the PIN confirmation modal; onConfirmed receives a single-use confirmation
 // token bound to txnFields (required by /api/payments/complete). Setup is
 // guaranteed by the txnPinReady gate, so confirmation is never skippable.
 const requireTxnConfirmation=(label,txnFields,onConfirmed)=>setTxnPinModal({label,txnFields,onConfirmed})

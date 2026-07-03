@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react"
 import {
   verifyTxnPin, setTxnPin, hasServerPin,
-  confirmWithPasskey, registerPasskey, hasPasskey, webauthnSupported,
 } from "./hooks/useTxnConfirmation"
 
 const C = {
@@ -148,14 +147,13 @@ export function LoginScreen({ onSuccess }) {
 }
 
 // -- TRANSACTION PIN MODAL --
-// Server-verified: the PIN (or a passkey assertion) is checked by the backend,
-// which returns a single-use confirmation token bound to `txnFields`. That
-// token is passed to onSuccess and is what /api/payments/complete requires.
+// Server-verified: the PIN is checked by the backend, which returns a
+// single-use confirmation token bound to `txnFields`. That token is passed
+// to onSuccess and is what /api/payments/complete requires.
 export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment", txnFields = {} }) {
   const [pin, setPin] = useState("")
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
-  const passkeyReady = hasPasskey()
 
   // Functional update -- never drops a tap, even when typed faster than React re-renders.
   const handlePress = (d) => setPin(prev => (prev.length < 6 && !busy ? prev + d : prev))
@@ -177,17 +175,6 @@ export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment", tx
     return () => { cancelled = true }
   }, [pin])
 
-  async function usePasskey() {
-    if (busy) return
-    setBusy(true); setError("")
-    try {
-      onSuccess(await confirmWithPasskey(txnFields))
-    } catch (e) {
-      setError(e.status ? e.message : (e.message || "Passkey confirmation failed"))
-      setBusy(false)
-    }
-  }
-
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 9999, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 430, background: "var(--card-bg)", borderRadius: "24px 24px 0 0", padding: "24px 20px max(48px, calc(env(safe-area-inset-bottom, 0px) + 24px))" }}>
@@ -202,11 +189,6 @@ export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment", tx
         <PinDots value={pin} length={6} error={!!error} />
         {error && <p style={{ color: C.danger, fontSize: 13, fontWeight: 600, margin: "0 0 8px", textAlign: "center" }}>{error}</p>}
         <PinPad onPress={handlePress} onDelete={() => { setError(""); setPin(p => p.slice(0, -1)) }} />
-        {passkeyReady && (
-          <button onClick={usePasskey} disabled={busy} style={{ width: "100%", marginTop: 16, background: "none", border: `1.5px solid ${C.primary}`, borderRadius: 12, padding: 12, fontSize: 14, fontWeight: 700, color: C.primary, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
-            👆 Use passkey instead
-          </button>
-        )}
       </div>
     </div>
   )
@@ -302,24 +284,6 @@ export function ProfileScreen({ onBack, onLogout }) {
   const [form, setForm] = useState(user)
   const [saved, setSaved] = useState(false)
   const [section, setSection] = useState(null)
-  const [passkeyDone, setPasskeyDone] = useState(() => hasPasskey())
-  const [passkeyBusy, setPasskeyBusy] = useState(false)
-  const [passkeyError, setPasskeyError] = useState("")
-  async function addPasskey() {
-    if (passkeyBusy) return
-    setPasskeyBusy(true); setPasskeyError("")
-    try {
-      await registerPasskey("This device")
-      setPasskeyDone(true)
-    } catch (e) {
-      // 409 = this authenticator is already registered — treat as enabled
-      if (e.status === 409) { localStorage.setItem("zappi_has_passkey", "1"); setPasskeyDone(true) }
-      else if (e.name === "NotAllowedError" || e.name === "AbortError") { /* user cancelled — no error shown */ }
-      else if (e.name === "NotSupportedError" || e.name === "SecurityError") {
-        setPasskeyError("This device or browser can't set up a passkey. Your transaction PIN still keeps payments secure.")
-      } else setPasskeyError(e.message || "Couldn't add a passkey right now. Please try again.")
-    } finally { setPasskeyBusy(false) }
-  }
   const save = () => {
     localStorage.setItem("zappi_user", JSON.stringify(form))
     setUser(form); setEditing(false); setSaved(true)
@@ -385,36 +349,14 @@ export function ProfileScreen({ onBack, onLogout }) {
 
         <div style={{ background: "var(--card-bg)", borderRadius: 16, padding: 4, marginBottom: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
           <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-tertiary)", margin: "12px 14px 8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Security</p>
-          {[
-            { icon: "🔑", label: "Change Transaction PIN", sub: "Update your 6-digit payment PIN", action: () => setSection("changeTxnPin") },
-            ...(webauthnSupported() ? [{
-              icon: "👆",
-              label: passkeyDone ? "Passkey enabled" : "Add a Passkey",
-              sub: passkeyDone ? "Confirm payments with Face ID / fingerprint" : "Approve payments with Face ID, fingerprint, or your device PIN",
-              action: addPasskey,
-            }] : []),
-          ].map(item => (
-            <button key={item.label} onClick={item.action} style={{ width: "100%", background: "none", border: "none", padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", borderRadius: 12, textAlign: "left" }}>
-              <span style={{ fontSize: 22, width: 36, textAlign: "center" }}>{item.icon}</span>
-              <div style={{ flex: 1 }}>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{item.label}</p>
-                <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-tertiary)" }}>{item.sub}</p>
-              </div>
-              <span style={{ color: "var(--text-tertiary)", fontSize: 18 }}>›</span>
-            </button>
-          ))}
-          {passkeyError && (
-            <div style={{ margin: "4px 14px 12px", display: "flex", alignItems: "flex-start", gap: 8, background: "#FEE2E2", borderRadius: 10, padding: "10px 12px" }}>
-              <span style={{ fontSize: 14 }}>⚠️</span>
-              <p style={{ margin: 0, fontSize: 12, color: "#991B1B", lineHeight: 1.5 }}>{passkeyError}</p>
+          <button onClick={() => setSection("changeTxnPin")} style={{ width: "100%", background: "none", border: "none", padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", borderRadius: 12, textAlign: "left" }}>
+            <span style={{ fontSize: 22, width: 36, textAlign: "center" }}>🔑</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>Change Transaction PIN</p>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-tertiary)" }}>Update your 6-digit payment PIN</p>
             </div>
-          )}
-          {!webauthnSupported() && (
-            <div style={{ margin: "4px 14px 12px", display: "flex", alignItems: "flex-start", gap: 8, background: "#FEF9C3", borderRadius: 10, padding: "10px 12px" }}>
-              <span style={{ fontSize: 14 }}>ℹ️</span>
-              <p style={{ margin: 0, fontSize: 12, color: "#854D0E", lineHeight: 1.5 }}>Passkeys aren't supported in this browser — your transaction PIN keeps payments protected.</p>
-            </div>
-          )}
+            <span style={{ color: "var(--text-tertiary)", fontSize: 18 }}>›</span>
+          </button>
         </div>
 
         <button onClick={onLogout} style={{ width: "100%", background: "#FEE2E2", color: C.danger, border: "none", borderRadius: 14, padding: 15, fontSize: 15, fontWeight: 700, cursor: "pointer", marginBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}>
