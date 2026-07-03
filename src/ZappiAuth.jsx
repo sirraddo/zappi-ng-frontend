@@ -63,7 +63,7 @@ async function piLogin(onSuccess) {
   }
 }
 
-// ── PIN DOTS ────────────────────────────────────────────────────────────────────────
+// -- PIN DOTS --
 function PinDots({ value, length, error }) {
   return (
     <div style={{ display: "flex", gap: 16, justifyContent: "center", margin: "28px 0 8px" }}>
@@ -79,7 +79,7 @@ function PinDots({ value, length, error }) {
   )
 }
 
-// ── PIN PAD ────────────────────────────────────────────────────────────────────────
+// -- PIN PAD --
 function PinPad({ onPress, onDelete }) {
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"]
   return (
@@ -101,7 +101,7 @@ function PinPad({ onPress, onDelete }) {
   )
 }
 
-// ── SPLASH SCREEN ───────────────────────────────────────────────────────────────────
+// -- SPLASH SCREEN --
 export function SplashScreen({ onContinue, onSuccess }) {
   const [busy, setBusy] = useState(false)
 
@@ -124,7 +124,7 @@ export function SplashScreen({ onContinue, onSuccess }) {
   )
 }
 
-// ── LOGIN ─────────────────────────────────────────────────────────────────────────────
+// -- LOGIN --
 export function LoginScreen({ onSuccess }) {
   const [busy, setBusy] = useState(false)
 
@@ -147,7 +147,7 @@ export function LoginScreen({ onSuccess }) {
   )
 }
 
-// ── TRANSACTION PIN MODAL ─────────────────────────────────────────────────────────
+// -- TRANSACTION PIN MODAL --
 // Server-verified: the PIN (or a passkey assertion) is checked by the backend,
 // which returns a single-use confirmation token bound to `txnFields`. That
 // token is passed to onSuccess and is what /api/payments/complete requires.
@@ -212,8 +212,8 @@ export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment", tx
   )
 }
 
-// ── PROFILE SCREEN ───────────────────────────────────────────────────────────────────
-// ── CHANGE / SET PIN FLOW (login = 4-digit, txn = 6-digit) ────────────────────
+// -- PROFILE SCREEN --
+// -- CHANGE / SET PIN FLOW (login = 4-digit, txn = 6-digit) --
 export function ChangePinFlow({ kind = "txn", forceSetup = false, onBack, onDone, subtitle }) {
   const isLogin = kind === "login"
   const len = isLogin ? 4 : 6
