@@ -491,6 +491,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <p style={{color:"white",fontSize:34,fontWeight:800,margin:"4px 0 2px",letterSpacing:"-1px"}}>π {balance.toFixed(2)}</p>
 <p style={{color:"rgba(255,255,255,0.65)",fontSize:12,margin:0}}>≈ ₦{Math.round(balance * liveRate).toLocaleString()} · Rate: ₦{liveRate}/π</p>
 <div style={{marginTop:10}}><PiRateTicker rate={liveRate} live={rateLive} /></div>
+<p style={{color:"rgba(255,255,255,0.45)",fontSize:9,margin:"6px 0 0",lineHeight:1.3}}>Zappi NG's own rate for pricing our services, calculated from live market data — not an official Pi Network value</p>
 </div>
 </div>
 
@@ -733,7 +734,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <SCard icon="🏨" label="Hotels" desc="Book hotels across Nigeria" bg="#FEF9C3" onClick={()=>setSubPage("hotel")}/>
 <SCard icon="✈️" label="Travel & Transport" desc="Flights, rides, tolls & more" bg="#DBEAFE" onClick={()=>setSubPage("transport")}/>
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Finance & Rewards</p>
-<SCard icon="📊" label="Pi Market Rate" desc="Live Pi/NGN exchange rate" bg="#FFF7ED" onClick={()=>showToast(`Current rate: ₦${liveRate}/π`,"success")}/>
+<SCard icon="📊" label="Pi Market Rate" desc="Our own live rate — not an official Pi price" bg="#FFF7ED" onClick={()=>showToast(`Current rate: ₦${liveRate}/π`,"success")}/>
 <SCard icon="💰" label="Pi Savings" desc="Save Pi and earn interest (Coming soon)" bg="#EDE9FE" onClick={()=>showToast("Pi Savings launching soon!","success")}/>
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Account</p>
 <SCard icon="👤" label="My Profile" desc="Manage your account" bg="#F0F0FF" onClick={()=>setShowProfile(true)}/>
