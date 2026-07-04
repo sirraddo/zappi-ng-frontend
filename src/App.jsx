@@ -63,10 +63,59 @@ Glo:[{code:"g-2gb",label:"2GB",duration:"30 days",price:500},{code:"g-5gb",label
 }
 
 const DISCOS=["IKEDC (Lagos)","EKEDC (Lagos)","AEDC (Abuja)","PHED (Port Harcourt)","EEDC (Enugu)","KEDCO (Kano)"]
+
+// Nigerian mobile network prefixes (public, NCC-allocated ranges — no external API needed).
+// Used only to suggest/confirm a network from the phone number; not authoritative,
+// the user can always override the detected network manually.
+const NETWORK_PREFIXES = {
+MTN: ["0803","0806","0703","0706","0813","0816","0810","0814","0903","0906","0913","0916","0704"],
+Airtel: ["0802","0808","0708","0812","0701","0902","0901","0907","0912","0904"],
+Glo: ["0805","0807","0705","0815","0811","0905","0915"],
+"9mobile": ["0809","0817","0818","0908","0909"],
+}
+function detectNetwork(phone) {
+const p = String(phone||"").replace(/\D/g,"")
+const local = p.startsWith("234") ? "0"+p.slice(3) : p
+const prefix = local.slice(0,4)
+for (const [net, prefixes] of Object.entries(NETWORK_PREFIXES)) {
+if (prefixes.includes(prefix)) return net
+}
+return null
+}
 const BETTING_SITES=[{id:"bet9ja",label:"Bet9ja",icon:"🎯"},{id:"sportybet",label:"Sportybet",icon:"⚽"},{id:"1xbet",label:"1xBet",icon:"🏆"},{id:"betway",label:"Betway",icon:"🎲"}]
 const HOTELS=[{id:"transcorp",label:"Transcorp Hilton",city:"Abuja",price:60000,rating:"⭐⭐⭐⭐⭐"},{id:"eko",label:"Eko Hotel",city:"Lagos",price:45000,rating:"⭐⭐⭐⭐⭐"},{id:"sheraton",label:"Sheraton Lagos",city:"Lagos",price:55000,rating:"⭐⭐⭐⭐⭐"},{id:"radisson",label:"Radisson Blu",city:"Lagos",price:40000,rating:"⭐⭐⭐⭐"}]
 const TRANSPORT=[{id:"uber",label:"Uber Ride",icon:"🚗",desc:"Book a ride"},{id:"brt",label:"BRT Pass",icon:"🚌",desc:"Bus rapid transit"},{id:"toll",label:"Toll Payment",icon:"🛣️",desc:"Highway tolls"},{id:"ferry",label:"Ferry Ticket",icon:"⛵",desc:"Water transport"},{id:"flight",label:"Flight Booking",icon:"✈️",desc:"Domestic flights"}]
 const INTERNET_PROVIDERS=[{id:"smile",label:"Smile",icon:"😊",price:3000},{id:"spectranet",label:"Spectranet",icon:"📡",price:4000},{id:"ipnx",label:"ipNX",icon:"🌐",price:5000}]
+
+function HowToModal({ onClose }) {
+const steps = [
+{ n:1, title:"Pick a service", desc:"Airtime, data, electricity, cable TV, betting, and more — all in one place." },
+{ n:2, title:"Enter the details", desc:"Phone number, meter number, or account ID — whatever the service needs." },
+{ n:3, title:"See the Pi cost", desc:"We show you the live Pi amount before you confirm anything." },
+{ n:4, title:"Confirm with your PIN", desc:"Approve with your transaction PIN, then complete payment in Pi Wallet." },
+]
+return (
+<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:9998,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={onClose}>
+<div style={{width:"100%",maxWidth:430,background:"var(--card-bg)",borderRadius:"24px 24px 0 0",padding:"24px 20px max(32px, calc(env(safe-area-inset-bottom, 0px) + 20px))",maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+<h3 style={{margin:0,fontSize:18,fontWeight:800}}>How Zappi NG works</h3>
+<button onClick={onClose} style={{background:"#f0f0f0",border:"none",borderRadius:50,width:32,height:32,fontSize:18,cursor:"pointer"}}>✕</button>
+</div>
+<p style={{margin:"0 0 20px",fontSize:13,color:"var(--text-tertiary)"}}>Pay Nigerian bills with Pi in 4 simple steps.</p>
+{steps.map(s=>(
+<div key={s.n} style={{display:"flex",gap:12,marginBottom:16}}>
+<div style={{width:28,height:28,borderRadius:"50%",background:"var(--primary-light)",color:"#6C3AED",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:13,flexShrink:0}}>{s.n}</div>
+<div>
+<p style={{margin:0,fontSize:14,fontWeight:700,color:"var(--text-primary)"}}>{s.title}</p>
+<p style={{margin:"2px 0 0",fontSize:12,color:"var(--text-secondary)",lineHeight:1.4}}>{s.desc}</p>
+</div>
+</div>
+))}
+<button onClick={onClose} style={{width:"100%",background:"#6C3AED",color:"white",border:"none",borderRadius:12,padding:14,fontWeight:700,fontSize:14,cursor:"pointer",marginTop:4}}>Got it</button>
+</div>
+</div>
+)
+}
 
 function NavBar({ page, setPage }) {
 const tabs=[{id:"home",icon:"🏠",label:"Home"},{id:"bills",icon:"📋",label:"Bills"},{id:"more",icon:"⚡",label:"More"},{id:"history",icon:"🕐",label:"History"}]
@@ -177,6 +226,7 @@ const [authScreen, setAuthScreen] = useState("splash") // splash|login
 const [isLoggedIn, setIsLoggedIn] = useState(false)
 const [txnPinReady, setTxnPinReady] = useState(hasServerPin())
 const [showProfile, setShowProfile] = useState(false)
+const [showHowTo, setShowHowTo] = useState(false)
 
 // Check if user exists on load
 useEffect(() => {
@@ -242,6 +292,21 @@ const [bettingId,setBettingId]=useState("")
 const [hotel,setHotel]=useState(null)
 const [transport,setTransport]=useState(null)
 const [internetProvider,setInternetProvider]=useState(null)
+
+// Auto-detect the mobile network from the phone number (airtime/data screens only —
+// phone isn't used elsewhere). Purely a convenience + trust signal; the user can
+// still pick a different network manually via NetGrid at any time.
+const [phoneDetected,setPhoneDetected]=useState(null)
+useEffect(()=>{
+const digits = String(phone||"").replace(/\D/g,"")
+if (digits.length>=11) {
+const detected = detectNetwork(phone)
+setPhoneDetected(detected)
+if (detected && !network) setNetwork(detected) // don't override a manual choice — ported numbers exist
+} else {
+setPhoneDetected(null)
+}
+},[phone])
 
 const unread = notifications.filter(n=>!n.read).length
 const user = JSON.parse(localStorage.getItem("zappi_user")||"{}")
@@ -315,6 +380,32 @@ setDisco(""); setMeter(""); setRecipient(""); setPiAmount(""); setNote("")
 setBettingSite(null); setBettingId(""); setHotel(null); setTransport(null); setInternetProvider(null)
 }
 
+// Restores a past purchase's exact details (from tx.raw, saved at the time of that
+// purchase) and jumps back to the matching screen so the user can review and resubmit.
+// tx.raw is only present on transactions made after this feature shipped — older
+// seed/demo entries simply won't show the button (see the History row rendering).
+const buyAgain=(tx)=>{
+const r = tx.raw
+if (!r) { showToast("Can't repeat this transaction","danger"); return }
+resetInputs()
+switch(tx.type){
+case "airtime": setNetwork(r.network); setPhone(r.phone); setAmount(r.amount); break
+case "data": {
+setNetwork(r.network); setPhone(r.phone)
+setBundle((DATA_BUNDLES[r.network]||[]).find(b=>b.code===r.bundleCode) || null)
+break
+}
+case "electricity": setDisco(r.disco); setMeter(r.meter); setMeterType(r.meterType); setAmount(r.amount); break
+case "cable": setNetwork(r.network); setMeter(r.meter); setAmount(r.amount); break
+case "internet": setInternetProvider(INTERNET_PROVIDERS.find(p=>p.id===r.providerId) || null); setMeter(r.meter); setAmount(r.amount); break
+case "betting": setBettingSite(BETTING_SITES.find(b=>b.id===r.siteId) || null); setBettingId(r.bettingId); setAmount(r.amount); break
+case "hotel": setHotel(HOTELS.find(h=>h.id===r.hotelId) || null); setAmount(r.amount); break
+case "transport": setTransport(TRANSPORT.find(t=>t.id===r.transportId) || null); setAmount(r.amount); break
+default: showToast("Can't repeat this transaction","danger"); return
+}
+setPage(r.page); setSubPage(r.subPage)
+}
+
 // The five fields the confirmation token is cryptographically bound to.
 // They must be sent identically to the confirm endpoint and /api/payments/complete.
 const buildTxnFields=(tx)=>{
@@ -336,6 +427,7 @@ type: tx.type, label: tx.label, sub: tx.sub,
 amount: `₦${Math.round(Number(tx.ngn)).toLocaleString()}`,
 pi: `π${piCost.toFixed(2)}`,
 color: tx.color || "#EDE9FE", icon: tx.icon || "💳",
+raw: tx.raw || null,
 }
 addTransaction(newTx)
 setReceiptTx(newTx)
@@ -447,6 +539,7 @@ return (
 {toast&&<div style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",background:toastType==="success"?C.success:C.danger,color:"white",padding:"12px 24px",borderRadius:24,fontSize:13,fontWeight:600,zIndex:9999,boxShadow:"0 4px 20px rgba(0,0,0,0.2)",whiteSpace:"nowrap"}}>{toast}</div>}
 
 {txnPinModal&&<TxnPinModal label={txnPinModal.label} txnFields={txnPinModal.txnFields} onSuccess={txnPinModal.onConfirmed} onCancel={()=>setTxnPinModal(null)}/>}
+{showHowTo&&<HowToModal onClose={()=>setShowHowTo(false)}/>}
 {receiptTx&&<TransactionReceipt receipt={txToReceipt(receiptTx)} onDone={()=>setReceiptTx(null)}/>}
 
 {showNotif&&(
@@ -480,6 +573,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <p style={{color:"white",fontSize:17,fontWeight:700,margin:"2px 0 0"}}>{user.fullName||"Zappi User"}</p>
 </div>
 <div style={{display:"flex",gap:10,alignItems:"center"}}>
+<button onClick={()=>setShowHowTo(true)} style={{width:38,height:38,borderRadius:"50%",background:"rgba(255,255,255,0.25)",border:"2px solid rgba(255,255,255,0.4)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:800,color:"white",cursor:"pointer"}}>?</button>
 <NotificationBell />
 <button onClick={()=>setShowProfile(true)} style={{width:38,height:38,borderRadius:"50%",background:"rgba(255,255,255,0.25)",border:"2px solid rgba(255,255,255,0.4)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,cursor:"pointer"}}>
 {user.avatar||"⚡"}
@@ -525,6 +619,33 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 </button>
 ))}
 </div>
+</div>
+
+<div style={{padding:"8px 16px 0"}}>
+<div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:4}}>
+{[
+{icon:"⚡",title:"Instant bill payments",desc:"Airtime, data, electricity & more — paid with Pi",bg:"linear-gradient(135deg,#7C3AED,#9F67F5)"},
+{icon:"📊",title:"Live market rate",desc:"Our Pi/NGN rate updates in real time, not fixed",bg:"linear-gradient(135deg,#059669,#10B981)"},
+{icon:"🔒",title:"Secure by design",desc:"Every payment needs your transaction PIN",bg:"linear-gradient(135deg,#EA580C,#F59E0B)"},
+].map(promo=>(
+<div key={promo.title} style={{minWidth:220,background:promo.bg,borderRadius:14,padding:16,flexShrink:0}}>
+<p style={{fontSize:22,margin:"0 0 8px"}}>{promo.icon}</p>
+<p style={{color:"white",fontWeight:700,fontSize:13,margin:"0 0 4px"}}>{promo.title}</p>
+<p style={{color:"rgba(255,255,255,0.85)",fontSize:11,margin:0,lineHeight:1.4}}>{promo.desc}</p>
+</div>
+))}
+</div>
+</div>
+
+<div style={{padding:"12px 16px 0"}}>
+<button onClick={()=>setLegalPage("support")} style={{width:"100%",background:"var(--card-bg)",border:"none",borderRadius:14,padding:14,display:"flex",alignItems:"center",gap:12,cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.06)",textAlign:"left"}}>
+<span style={{fontSize:22}}>💬</span>
+<div style={{flex:1}}>
+<p style={{margin:0,fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>Need help?</p>
+<p style={{margin:"2px 0 0",fontSize:11,color:"var(--text-tertiary)"}}>FAQ, WhatsApp, and contact support</p>
+</div>
+<span style={{color:"var(--text-tertiary)",fontSize:18}}>›</span>
+</button>
 </div>
 
 <div style={{padding:"8px 16px 16px"}}>
@@ -608,11 +729,12 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div style={{padding:16}}>
 <FL>Network</FL><NetGrid selected={network} onSelect={setNetwork}/>
 <FL>Phone number</FL><Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
+{phoneDetected&&<p style={{color:"#16a34a",fontSize:12,fontWeight:600,margin:"-8px 0 12px"}}>✓ Number verified ({phoneDetected} Nigeria)</p>}
 <FL>Amount (₦)</FL>
 <div style={{display:"flex",gap:8,marginBottom:8}}>{[100,200,500,1000].map(a=><button key={a} onClick={()=>setAmount(String(a))} style={{flex:1,padding:10,borderRadius:10,border:`2px solid ${amount==a?C.primary:"var(--border)"}`,background:amount==a?C.light:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>₦{a}</button>)}</div>
 <Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Or enter amount"/>
 <PiSummary amount={amount} rate={liveRate}/>
-<Btn label={`Buy Airtime — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!network||!phone||!amount} onClick={()=>validate("airtime")&&handlePay("Airtime",{type:"airtime",label:`${network} Airtime`,sub:phone,ngn:Number(amount),icon:"📱",color:"#EDE9FE"})}/>
+<Btn label={`Buy Airtime — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!network||!phone||!amount} onClick={()=>validate("airtime")&&handlePay("Airtime",{type:"airtime",label:`${network} Airtime`,sub:phone,ngn:Number(amount),icon:"📱",color:"#EDE9FE",raw:{page:"bills",subPage:"airtime",network,phone,amount}})}/>
 </div></div>
 )}
 
@@ -621,6 +743,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div style={{padding:16}}>
 <FL>Network</FL><NetGrid selected={network} onSelect={n=>{setNetwork(n);setBundle(null)}}/>
 <FL>Phone number</FL><Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
+{phoneDetected&&<p style={{color:"#16a34a",fontSize:12,fontWeight:600,margin:"-8px 0 12px"}}>✓ Number verified ({phoneDetected} Nigeria)</p>}
 {network&&<><FL>Select bundle</FL>
 <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:16}}>
 {(DATA_BUNDLES[network]||[]).map(b=><button key={b.code} onClick={()=>setBundle(b)} style={{padding:14,borderRadius:12,border:`2px solid ${bundle?.code===b.code?C.primary:"var(--border)"}`,background:bundle?.code===b.code?C.light:"white",cursor:"pointer",textAlign:"left"}}>
@@ -628,7 +751,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 </button>)}
 </div></>}
 {bundle&&<PiSummary amount={bundle.price} rate={liveRate}/>}
-<Btn label={bundle?`Buy ${bundle.label} Data — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a bundle"} disabled={!network||!phone||!bundle} onClick={()=>validate("data")&&handlePay("Data",{type:"data",label:`${network} ${bundle.label} Data`,sub:phone,ngn:bundle.price,icon:"📶",color:"#ECFDF5"})}/>
+<Btn label={bundle?`Buy ${bundle.label} Data — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a bundle"} disabled={!network||!phone||!bundle} onClick={()=>validate("data")&&handlePay("Data",{type:"data",label:`${network} ${bundle.label} Data`,sub:phone,ngn:bundle.price,icon:"📶",color:"#ECFDF5",raw:{page:"bills",subPage:"data",network,phone,bundleCode:bundle.code}})}/>
 </div></div>
 )}
 
@@ -646,7 +769,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:8}}>{[1000,2000,5000,10000].map(a=><button key={a} onClick={()=>setAmount(String(a))} style={{padding:"10px 14px",borderRadius:10,border:`2px solid ${amount==a?C.primary:"var(--border)"}`,background:amount==a?C.light:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>₦{a.toLocaleString()}</button>)}</div>
 <Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Or enter amount"/>
 <PiSummary amount={amount} bg="#FFF7ED" color="#EA580C" rate={liveRate}/>
-<Btn label={`Pay ₦${Number(amount||0).toLocaleString()} — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!disco||!meter||!amount} onClick={()=>validate("electricity")&&handlePay("Electricity",{type:"electricity",label:`${disco.split(" ")[0]} Electricity`,sub:`Meter: ${meter}`,ngn:Number(amount),icon:"⚡",color:"#FFF7ED"})}/>
+<Btn label={`Pay ₦${Number(amount||0).toLocaleString()} — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!disco||!meter||!amount} onClick={()=>validate("electricity")&&handlePay("Electricity",{type:"electricity",label:`${disco.split(" ")[0]} Electricity`,sub:`Meter: ${meter}`,ngn:Number(amount),icon:"⚡",color:"#FFF7ED",raw:{page:"bills",subPage:"electricity",disco,meter,meterType,amount}})}/>
 </div></div>
 )}
 
@@ -661,7 +784,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <p style={{margin:0,fontSize:14,fontWeight:700}}>{pkg.label}</p><p style={{margin:"4px 0 0",fontSize:13,color:C.primary,fontWeight:700}}>₦{pkg.price.toLocaleString()}</p>
 </button>)}</div>
 <PiSummary amount={amount} bg="#FDF2F8" color="#A21CAF" rate={liveRate}/>
-<Btn label={`Pay ₦${Number(amount||0).toLocaleString()} — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!network||!meter||!amount} onClick={()=>validate("cable")&&handlePay("Cable TV",{type:"cable",label:`${network} Subscription`,sub:`Smart card: ${meter}`,ngn:Number(amount),icon:"📺",color:"#FDF2F8"})}/>
+<Btn label={`Pay ₦${Number(amount||0).toLocaleString()} — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!network||!meter||!amount} onClick={()=>validate("cable")&&handlePay("Cable TV",{type:"cable",label:`${network} Subscription`,sub:`Smart card: ${meter}`,ngn:Number(amount),icon:"📺",color:"#FDF2F8",raw:{page:"bills",subPage:"cable",network,meter,amount}})}/>
 </div></div>
 )}
 
@@ -674,7 +797,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div style={{flex:1}}><p style={{margin:0,fontSize:14,fontWeight:700}}>{p.label}</p><p style={{margin:"2px 0 0",fontSize:12,color:"var(--text-tertiary)"}}>From ₦{p.price.toLocaleString()}/month</p></div>
 {internetProvider?.id===p.id&&<span style={{color:C.primary,fontSize:18}}>✓</span>}
 </button>)}
-{internetProvider&&<><FL>Account number</FL><Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Account number"/><FL>Amount (₦)</FL><Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Enter amount" type="number"/><PiSummary amount={amount} bg="#EFF6FF" color="#2563EB" rate={liveRate}/><Btn label={`Pay — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!meter||!amount} onClick={()=>validate("internet")&&handlePay("Internet",{type:"internet",label:`${internetProvider.label} Internet`,sub:`Acct: ${meter}`,ngn:Number(amount),icon:"🌐",color:"#EFF6FF"})}/></>}
+{internetProvider&&<><FL>Account number</FL><Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Account number"/><FL>Amount (₦)</FL><Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Enter amount" type="number"/><PiSummary amount={amount} bg="#EFF6FF" color="#2563EB" rate={liveRate}/><Btn label={`Pay — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!meter||!amount} onClick={()=>validate("internet")&&handlePay("Internet",{type:"internet",label:`${internetProvider.label} Internet`,sub:`Acct: ${meter}`,ngn:Number(amount),icon:"🌐",color:"#EFF6FF",raw:{page:"bills",subPage:"internet",providerId:internetProvider.id,meter,amount}})}/></>}
 </div></div>
 )}
 
@@ -690,7 +813,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div style={{display:"flex",gap:8,marginBottom:8}}>{[500,1000,2000,5000].map(a=><button key={a} onClick={()=>setAmount(String(a))} style={{flex:1,padding:10,borderRadius:10,border:`2px solid ${amount==a?C.primary:"var(--border)"}`,background:amount==a?C.light:"white",cursor:"pointer",fontSize:12,fontWeight:600}}>₦{a>=1000?a/1000+"k":a}</button>)}</div>
 <Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Or enter amount" type="number"/>
 <PiSummary amount={amount} bg="#F0FDF4" color="#15803D" rate={liveRate}/>
-<Btn label={`Fund ${bettingSite.label} — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!bettingId||!amount} onClick={()=>validate("betting")&&handlePay(`${bettingSite.label} betting`,{type:"betting",label:`${bettingSite.label} Funding`,sub:`ID: ${bettingId}`,ngn:Number(amount),icon:"🎯",color:"#F0FDF4"})}/></>}
+<Btn label={`Fund ${bettingSite.label} — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!bettingId||!amount} onClick={()=>validate("betting")&&handlePay(`${bettingSite.label} betting`,{type:"betting",label:`${bettingSite.label} Funding`,sub:`ID: ${bettingId}`,ngn:Number(amount),icon:"🎯",color:"#F0FDF4",raw:{page:"bills",subPage:"betting",siteId:bettingSite.id,bettingId,amount}})}/></>}
 </div></div>
 )}
 
@@ -757,7 +880,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 </button>)}
 {hotel&&<><FL>Number of nights</FL><Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="e.g. 2" type="number"/>
 {amount>0&&<PiSummary amount={hotel.price*Number(amount)} bg="#FEF9C3" color="#854D0E" rate={liveRate}/>}
-<Btn label={`Book — π ${amount?(hotel.price*amount/liveRate).toFixed(4):"0"}`} disabled={!amount} onClick={()=>validate("hotel")&&handlePay("Hotel booking",{type:"hotel",label:hotel.label,sub:`${amount} night${Number(amount)>1?"s":""} · ${hotel.city}`,ngn:hotel.price*Number(amount),icon:"🏨",color:"#FEF9C3"})}/></>}
+<Btn label={`Book — π ${amount?(hotel.price*amount/liveRate).toFixed(4):"0"}`} disabled={!amount} onClick={()=>validate("hotel")&&handlePay("Hotel booking",{type:"hotel",label:hotel.label,sub:`${amount} night${Number(amount)>1?"s":""} · ${hotel.city}`,ngn:hotel.price*Number(amount),icon:"🏨",color:"#FEF9C3",raw:{page:"more",subPage:"hotel",hotelId:hotel.id,amount}})}/></>}
 </div></div>
 )}
 
@@ -772,7 +895,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 </button>)}
 {transport&&<><FL>Amount (₦)</FL><Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Enter amount" type="number"/>
 <PiSummary amount={amount} bg="#DBEAFE" color="#1D4ED8" rate={liveRate}/>
-<Btn label={`Pay for ${transport.label} — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!amount} onClick={()=>validate("transport")&&handlePay(transport.label,{type:"transport",label:transport.label,sub:transport.desc,ngn:Number(amount),icon:transport.icon,color:"#DBEAFE"})}/></>}
+<Btn label={`Pay for ${transport.label} — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!amount} onClick={()=>validate("transport")&&handlePay(transport.label,{type:"transport",label:transport.label,sub:transport.desc,ngn:Number(amount),icon:transport.icon,color:"#DBEAFE",raw:{page:"more",subPage:"transport",transportId:transport.id,amount}})}/></>}
 </div></div>
 )}
 
@@ -786,7 +909,8 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div style={{padding:"8px 16px"}}>
 {filteredTx.length===0&&<p style={{color:"var(--text-tertiary)",textAlign:"center",padding:40,fontSize:14}}>No transactions found</p>}
 {filteredTx.map(tx=>(
-<div key={tx.id} onClick={()=>setReceiptTx(tx)} style={{background:"var(--card-bg)",borderRadius:14,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 6px rgba(0,0,0,0.05)",cursor:"pointer"}}>
+<div key={tx.id} style={{background:"var(--card-bg)",borderRadius:14,marginBottom:8,boxShadow:"0 2px 6px rgba(0,0,0,0.05)",overflow:"hidden"}}>
+<div onClick={()=>setReceiptTx(tx)} style={{padding:14,display:"flex",alignItems:"center",gap:12,cursor:"pointer"}}>
 <div style={{width:44,height:44,borderRadius:12,background:tx.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{tx.icon}</div>
 <div style={{flex:1}}>
 <p style={{margin:0,fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>{tx.label}</p>
@@ -798,6 +922,12 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <p style={{margin:"2px 0",fontSize:11,color:"var(--text-tertiary)"}}>{tx.amount}</p>
 <span style={{background:tx.status==="success"?"#DCFCE7":"#FEE2E2",color:tx.status==="success"?"#166534":"#991B1B",fontSize:10,padding:"2px 8px",borderRadius:10,fontWeight:700}}>{tx.status==="success"?"✓ Success":"✗ Failed"}</span>
 </div>
+</div>
+{tx.raw&&tx.status==="success"&&(
+<button onClick={()=>buyAgain(tx)} style={{width:"100%",background:"none",border:"none",borderTop:"1px solid var(--border)",padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"center",gap:6,cursor:"pointer",color:C.primary,fontSize:12,fontWeight:700}}>
+🔁 Buy Again
+</button>
+)}
 </div>
 ))}
 </div></div>
