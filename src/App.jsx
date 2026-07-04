@@ -302,7 +302,7 @@ const digits = String(phone||"").replace(/\D/g,"")
 if (digits.length>=11) {
 const detected = detectNetwork(phone)
 setPhoneDetected(detected)
-if (detected) setNetwork(detected)
+if (detected && !network) setNetwork(detected) // don't override a manual choice — ported numbers exist
 } else {
 setPhoneDetected(null)
 }
