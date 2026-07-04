@@ -505,7 +505,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 )}
 
 <div style={{display:"flex",gap:10,padding:"16px 16px 0",marginTop:bonusClaimed?"-12px":8}}>
-{[{label:"Refer & Earn",icon:"🎯",action:()=>navTo("home","refer")},{label:"History",icon:"🕐",action:()=>navTo("history")},{label:"Profile",icon:"👤",action:()=>setShowProfile(true)}].map(a=>(
+{[{label:"History",icon:"🕐",action:()=>navTo("history")},{label:"Profile",icon:"👤",action:()=>setShowProfile(true)}].map(a=>(
 <button key={a.label} onClick={a.action} style={{flex:1,background:"var(--card-bg)",border:"none",borderRadius:12,padding:"12px 4px",cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.07)",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
 <span style={{fontSize:20}}>{a.icon}</span>
 <span style={{fontSize:10,color:"var(--text-secondary)",fontWeight:600}}>{a.label}</span>
@@ -548,7 +548,18 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 </div>
 )}
 
-{page==="home"&&subPage==="refer"&&(
+{/* DISABLED — unreachable from any nav entry point as of this change. REFERRAL_CODE is a
+   single hardcoded string ("ZAPPI50") shared by every user, with no backend tracking of
+   who referred whom, no way to detect a qualifying signup, and no payout mechanism at all
+   — the "Earn π0.50 per referral" claim could not come true for anyone as written. The
+   "Your referral stats" numbers below are also hardcoded fake data, not real activity.
+   Left in place, not deleted, so a real implementation has a UI to build from: needs a
+   per-user code issued by the backend, a way to attribute a signup to that code, some
+   qualifying action (e.g. the referred user's first completed payment) before a reward
+   is earned, and a real payout via the A2U mechanism in zappi-ng-backend#8 (same
+   recipient-must-have-logged-in constraint as Send Pi applies here too).
+   Re-enable by restoring the "Refer & Earn" entry points once that's built. */}
+{false&&page==="home"&&subPage==="refer"&&(
 <div>
 <Header title="Refer & Earn" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
@@ -722,7 +733,6 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <SCard icon="🏨" label="Hotels" desc="Book hotels across Nigeria" bg="#FEF9C3" onClick={()=>setSubPage("hotel")}/>
 <SCard icon="✈️" label="Travel & Transport" desc="Flights, rides, tolls & more" bg="#DBEAFE" onClick={()=>setSubPage("transport")}/>
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Finance & Rewards</p>
-<SCard icon="🎯" label="Refer & Earn" desc="Earn π0.50 per referral" bg="#ECFDF5" onClick={()=>navTo("home","refer")}/>
 <SCard icon="📊" label="Pi Market Rate" desc="Live Pi/NGN exchange rate" bg="#FFF7ED" onClick={()=>showToast(`Current rate: ₦${liveRate}/π`,"success")}/>
 <SCard icon="💰" label="Pi Savings" desc="Save Pi and earn interest (Coming soon)" bg="#EDE9FE" onClick={()=>showToast("Pi Savings launching soon!","success")}/>
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Account</p>
