@@ -15,7 +15,7 @@ import { hasServerPin, hasLegacyPin, REAL_PAYMENTS, completeBillPayment } from "
 const VTPASS_AIRTIME = { MTN: "mtn", Airtel: "airtel", Glo: "glo", "9mobile": "etisalat" }
 const VTPASS_DATA = { MTN: "mtn-data", Airtel: "airtel-data", Glo: "glo-data", "9mobile": "etisalat-data" }
 const VTPASS_CABLE = { DStv: "dstv", GOtv: "gotv", Startimes: "startimes" }
-const VTPASS_DISCO = { IKEDC: "ikeja-electric", EKEDC: "eko-electric", AEDC: "abuja-electric", PHED: "portharcourt-electric", EEDC: "enugu-electric", KEDCO: "kano-electric" }
+const VTPASS_DISCO = { IKEDC: "ikeja-electric", EKEDC: "eko-electric", IBEDC: "ibadan-electric", AEDC: "abuja-electric", PHED: "portharcourt-electric", EEDC: "enugu-electric", KEDCO: "kano-electric", BEDC: "benin-electric", JED: "jos-electric", KAEDC: "kaduna-electric", YEDC: "yola-electric" }
 
 const RATE = 600 // fallback only — app uses live rate from backend
 const C = {
@@ -62,7 +62,7 @@ Glo:[{code:"g-2gb",label:"2GB",duration:"30 days",price:500},{code:"g-5gb",label
 "9mobile":[{code:"9m-1gb",label:"1GB",duration:"30 days",price:300},{code:"9m-2gb",label:"2GB",duration:"30 days",price:500}],
 }
 
-const DISCOS=["IKEDC (Lagos)","EKEDC (Lagos)","AEDC (Abuja)","PHED (Port Harcourt)","EEDC (Enugu)","KEDCO (Kano)"]
+const DISCOS=["IKEDC (Lagos)","EKEDC (Lagos)","IBEDC (Ibadan)","AEDC (Abuja)","PHED (Port Harcourt)","EEDC (Enugu)","KEDCO (Kano)","BEDC (Benin)","JED (Jos)","KAEDC (Kaduna)","YEDC (Yola)"]
 
 // Nigerian mobile network prefixes (public, NCC-allocated ranges — no external API needed).
 // Used only to suggest/confirm a network from the phone number; not authoritative,
@@ -82,7 +82,7 @@ if (prefixes.includes(prefix)) return net
 }
 return null
 }
-const BETTING_SITES=[{id:"bet9ja",label:"Bet9ja",icon:"🎯"},{id:"sportybet",label:"Sportybet",icon:"⚽"},{id:"1xbet",label:"1xBet",icon:"🏆"},{id:"betway",label:"Betway",icon:"🎲"}]
+const BETTING_SITES=[{id:"bet9ja",label:"Bet9ja",icon:"🎯"},{id:"sportybet",label:"Sportybet",icon:"⚽"},{id:"1xbet",label:"1xBet",icon:"🏆"},{id:"betway",label:"Betway",icon:"🎲"},{id:"nairabet",label:"NairaBet",icon:"🇳🇬"},{id:"betking",label:"BetKing",icon:"👑"},{id:"msport",label:"MSport",icon:"🥅"}]
 const HOTELS=[{id:"transcorp",label:"Transcorp Hilton",city:"Abuja",price:60000,rating:"⭐⭐⭐⭐⭐"},{id:"eko",label:"Eko Hotel",city:"Lagos",price:45000,rating:"⭐⭐⭐⭐⭐"},{id:"sheraton",label:"Sheraton Lagos",city:"Lagos",price:55000,rating:"⭐⭐⭐⭐⭐"},{id:"radisson",label:"Radisson Blu",city:"Lagos",price:40000,rating:"⭐⭐⭐⭐"}]
 const TRANSPORT=[{id:"uber",label:"Uber Ride",icon:"🚗",desc:"Book a ride"},{id:"brt",label:"BRT Pass",icon:"🚌",desc:"Bus rapid transit"},{id:"toll",label:"Toll Payment",icon:"🛣️",desc:"Highway tolls"},{id:"ferry",label:"Ferry Ticket",icon:"⛵",desc:"Water transport"},{id:"flight",label:"Flight Booking",icon:"✈️",desc:"Domestic flights"}]
 const INTERNET_PROVIDERS=[{id:"smile",label:"Smile",icon:"😊",price:3000},{id:"spectranet",label:"Spectranet",icon:"📡",price:4000},{id:"ipnx",label:"ipNX",icon:"🌐",price:5000}]
