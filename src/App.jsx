@@ -178,11 +178,65 @@ onMouseDown={e=>e.currentTarget.style.transform="scale(0.98)"} onMouseUp={e=>e.c
 )
 }
 
+// Fetches VTPass's own service catalog for a category (airtime, tv-subscription,
+// betting, etc.) via our existing backend proxy — each entry includes an "image"
+// field pointing to that brand's official logo, hosted on VTPass's CDN. This is
+// the same catalog VTPass provides to power real bill delivery, so it's already
+// licensed for exactly this kind of display use, not scraped from anywhere.
+// Cached at module level so every BrandLogo instance for a given category shares
+// one fetch, no matter how many brand buttons are on screen.
+const _logoCatalogCache = {}
+function fetchLogoCatalog(category) {
+if (_logoCatalogCache[category]) return _logoCatalogCache[category]
+const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const token = localStorage.getItem("zappi_token")
+const promise = fetch(`${apiUrl}/api/payments/services?category=${category}`, {
+headers: token ? { Authorization: `Bearer ${token}` } : {},
+})
+.then(r => (r.ok ? r.json() : []))
+.then(list => (Array.isArray(list) ? list : []))
+.catch(() => [])
+_logoCatalogCache[category] = promise
+return promise
+}
+
+// Renders a brand's real logo where VTPass's catalog has one for it, with a
+// graceful emoji fallback otherwise (a brand not in VTPass's catalog yet, or
+// a slow/failed network request never leaves a blank or broken-looking spot).
+function BrandLogo({ category, match, fallback, size = 24 }) {
+const [src, setSrc] = useState(null)
+const [failed, setFailed] = useState(false)
+useEffect(() => {
+let cancelled = false
+fetchLogoCatalog(category).then(list => {
+if (cancelled) return
+const needle = match.toLowerCase().replace(/[^a-z0-9]/g, "")
+const hit = list.find(s => {
+const hay = `${s.serviceID || ""}${s.name || ""}`.toLowerCase().replace(/[^a-z0-9]/g, "")
+return hay.includes(needle)
+})
+if (hit?.image) setSrc(hit.image)
+})
+return () => { cancelled = true }
+}, [category, match])
+if (!src || failed) return <span style={{ fontSize: size * 0.8 }}>{fallback}</span>
+return (
+<img
+src={src}
+alt={match}
+onError={() => setFailed(true)}
+style={{ width: size, height: size, borderRadius: 6, objectFit: "contain", background: "white" }}
+/>
+)
+}
+
 function NetGrid({ selected, onSelect }) {
 return (
 <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:16}}>
 {["MTN","Airtel","Glo","9mobile"].map(n=>(
-<button key={n} onClick={()=>onSelect(n)} style={{padding:10,borderRadius:10,border:`2px solid ${selected===n?C.primary:"var(--border)"}`,background:selected===n?C.light:"white",cursor:"pointer",fontWeight:600,fontSize:14}}>{n}</button>
+<button key={n} onClick={()=>onSelect(n)} style={{padding:10,borderRadius:10,border:`2px solid ${selected===n?C.primary:"var(--border)"}`,background:selected===n?C.light:"white",cursor:"pointer",fontWeight:600,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+<BrandLogo category="airtime" match={n} fallback="📱" size={20}/>{n}
+</button>
 ))}
 </div>
 )
@@ -777,7 +831,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div><Header title="Cable TV" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
 <FL>Provider</FL>
-<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>{["DStv","GOtv","Startimes"].map(p=><button key={p} onClick={()=>setNetwork(p)} style={{padding:14,borderRadius:10,border:`2px solid ${network===p?C.primary:"var(--border)"}`,background:network===p?C.light:"white",cursor:"pointer",fontWeight:700,fontSize:13}}>{p}</button>)}</div>
+<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>{["DStv","GOtv","Startimes"].map(p=><button key={p} onClick={()=>setNetwork(p)} style={{padding:14,borderRadius:10,border:`2px solid ${network===p?C.primary:"var(--border)"}`,background:network===p?C.light:"white",cursor:"pointer",fontWeight:700,fontSize:13,display:"flex",flexDirection:"column",alignItems:"center",gap:6}}><BrandLogo category="tv-subscription" match={p} fallback="📺" size={26}/>{p}</button>)}</div>
 <FL>Smart card / IUC number</FL><Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Enter smart card number"/>
 <FL>Select package</FL>
 <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:12}}>{[{label:"Basic",price:2500},{label:"Compact",price:9000},{label:"Compact+",price:14250},{label:"Premium",price:29500}].map(pkg=><button key={pkg.label} onClick={()=>setAmount(String(pkg.price))} style={{padding:14,borderRadius:12,border:`2px solid ${amount==pkg.price?C.primary:"var(--border)"}`,background:amount==pkg.price?C.light:"white",cursor:"pointer",textAlign:"left"}}>
@@ -806,7 +860,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div style={{padding:16}}>
 <FL>Select betting site</FL>
 <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:16}}>{BETTING_SITES.map(b=><button key={b.id} onClick={()=>setBettingSite(b)} style={{padding:14,borderRadius:12,border:`2px solid ${bettingSite?.id===b.id?C.primary:"var(--border)"}`,background:bettingSite?.id===b.id?C.light:"white",cursor:"pointer",textAlign:"center"}}>
-<span style={{fontSize:24}}>{b.icon}</span><p style={{margin:"6px 0 0",fontSize:13,fontWeight:700}}>{b.label}</p>
+<BrandLogo category="betting" match={b.label} fallback={b.icon} size={28}/><p style={{margin:"6px 0 0",fontSize:13,fontWeight:700}}>{b.label}</p>
 </button>)}</div>
 {bettingSite&&<><FL>Betting ID</FL><Inp value={bettingId} onChange={e=>setBettingId(e.target.value)} placeholder={`${bettingSite.label} user ID`}/>
 <FL>Amount (₦)</FL>
