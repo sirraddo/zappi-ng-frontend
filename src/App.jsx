@@ -178,19 +178,14 @@ onMouseDown={e=>e.currentTarget.style.transform="scale(0.98)"} onMouseUp={e=>e.c
 )
 }
 
-// Fetches VTPass's own service catalog for a category (airtime, tv-subscription,
-// betting, etc.) via our existing backend proxy — each entry includes an "image"
+// Fetches VTPass's own service catalog for a category (airtime, data,
+// tv-subscription, etc.) via our existing backend proxy — each entry includes an "image"
 // field pointing to that brand's official logo, hosted on VTPass's CDN. This is
 // the same catalog VTPass provides to power real bill delivery, so it's already
 // licensed for exactly this kind of display use, not scraped from anywhere.
 // Cached at module level so every BrandLogo instance for a given category shares
 // one fetch, no matter how many brand buttons are on screen.
 const _logoCatalogCache = {}
-// TEMPORARY diagnostic — every brand fell back to emoji in production, which
-// only happens if the fetch itself is failing (not a per-brand matching miss).
-// This surfaces exactly what happened so the next screenshot tells us the real
-// cause instead of guessing again. Remove once this is confirmed working.
-const _logoDiagnostics = {}
 function fetchLogoCatalog(category) {
 if (_logoCatalogCache[category]) return _logoCatalogCache[category]
 const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
@@ -199,41 +194,15 @@ const promise = fetch(`${apiUrl}/api/payments/services?category=${category}`, {
 headers: token ? { Authorization: `Bearer ${token}` } : {},
 })
 .then(async r => {
-if (!r.ok) {
-let body = ""
-try { body = JSON.stringify(await r.json()) } catch { /* non-JSON body */ }
-_logoDiagnostics[category] = `HTTP ${r.status} ${body}`.slice(0, 140)
-return []
-}
+if (!r.ok) return []
 const list = await r.json()
-if (!Array.isArray(list)) {
-_logoDiagnostics[category] = `not an array: ${JSON.stringify(list).slice(0, 100)}`
-return []
-}
-_logoDiagnostics[category] = `ok, ${list.length} services (e.g. ${list[0]?.serviceID || "none"})`
-return list
+return Array.isArray(list) ? list : []
 })
-.catch(e => {
-_logoDiagnostics[category] = `no token: ${!token} | fetch error: ${e.message}`
-return []
-})
+.catch(() => [])
 _logoCatalogCache[category] = promise
 return promise
 }
 
-// TEMPORARY — shows exactly what fetchLogoCatalog found for a category, so we
-// can see in a screenshot whether this is an auth problem, a VTPass problem,
-// or something else. Place once per screen, not per button.
-function LogoDebug({ category }) {
-const [msg, setMsg] = useState(_logoDiagnostics[category] || null)
-useEffect(() => {
-let cancelled = false
-fetchLogoCatalog(category).then(() => { if (!cancelled) setMsg(_logoDiagnostics[category]) })
-return () => { cancelled = true }
-}, [category])
-if (!msg) return null
-return <p style={{ fontSize: 9, color: "#999", fontFamily: "monospace", margin: "-8px 0 8px", wordBreak: "break-word" }}>[logo debug] {category}: {msg}</p>
-}
 
 // Renders a brand's real logo where VTPass's catalog has one for it, with a
 // graceful emoji fallback otherwise (a brand not in VTPass's catalog yet, or
@@ -816,7 +785,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 {page==="bills"&&subPage==="airtime"&&(
 <div><Header title="Buy Airtime" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
-<FL>Network</FL><LogoDebug category="airtime"/><NetGrid selected={network} onSelect={setNetwork}/>
+<FL>Network</FL><NetGrid selected={network} onSelect={setNetwork}/>
 <FL>Phone number</FL><Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
 {phoneDetected&&<p style={{color:"#16a34a",fontSize:12,fontWeight:600,margin:"-8px 0 12px"}}>✓ Number verified ({phoneDetected} Nigeria)</p>}
 <FL>Amount (₦)</FL>
@@ -830,7 +799,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 {page==="bills"&&subPage==="data"&&(
 <div><Header title="Buy Data" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
-<FL>Network</FL><LogoDebug category="airtime"/><NetGrid selected={network} onSelect={n=>{setNetwork(n);setBundle(null)}}/>
+<FL>Network</FL><NetGrid selected={network} onSelect={n=>{setNetwork(n);setBundle(null)}}/>
 <FL>Phone number</FL><Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
 {phoneDetected&&<p style={{color:"#16a34a",fontSize:12,fontWeight:600,margin:"-8px 0 12px"}}>✓ Number verified ({phoneDetected} Nigeria)</p>}
 {network&&<><FL>Select bundle</FL>
@@ -865,7 +834,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 {page==="bills"&&subPage==="cable"&&(
 <div><Header title="Cable TV" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
-<FL>Provider</FL><LogoDebug category="tv-subscription"/>
+<FL>Provider</FL>
 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>{["DStv","GOtv","Startimes"].map(p=><button key={p} onClick={()=>setNetwork(p)} style={{padding:14,borderRadius:10,border:`2px solid ${network===p?C.primary:"var(--border)"}`,background:network===p?C.light:"white",cursor:"pointer",fontWeight:700,fontSize:13,display:"flex",flexDirection:"column",alignItems:"center",gap:6}}><BrandLogo category="tv-subscription" match={p} fallback="📺" size={26}/>{p}</button>)}</div>
 <FL>Smart card / IUC number</FL><Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Enter smart card number"/>
 <FL>Select package</FL>
@@ -893,9 +862,13 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 {page==="bills"&&subPage==="betting"&&(
 <div><Header title="Betting Wallet" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
-<FL>Select betting site</FL><LogoDebug category="betting"/>
+<FL>Select betting site</FL>
 <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:16}}>{BETTING_SITES.map(b=><button key={b.id} onClick={()=>setBettingSite(b)} style={{padding:14,borderRadius:12,border:`2px solid ${bettingSite?.id===b.id?C.primary:"var(--border)"}`,background:bettingSite?.id===b.id?C.light:"white",cursor:"pointer",textAlign:"center"}}>
-<BrandLogo category="betting" match={b.label} fallback={b.icon} size={28}/><p style={{margin:"6px 0 0",fontSize:13,fontWeight:700}}>{b.label}</p>
+{/* VTPass has no betting category (its service-categories list is airtime, data,
+    tv-subscription, electricity-bill, education, other-services, insurance — and
+    other-services contains no betting sites either), so there are no VTPass-hosted
+    logos to fetch here. Emoji icons are intentional, not a fallback. */}
+<span style={{fontSize:22}}>{b.icon}</span><p style={{margin:"6px 0 0",fontSize:13,fontWeight:700}}>{b.label}</p>
 </button>)}</div>
 {bettingSite&&<><FL>Betting ID</FL><Inp value={bettingId} onChange={e=>setBettingId(e.target.value)} placeholder={`${bettingSite.label} user ID`}/>
 <FL>Amount (₦)</FL>
