@@ -69,7 +69,7 @@ const TRANSPORT=[{id:"uber",label:"Uber Ride",icon:"🚗",desc:"Book a ride"},{i
 const INTERNET_PROVIDERS=[{id:"smile",label:"Smile",icon:"😊",price:3000},{id:"spectranet",label:"Spectranet",icon:"📡",price:4000},{id:"ipnx",label:"ipNX",icon:"🌐",price:5000}]
 
 function NavBar({ page, setPage }) {
-const tabs=[{id:"home",icon:"🏠",label:"Home"},{id:"bills",icon:"📋",label:"Bills"},{id:"send",icon:"💸",label:"Send"},{id:"more",icon:"⚡",label:"More"},{id:"history",icon:"🕐",label:"History"}]
+const tabs=[{id:"home",icon:"🏠",label:"Home"},{id:"bills",icon:"📋",label:"Bills"},{id:"more",icon:"⚡",label:"More"},{id:"history",icon:"🕐",label:"History"}]
 return (
 <div style={{position:"sticky",bottom:0,background:"var(--nav-bg)",borderTop:"1px solid var(--border)",display:"flex",padding:"8px 0 max(28px, calc(env(safe-area-inset-bottom, 0px) + 20px))",zIndex:100}}>
 {tabs.map(t=>(
@@ -505,7 +505,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 )}
 
 <div style={{display:"flex",gap:10,padding:"16px 16px 0",marginTop:bonusClaimed?"-12px":8}}>
-{[{label:"Send Pi",icon:"💸",action:()=>navTo("send")},{label:"Refer & Earn",icon:"🎯",action:()=>navTo("home","refer")},{label:"History",icon:"🕐",action:()=>navTo("history")},{label:"Profile",icon:"👤",action:()=>setShowProfile(true)}].map(a=>(
+{[{label:"Refer & Earn",icon:"🎯",action:()=>navTo("home","refer")},{label:"History",icon:"🕐",action:()=>navTo("history")},{label:"Profile",icon:"👤",action:()=>setShowProfile(true)}].map(a=>(
 <button key={a.label} onClick={a.action} style={{flex:1,background:"var(--card-bg)",border:"none",borderRadius:12,padding:"12px 4px",cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.07)",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
 <span style={{fontSize:20}}>{a.icon}</span>
 <span style={{fontSize:10,color:"var(--text-secondary)",fontWeight:600}}>{a.label}</span>
@@ -682,7 +682,16 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 </div></div>
 )}
 
-{page==="send"&&(
+{/* DISABLED — unreachable from any nav entry point as of this change. This entire
+   "Send Pi" flow only ever calls handlePay(), which for type:"send" always falls into
+   the mock ledger (see handlePay: vtpassEligible only covers airtime/data/electricity/
+   cable) — no real Pi ever moves and the @username typed here was never validated or
+   used anywhere. Left in place, not deleted, because a REAL version is buildable:
+   sender pays the app via U2A, app forwards via A2U to the recipient's stored piUid —
+   but that only works for recipients who have themselves logged into Zappi NG at least
+   once (A2U needs their app-specific uid; there is no way to pay an unknown username).
+   Re-enable by restoring the "send" tab/quick-action entries once that relay is built. */}
+{false&&page==="send"&&(
 <div><Header title="Send Pi"/>
 <div style={{padding:16}}>
 <FL>Recent pioneers</FL>
