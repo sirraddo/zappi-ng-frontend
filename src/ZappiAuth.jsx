@@ -155,12 +155,22 @@ export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment", tx
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
 
-  // Functional update -- never drops a tap, even when typed faster than React re-renders.
-  const handlePress = (d) => setPin(prev => (prev.length < 6 && !busy ? prev + d : prev))
+  // Clears any old error as soon as the user presses a new digit (i.e. is
+  // actively retrying) -- NOT automatically whenever pin becomes empty, since
+  // our own wrong-PIN handler below also resets pin to "" and would otherwise
+  // wipe its own message out again on the very next render (this was the
+  // "silent restart" bug: the error appeared and was erased in the same
+  // tick, so it never actually painted on screen).
+  // Functional update on pin itself -- never drops a tap, even when typed
+  // faster than React re-renders.
+  const handlePress = (d) => {
+    if (error) setError("")
+    setPin(prev => (prev.length < 6 && !busy ? prev + d : prev))
+  }
 
   // Verify once all 6 digits are committed (reads real state, not a stale closure).
   useEffect(() => {
-    if (pin.length !== 6) { if (pin.length === 0) setError(""); return }
+    if (pin.length !== 6) return
     let cancelled = false
     setBusy(true)
     verifyTxnPin(pin, txnFields)
@@ -210,7 +220,7 @@ export function ChangePinFlow({ kind = "txn", forceSetup = false, onBack, onDone
   const [done, setDone] = useState(false)
 
   useEffect(() => {
-    if (entry.length !== len) { if (entry.length === 0) setError(""); return }
+    if (entry.length !== len) return
     let cancelled = false
     const t = setTimeout(async () => {
       if (stage === "current") {
@@ -245,7 +255,12 @@ export function ChangePinFlow({ kind = "txn", forceSetup = false, onBack, onDone
     return () => { cancelled = true; clearTimeout(t) }
   }, [entry])
 
-  const press = (d) => setEntry(p => (p.length < len ? p + d : p))
+  // Clears any old error as soon as the user presses a new digit, rather than
+  // automatically whenever entry becomes empty -- every error path above also
+  // resets entry to "", which would otherwise immediately wipe out the very
+  // error message it just set (the "silent restart" bug: message appears and
+  // is erased in the same tick, so it never actually paints on screen).
+  const press = (d) => { if (error) setError(""); setEntry(p => (p.length < len ? p + d : p)) }
   const del = () => { setError(""); setEntry(p => p.slice(0, -1)) }
 
   const wrap = { minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 24px max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px))", textAlign: "center" }
