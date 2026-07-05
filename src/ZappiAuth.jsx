@@ -293,6 +293,54 @@ export function ChangePinFlow({ kind = "txn", forceSetup = false, onBack, onDone
   )
 }
 
+// Owner-only earnings card. It tries GET /api/payments/earnings, which the
+// backend answers with 404 for every account except the one whose isAdmin
+// flag was set manually in MongoDB. For regular users the fetch quietly
+// fails and this renders nothing, so the section is invisible to them.
+function OwnerEarnings() {
+  const [data, setData] = useState(null)
+  useEffect(() => {
+    const token = localStorage.getItem("zappi_token")
+    if (!token) return
+    fetch(`${API_URL}/api/payments/earnings`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d && typeof d.earnedNGN === "number") setData(d) })
+      .catch(() => { /* network error or non-admin — show nothing */ })
+  }, [])
+  if (!data) return null
+  const fmt = n => `₦${Number(n || 0).toLocaleString("en-NG", { maximumFractionDigits: 2 })}`
+  return (
+    <div style={{ background: "var(--card-bg)", borderRadius: 16, padding: 16, marginBottom: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.05)", border: "1px solid #FDE68A" }}>
+      <p style={{ margin: "0 0 2px", fontSize: 15, fontWeight: 700 }}>👑 Owner earnings</p>
+      <p style={{ margin: "0 0 12px", fontSize: 11, color: "#9CA3AF" }}>VTPass commission on successful payments — visible only to you</p>
+      <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ flex: 1 }}>
+          <p style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#16A34A" }}>{fmt(data.earnedNGN)}</p>
+          <p style={{ margin: 0, fontSize: 11, color: "#9CA3AF" }}>Earned</p>
+        </div>
+        <div style={{ flex: 1 }}>
+          <p style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>{fmt(data.volumeNGN)}</p>
+          <p style={{ margin: 0, fontSize: 11, color: "#9CA3AF" }}>Volume</p>
+        </div>
+        <div style={{ flex: 1 }}>
+          <p style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>{data.count}</p>
+          <p style={{ margin: 0, fontSize: 11, color: "#9CA3AF" }}>Paid bills</p>
+        </div>
+      </div>
+      {Array.isArray(data.byType) && data.byType.length > 0 && (
+        <div style={{ marginTop: 12, borderTop: "1px solid #F3F4F6", paddingTop: 8 }}>
+          {data.byType.map(b => (
+            <div key={b._id || "other"} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "3px 0" }}>
+              <span style={{ color: "#6B7280", textTransform: "capitalize" }}>{b._id || "other"} · {b.count}</span>
+              <span style={{ fontWeight: 700 }}>{fmt(b.earnedNGN)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function ProfileScreen({ onBack, onLogout }) {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem("zappi_user") || "{}"))
   const [editing, setEditing] = useState(false)
@@ -349,6 +397,8 @@ export function ProfileScreen({ onBack, onLogout }) {
 
       <div style={{ padding: 16 }}>
         {saved && <div style={{ background: "#DCFCE7", borderRadius: 12, padding: 12, marginBottom: 12, textAlign: "center", color: "#166534", fontWeight: 600, fontSize: 13 }}>✓ Profile saved!</div>}
+
+        <OwnerEarnings/>
 
         <div style={{ background: "var(--card-bg)", borderRadius: 16, padding: 16, marginBottom: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
