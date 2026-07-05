@@ -456,7 +456,7 @@ break
 case "electricity": setDisco(r.disco); setMeter(r.meter); setMeterType(r.meterType); setAmount(r.amount); break
 case "cable": setNetwork(r.network); setMeter(r.meter); setAmount(r.amount); break
 case "internet": setInternetProvider(INTERNET_PROVIDERS.find(p=>p.id===r.providerId) || null); setMeter(r.meter); setAmount(r.amount); break
-case "betting": setBettingSite(BETTING_SITES.find(b=>b.id===r.siteId) || null); setBettingId(r.bettingId); setAmount(r.amount); break
+case "betting": showToast("Betting top-ups are no longer available","danger"); return
 case "hotel": setHotel(HOTELS.find(h=>h.id===r.hotelId) || null); setAmount(r.amount); break
 case "transport": setTransport(TRANSPORT.find(t=>t.id===r.transportId) || null); setAmount(r.amount); break
 default: showToast("Can't repeat this transaction","danger"); return
@@ -775,7 +775,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div>
 <Header title="Pay Bills"/>
 <div style={{padding:16}}>
-{[{label:"Buy Airtime",icon:"📱",bg:"#EDE9FE",sub:"airtime",desc:"MTN, Airtel, Glo, 9mobile"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",sub:"data",desc:"Data bundles"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",sub:"electricity",desc:"Prepaid & postpaid meters"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",sub:"cable",desc:"DStv, GOtv, Startimes"},{label:"Internet",icon:"🌐",bg:"#EFF6FF",sub:"internet",desc:"Smile, Spectranet, ipNX"},{label:"Betting",icon:"🎯",bg:"#F0FDF4",sub:"betting",desc:"Bet9ja, Sportybet, 1xBet"}].map(item=>(
+{[{label:"Buy Airtime",icon:"📱",bg:"#EDE9FE",sub:"airtime",desc:"MTN, Airtel, Glo, 9mobile"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",sub:"data",desc:"Data bundles"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",sub:"electricity",desc:"Prepaid & postpaid meters"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",sub:"cable",desc:"DStv, GOtv, Startimes"},{label:"Internet",icon:"🌐",bg:"#EFF6FF",sub:"internet",desc:"Smile, Spectranet, ipNX"}].map(item=>(
 <SCard key={item.label} icon={item.icon} label={item.label} desc={item.desc} bg={item.bg} onClick={()=>setSubPage(item.sub)}/>
 ))}
 </div>
@@ -859,7 +859,20 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 </div></div>
 )}
 
-{page==="bills"&&subPage==="betting"&&(
+{/* DISABLED — hidden, not deleted, for two independent reasons:
+   (1) Pi's App Studio Community Guidelines explicitly prohibit "offering or
+       facilitating gambling, betting, or lottery-related services involving Pi
+       tokens, either directly or indirectly" — funding a betting wallet with Pi
+       is exactly that, and would put Mainnet approval (and the whole app) at risk.
+   (2) VTPass cannot deliver betting top-ups anyway: its service catalog has no
+       betting category at all (checked against BOTH live and sandbox
+       /api/service-categories; even "other-services" contains no betting sites).
+       With REAL_PAYMENTS on, this screen would take a user's Pi and then fail
+       delivery — the same "looks real but isn't" trap Send Pi had.
+   Entry point removed from the Pay Bills grid above; Buy Again on old betting
+   transactions now shows a toast (see buyAgain). Re-enable only if Pi policy
+   permits it AND a provider that actually supports betting top-ups is integrated. */}
+{false&&page==="bills"&&subPage==="betting"&&(
 <div><Header title="Betting Wallet" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
 <FL>Select betting site</FL>
