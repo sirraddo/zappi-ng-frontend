@@ -307,11 +307,25 @@ export function ProfileScreen({ onBack, onLogout }) {
 
   const avatars = ["😊", "👨🏾", "👩🏾", "🦁", "⚡", "🔥", "💎", "🎯", "🚀", "🦅"]
 
-  const stats = [
-    { label: "Transactions", value: "24" },
-    { label: "Pi Sent", value: "π45.5" },
-    { label: "Saved", value: "₦12k" },
-  ]
+  // Real numbers from the same localStorage ledger the rest of the app writes to
+  // (App.jsx addTransaction → "zappi_txs"), replacing the hardcoded 24 / π45.5 / ₦12k
+  // placeholders that never changed no matter how many payments were made.
+  // "Pi Sent" and "Bills Paid" count successful outgoing transactions only
+  // (received transfers and daily bonuses are excluded).
+  const stats = (() => {
+    let txs = []
+    try { const s = JSON.parse(localStorage.getItem("zappi_txs")); if (Array.isArray(s)) txs = s } catch { /* corrupt or absent ledger — show zeros */ }
+    const num = v => Number(String(v ?? "").replace(/[^0-9.]/g, "")) || 0
+    const paid = txs.filter(t => t.status === "success" && t.type !== "receive")
+    const piSent = paid.reduce((a, t) => a + num(t.pi), 0)
+    const ngnPaid = paid.reduce((a, t) => a + num(t.amount), 0)
+    const compactNgn = n => n >= 1e6 ? `₦${(n / 1e6).toFixed(1)}M` : n >= 1000 ? `₦${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : `₦${Math.round(n)}`
+    return [
+      { label: "Transactions", value: String(txs.length) },
+      { label: "Pi Sent", value: `π${piSent >= 100 ? Math.round(piSent).toLocaleString() : piSent.toFixed(1)}` },
+      { label: "Bills Paid", value: compactNgn(ngnPaid) },
+    ]
+  })()
 
   if (section === "changeTxnPin") return <ChangePinFlow kind="txn" onBack={() => setSection(null)} />
 
