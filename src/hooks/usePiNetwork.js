@@ -112,15 +112,26 @@ export function usePiNetwork() {
 
       const callbacks = {
         onReadyForServerApproval: async (paymentId) => {
+          // fetch() only rejects on a network failure — a 4xx/5xx response
+          // resolves normally with res.ok === false. Without this check, a
+          // rejected approval (bad PI_API_KEY, Pi API error, etc.) was never
+          // surfaced: the wallet just sat on "Preparing for a payment..."
+          // until Pi's own 60s timeout fired, with zero indication why.
           try {
-            await fetch(`${import.meta.env.VITE_API_URL}/api/pi/approve`, {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/pi/approve`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ paymentId }),
               credentials: "include",
             });
+            if (!res.ok) {
+              let detail = "";
+              try { detail = (await res.json())?.error || ""; } catch { /* non-JSON error body */ }
+              throw new Error(`Server approval failed (${res.status})${detail ? ": " + detail : ""}`);
+            }
           } catch (e) {
             console.error("Approval failed:", e);
+            onError?.(e instanceof Error ? e : new Error("Approval request failed: " + e.message));
           }
         },
 
@@ -135,10 +146,16 @@ export function usePiNetwork() {
                 credentials: "include",
               }
             );
+            if (!res.ok) {
+              let detail = "";
+              try { detail = (await res.json())?.error || ""; } catch { /* non-JSON error body */ }
+              throw new Error(`Server completion failed (${res.status})${detail ? ": " + detail : ""}`);
+            }
             const data = await res.json();
             onSuccess?.(txid, data, paymentId);
           } catch (e) {
-            onError?.(e);
+            console.error("Completion failed:", e);
+            onError?.(e instanceof Error ? e : new Error("Completion request failed: " + e.message));
           }
         },
 
