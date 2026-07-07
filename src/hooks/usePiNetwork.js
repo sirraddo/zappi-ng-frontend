@@ -61,7 +61,6 @@ export function usePiNetwork() {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ payment }),
-              credentials: "include",
             }
           );
         } catch (e) {
@@ -79,7 +78,6 @@ export function usePiNetwork() {
                 accessToken: authResult.accessToken,
                 user: authResult.user,
               }),
-              credentials: "include",
             }
           );
           if (!res.ok) throw new Error("Backend Pi verification failed");
@@ -122,7 +120,6 @@ export function usePiNetwork() {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ paymentId }),
-              credentials: "include",
             });
             if (!res.ok) {
               let detail = "";
@@ -143,8 +140,7 @@ export function usePiNetwork() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ paymentId, txid }),
-                credentials: "include",
-              }
+                }
             );
             if (!res.ok) {
               let detail = "";
