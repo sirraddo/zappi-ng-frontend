@@ -15,7 +15,7 @@ import { hasServerPin, hasLegacyPin, REAL_PAYMENTS, completeBillPayment } from "
 const VTPASS_AIRTIME = { MTN: "mtn", Airtel: "airtel", Glo: "glo", "9mobile": "etisalat" }
 const VTPASS_DATA = { MTN: "mtn-data", Airtel: "airtel-data", Glo: "glo-data", "9mobile": "etisalat-data" }
 const VTPASS_CABLE = { DStv: "dstv", GOtv: "gotv", Startimes: "startimes" }
-const VTPASS_DISCO = { IKEDC: "ikeja-electric", EKEDC: "eko-electric", IBEDC: "ibadan-electric", AEDC: "abuja-electric", PHED: "portharcourt-electric", EEDC: "enugu-electric", KEDCO: "kano-electric", BEDC: "benin-electric", JED: "jos-electric", KAEDC: "kaduna-electric", YEDC: "yola-electric" }
+const VTPASS_DISCO = { IKEDC: "ikeja-electric", EKEDC: "eko-electric", IBEDC: "ibadan-electric", AEDC: "abuja-electric", PHED: "portharcourt-electric", EEDC: "enugu-electric", KEDCO: "kano-electric", BEDC: "benin-electric", JED: "jos-electric", KAEDC: "kaduna-electric", YEDC: "yola-electric", ABEDC: "aba-electric" }
 
 const RATE = 600 // fallback only — app uses live rate from backend
 const C = {
@@ -55,14 +55,7 @@ const BENEFICIARIES = [
 { name:"Emeka", initials:"EM", username:"emeka" },
 ]
 
-const DATA_BUNDLES = {
-MTN:[{code:"mtn-1gb",label:"1GB",duration:"30 days",price:350},{code:"mtn-2gb",label:"2GB",duration:"30 days",price:600},{code:"mtn-5gb",label:"5GB",duration:"30 days",price:1500},{code:"mtn-10gb",label:"10GB",duration:"30 days",price:2500}],
-Airtel:[{code:"a-1gb",label:"1GB",duration:"30 days",price:350},{code:"a-2gb",label:"2GB",duration:"30 days",price:600},{code:"a-5gb",label:"5GB",duration:"30 days",price:1500}],
-Glo:[{code:"g-2gb",label:"2GB",duration:"30 days",price:500},{code:"g-5gb",label:"5GB",duration:"30 days",price:1200},{code:"g-10gb",label:"10GB",duration:"30 days",price:2000}],
-"9mobile":[{code:"9m-1gb",label:"1GB",duration:"30 days",price:300},{code:"9m-2gb",label:"2GB",duration:"30 days",price:500}],
-}
-
-const DISCOS=["IKEDC (Lagos)","EKEDC (Lagos)","IBEDC (Ibadan)","AEDC (Abuja)","PHED (Port Harcourt)","EEDC (Enugu)","KEDCO (Kano)","BEDC (Benin)","JED (Jos)","KAEDC (Kaduna)","YEDC (Yola)"]
+const DISCOS=["IKEDC (Lagos)","EKEDC (Lagos)","IBEDC (Ibadan)","AEDC (Abuja)","PHED (Port Harcourt)","EEDC (Enugu)","KEDCO (Kano)","BEDC (Benin)","JED (Jos)","KAEDC (Kaduna)","YEDC (Yola)","ABEDC (Aba)"]
 
 // Nigerian mobile network prefixes (public, NCC-allocated ranges — no external API needed).
 // Used only to suggest/confirm a network from the phone number; not authoritative,
@@ -85,7 +78,11 @@ return null
 const BETTING_SITES=[{id:"bet9ja",label:"Bet9ja",icon:"🎯"},{id:"sportybet",label:"Sportybet",icon:"⚽"},{id:"1xbet",label:"1xBet",icon:"🏆"},{id:"betway",label:"Betway",icon:"🎲"},{id:"nairabet",label:"NairaBet",icon:"🇳🇬"},{id:"betking",label:"BetKing",icon:"👑"},{id:"msport",label:"MSport",icon:"🥅"}]
 const HOTELS=[{id:"transcorp",label:"Transcorp Hilton",city:"Abuja",price:60000,rating:"⭐⭐⭐⭐⭐"},{id:"eko",label:"Eko Hotel",city:"Lagos",price:45000,rating:"⭐⭐⭐⭐⭐"},{id:"sheraton",label:"Sheraton Lagos",city:"Lagos",price:55000,rating:"⭐⭐⭐⭐⭐"},{id:"radisson",label:"Radisson Blu",city:"Lagos",price:40000,rating:"⭐⭐⭐⭐"}]
 const TRANSPORT=[{id:"uber",label:"Uber Ride",icon:"🚗",desc:"Book a ride"},{id:"brt",label:"BRT Pass",icon:"🚌",desc:"Bus rapid transit"},{id:"toll",label:"Toll Payment",icon:"🛣️",desc:"Highway tolls"},{id:"ferry",label:"Ferry Ticket",icon:"⛵",desc:"Water transport"},{id:"flight",label:"Flight Booking",icon:"✈️",desc:"Domestic flights"}]
-const INTERNET_PROVIDERS=[{id:"smile",label:"Smile",icon:"😊",price:3000},{id:"spectranet",label:"Spectranet",icon:"📡",price:4000},{id:"ipnx",label:"ipNX",icon:"🌐",price:5000}]
+// VTPass has no ipNX product in its entire catalog (checked both the "data" and
+// "other-services" categories), so it was never deliverable — removed, same
+// reasoning as Betting. Smile and Spectranet are real, VTPass-backed services.
+const INTERNET_PROVIDERS=[{id:"smile",label:"Smile",icon:"😊"},{id:"spectranet",label:"Spectranet",icon:"📡"}]
+const VTPASS_INTERNET = { smile: "smile-data", spectranet: "spectranet" }
 
 function HowToModal({ onClose }) {
 const steps = [
@@ -203,6 +200,64 @@ _logoCatalogCache[category] = promise
 return promise
 }
 
+
+// Same live-catalog principle as logos, applied to bundle/package pricing: Data,
+// Cable TV, and Internet products used to be hardcoded with invented codes and
+// prices (e.g. "mtn-1gb" at a made-up ₦600) that don't exist in VTPass's real
+// catalog at all — VTPass validates variation_code against its own list, so
+// every purchase using a fabricated code was destined to fail regardless of
+// whitelisting. This fetches the real, current catalog (code, name, price)
+// live from GET /api/payments/variations?serviceID=X, which the backend has
+// supported all along.
+const _variationCache = {}
+function fetchVariations(serviceID) {
+if (!serviceID) return Promise.resolve([])
+if (_variationCache[serviceID]) return _variationCache[serviceID]
+const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const token = localStorage.getItem("zappi_token")
+const promise = fetch(`${apiUrl}/api/payments/variations?serviceID=${serviceID}`, {
+headers: token ? { Authorization: `Bearer ${token}` } : {},
+})
+.then(async r => {
+if (!r.ok) return []
+const list = await r.json()
+return Array.isArray(list) ? list : []
+})
+.catch(() => [])
+_variationCache[serviceID] = promise
+return promise
+}
+
+// Fetches and renders VTPass's real, live package list for a serviceID — used
+// by Data, Cable TV, and Internet, replacing what used to be static, invented
+// bundle lists. Selecting an item calls onSelect with {code, label, price}
+// sourced entirely from VTPass's own response, never a guessed value.
+function VariationGrid({ serviceID, selected, onSelect, columns = 2 }) {
+const [state, setState] = useState({ loading: true, items: [] })
+useEffect(() => {
+if (!serviceID) { setState({ loading: false, items: [] }); return }
+let cancelled = false
+setState({ loading: true, items: [] })
+fetchVariations(serviceID).then(items => { if (!cancelled) setState({ loading: false, items }) })
+return () => { cancelled = true }
+}, [serviceID])
+if (state.loading) return <p style={{ fontSize: 12, color: "var(--text-tertiary)", margin: "0 0 12px" }}>Loading live prices from VTPass…</p>
+if (!state.items.length) return <p style={{ fontSize: 12, color: "var(--text-tertiary)", margin: "0 0 12px" }}>No packages available right now — please try again shortly.</p>
+return (
+<div style={{ display: "grid", gridTemplateColumns: `repeat(${columns},1fr)`, gap: 8, marginBottom: 16, maxHeight: 340, overflowY: "auto" }}>
+{state.items.map(v => {
+const code = v.variation_code, price = Number(v.variation_amount) || 0
+const active = selected?.code === code
+return (
+<button key={code} onClick={() => onSelect({ code, label: v.name, price })} style={{ padding: 14, borderRadius: 12, border: `2px solid ${active ? C.primary : "var(--border)"}`, background: active ? C.light : "white", cursor: "pointer", textAlign: "left" }}>
+<p style={{ margin: 0, fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>{v.name}</p>
+<p style={{ margin: "4px 0 0", fontSize: 13, fontWeight: 700, color: C.primary }}>₦{price.toLocaleString()}</p>
+</button>
+)
+})}
+</div>
+)
+}
 
 // Renders a brand's real logo where VTPass's catalog has one for it, with a
 // graceful emoji fallback otherwise (a brand not in VTPass's catalog yet, or
@@ -450,12 +505,12 @@ switch(tx.type){
 case "airtime": setNetwork(r.network); setPhone(r.phone); setAmount(r.amount); break
 case "data": {
 setNetwork(r.network); setPhone(r.phone)
-setBundle((DATA_BUNDLES[r.network]||[]).find(b=>b.code===r.bundleCode) || null)
+setBundle(r.bundleCode ? { code: r.bundleCode, label: r.bundleLabel, price: r.bundlePrice } : null)
 break
 }
 case "electricity": setDisco(r.disco); setMeter(r.meter); setMeterType(r.meterType); setAmount(r.amount); break
-case "cable": setNetwork(r.network); setMeter(r.meter); setAmount(r.amount); break
-case "internet": setInternetProvider(INTERNET_PROVIDERS.find(p=>p.id===r.providerId) || null); setMeter(r.meter); setAmount(r.amount); break
+case "cable": setNetwork(r.network); setMeter(r.meter); setBundle(r.bundleCode ? { code: r.bundleCode, label: r.bundleLabel, price: r.bundlePrice } : null); break
+case "internet": setInternetProvider(INTERNET_PROVIDERS.find(p=>p.id===r.providerId) || null); setMeter(r.meter); setBundle(r.bundleCode ? { code: r.bundleCode, label: r.bundleLabel, price: r.bundlePrice } : null); break
 case "betting": showToast("Betting top-ups are no longer available","danger"); return
 case "hotel": setHotel(HOTELS.find(h=>h.id===r.hotelId) || null); setAmount(r.amount); break
 case "transport": setTransport(TRANSPORT.find(t=>t.id===r.transportId) || null); setAmount(r.amount); break
@@ -472,6 +527,7 @@ case "airtime": return { serviceID: VTPASS_AIRTIME[network]||"", billType:"airti
 case "data": return { serviceID: VTPASS_DATA[network]||"", billType:"data", amount: tx.ngn, phone, billersCode: phone }
 case "electricity": return { serviceID: VTPASS_DISCO[disco.split(" ")[0]]||"", billType:"electricity", amount: tx.ngn, phone: meter, billersCode: meter }
 case "cable": return { serviceID: VTPASS_CABLE[network]||"", billType:"cable", amount: tx.ngn, phone: meter, billersCode: meter }
+case "internet": return { serviceID: VTPASS_INTERNET[internetProvider?.id]||"", billType:"internet", amount: tx.ngn, phone: meter, billersCode: meter }
 default: return { serviceID: tx.type, billType: tx.type, amount: tx.ngn, phone: tx.sub||"", billersCode: "" }
 }
 }
@@ -499,7 +555,7 @@ resetInputs()
 // delivery returns 401 — we re-confirm (Pi is NOT re-charged) and retry delivery only.
 const runRealPayment=(service, tx, txnFields, piCost, confirmationToken)=>{
 const extras = {
-variation_code: tx.type==="data" ? bundle?.code : undefined,
+variation_code: ["data","cable","internet"].includes(tx.type) ? bundle?.code : undefined,
 piAmount: piCost,
 }
 const deliver = async (token, piPaymentId) => {
@@ -775,7 +831,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div>
 <Header title="Pay Bills"/>
 <div style={{padding:16}}>
-{[{label:"Buy Airtime",icon:"📱",bg:"#EDE9FE",sub:"airtime",desc:"MTN, Airtel, Glo, 9mobile"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",sub:"data",desc:"Data bundles"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",sub:"electricity",desc:"Prepaid & postpaid meters"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",sub:"cable",desc:"DStv, GOtv, Startimes"},{label:"Internet",icon:"🌐",bg:"#EFF6FF",sub:"internet",desc:"Smile, Spectranet, ipNX"}].map(item=>(
+{[{label:"Buy Airtime",icon:"📱",bg:"#EDE9FE",sub:"airtime",desc:"MTN, Airtel, Glo, 9mobile"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",sub:"data",desc:"Data bundles"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",sub:"electricity",desc:"Prepaid & postpaid meters"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",sub:"cable",desc:"DStv, GOtv, Startimes"},{label:"Internet",icon:"🌐",bg:"#EFF6FF",sub:"internet",desc:"Smile, Spectranet"}].map(item=>(
 <SCard key={item.label} icon={item.icon} label={item.label} desc={item.desc} bg={item.bg} onClick={()=>setSubPage(item.sub)}/>
 ))}
 </div>
@@ -803,13 +859,10 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <FL>Phone number</FL><Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
 {phoneDetected&&<p style={{color:"#16a34a",fontSize:12,fontWeight:600,margin:"-8px 0 12px"}}>✓ Number verified ({phoneDetected} Nigeria)</p>}
 {network&&<><FL>Select bundle</FL>
-<div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:16}}>
-{(DATA_BUNDLES[network]||[]).map(b=><button key={b.code} onClick={()=>setBundle(b)} style={{padding:14,borderRadius:12,border:`2px solid ${bundle?.code===b.code?C.primary:"var(--border)"}`,background:bundle?.code===b.code?C.light:"white",cursor:"pointer",textAlign:"left"}}>
-<p style={{margin:0,fontSize:16,fontWeight:800}}>{b.label}</p><p style={{margin:"2px 0 4px",fontSize:11,color:"var(--text-tertiary)"}}>{b.duration}</p><p style={{margin:0,fontSize:13,fontWeight:700,color:C.primary}}>₦{b.price.toLocaleString()}</p>
-</button>)}
-</div></>}
+<VariationGrid serviceID={VTPASS_DATA[network]} selected={bundle} onSelect={setBundle}/>
+</>}
 {bundle&&<PiSummary amount={bundle.price} rate={liveRate}/>}
-<Btn label={bundle?`Buy ${bundle.label} Data — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a bundle"} disabled={!network||!phone||!bundle} onClick={()=>validate("data")&&handlePay("Data",{type:"data",label:`${network} ${bundle.label} Data`,sub:phone,ngn:bundle.price,icon:"📶",color:"#ECFDF5",raw:{page:"bills",subPage:"data",network,phone,bundleCode:bundle.code}})}/>
+<Btn label={bundle?`Buy ${bundle.label} — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a bundle"} disabled={!network||!phone||!bundle} onClick={()=>validate("data")&&handlePay("Data",{type:"data",label:`${network} ${bundle.label}`,sub:phone,ngn:bundle.price,icon:"📶",color:"#ECFDF5",raw:{page:"bills",subPage:"data",network,phone,bundleCode:bundle.code,bundleLabel:bundle.label,bundlePrice:bundle.price}})}/>
 </div></div>
 )}
 
@@ -835,14 +888,13 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div><Header title="Cable TV" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
 <FL>Provider</FL>
-<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>{["DStv","GOtv","Startimes"].map(p=><button key={p} onClick={()=>setNetwork(p)} style={{padding:14,borderRadius:10,border:`2px solid ${network===p?C.primary:"var(--border)"}`,background:network===p?C.light:"white",cursor:"pointer",fontWeight:700,fontSize:13,display:"flex",flexDirection:"column",alignItems:"center",gap:6}}><BrandLogo category="tv-subscription" match={p} fallback="📺" size={26}/>{p}</button>)}</div>
+<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>{["DStv","GOtv","Startimes"].map(p=><button key={p} onClick={()=>{setNetwork(p);setBundle(null)}} style={{padding:14,borderRadius:10,border:`2px solid ${network===p?C.primary:"var(--border)"}`,background:network===p?C.light:"white",cursor:"pointer",fontWeight:700,fontSize:13,display:"flex",flexDirection:"column",alignItems:"center",gap:6}}><BrandLogo category="tv-subscription" match={p} fallback="📺" size={26}/>{p}</button>)}</div>
 <FL>Smart card / IUC number</FL><Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Enter smart card number"/>
-<FL>Select package</FL>
-<div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:12}}>{[{label:"Basic",price:2500},{label:"Compact",price:9000},{label:"Compact+",price:14250},{label:"Premium",price:29500}].map(pkg=><button key={pkg.label} onClick={()=>setAmount(String(pkg.price))} style={{padding:14,borderRadius:12,border:`2px solid ${amount==pkg.price?C.primary:"var(--border)"}`,background:amount==pkg.price?C.light:"white",cursor:"pointer",textAlign:"left"}}>
-<p style={{margin:0,fontSize:14,fontWeight:700}}>{pkg.label}</p><p style={{margin:"4px 0 0",fontSize:13,color:C.primary,fontWeight:700}}>₦{pkg.price.toLocaleString()}</p>
-</button>)}</div>
-<PiSummary amount={amount} bg="#FDF2F8" color="#A21CAF" rate={liveRate}/>
-<Btn label={`Pay ₦${Number(amount||0).toLocaleString()} — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!network||!meter||!amount} onClick={()=>validate("cable")&&handlePay("Cable TV",{type:"cable",label:`${network} Subscription`,sub:`Smart card: ${meter}`,ngn:Number(amount),icon:"📺",color:"#FDF2F8",raw:{page:"bills",subPage:"cable",network,meter,amount}})}/>
+{network&&<><FL>Select package</FL>
+<VariationGrid serviceID={VTPASS_CABLE[network]} selected={bundle} onSelect={setBundle} columns={1}/>
+</>}
+{bundle&&<PiSummary amount={bundle.price} bg="#FDF2F8" color="#A21CAF" rate={liveRate}/>}
+<Btn label={bundle?`Pay ${bundle.label} — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a package"} disabled={!network||!meter||!bundle} onClick={()=>validate("cable")&&handlePay("Cable TV",{type:"cable",label:`${network} ${bundle.label}`,sub:`Smart card: ${meter}`,ngn:bundle.price,icon:"📺",color:"#FDF2F8",raw:{page:"bills",subPage:"cable",network,meter,bundleCode:bundle.code,bundleLabel:bundle.label,bundlePrice:bundle.price}})}/>
 </div></div>
 )}
 
@@ -850,12 +902,12 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div><Header title="Internet" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
 <FL>Select provider</FL>
-{INTERNET_PROVIDERS.map(p=><button key={p.id} onClick={()=>setInternetProvider(p)} style={{width:"100%",background:"var(--card-bg)",border:`2px solid ${internetProvider?.id===p.id?C.primary:"var(--border)"}`,borderRadius:12,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
+{INTERNET_PROVIDERS.map(p=><button key={p.id} onClick={()=>{setInternetProvider(p);setBundle(null)}} style={{width:"100%",background:"var(--card-bg)",border:`2px solid ${internetProvider?.id===p.id?C.primary:"var(--border)"}`,borderRadius:12,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
 <span style={{fontSize:24}}>{p.icon}</span>
-<div style={{flex:1}}><p style={{margin:0,fontSize:14,fontWeight:700}}>{p.label}</p><p style={{margin:"2px 0 0",fontSize:12,color:"var(--text-tertiary)"}}>From ₦{p.price.toLocaleString()}/month</p></div>
+<div style={{flex:1}}><p style={{margin:0,fontSize:14,fontWeight:700}}>{p.label}</p></div>
 {internetProvider?.id===p.id&&<span style={{color:C.primary,fontSize:18}}>✓</span>}
 </button>)}
-{internetProvider&&<><FL>Account number</FL><Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Account number"/><FL>Amount (₦)</FL><Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Enter amount" type="number"/><PiSummary amount={amount} bg="#EFF6FF" color="#2563EB" rate={liveRate}/><Btn label={`Pay — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!meter||!amount} onClick={()=>validate("internet")&&handlePay("Internet",{type:"internet",label:`${internetProvider.label} Internet`,sub:`Acct: ${meter}`,ngn:Number(amount),icon:"🌐",color:"#EFF6FF",raw:{page:"bills",subPage:"internet",providerId:internetProvider.id,meter,amount}})}/></>}
+{internetProvider&&<><FL>Account number</FL><Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Account number"/><FL>Select plan</FL><VariationGrid serviceID={VTPASS_INTERNET[internetProvider.id]} selected={bundle} onSelect={setBundle}/>{bundle&&<PiSummary amount={bundle.price} bg="#EFF6FF" color="#2563EB" rate={liveRate}/>}<Btn label={bundle?`Pay ${bundle.label} — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a plan"} disabled={!meter||!bundle} onClick={()=>validate("internet")&&handlePay("Internet",{type:"internet",label:`${internetProvider.label} ${bundle.label}`,sub:`Acct: ${meter}`,ngn:bundle.price,icon:"🌐",color:"#EFF6FF",raw:{page:"bills",subPage:"internet",providerId:internetProvider.id,meter,bundleCode:bundle.code,bundleLabel:bundle.label,bundlePrice:bundle.price}})}/></>}
 </div></div>
 )}
 
