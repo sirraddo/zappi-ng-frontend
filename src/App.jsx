@@ -90,7 +90,7 @@ const VTPASS_INTERNET = { smile: "smile-data", spectranet: "spectranet" }
 
 function HowToModal({ onClose }) {
 const steps = [
-{ n:1, title:"Pick a service", desc:"Airtime, data, electricity, cable TV, betting, and more — all in one place." },
+{ n:1, title:"Pick a service", desc:"Airtime, data, electricity, cable TV, education, and more — all in one place." },
 { n:2, title:"Enter the details", desc:"Phone number, meter number, or account ID — whatever the service needs." },
 { n:3, title:"See the Pi cost", desc:"We show you the live Pi amount before you confirm anything." },
 { n:4, title:"Confirm with your PIN", desc:"Approve with your transaction PIN, then complete payment in Pi Wallet." },
@@ -365,6 +365,13 @@ return (
 export default function App() {
 const { piAuth, piUser, isSandbox, createPayment, isReady } = usePi()
 const { theme, toggleTheme } = useTheme()
+const [winSize, setWinSize] = useState({ w: window.innerWidth, h: window.innerHeight })
+useEffect(() => {
+const onResize = () => setWinSize({ w: window.innerWidth, h: window.innerHeight })
+window.addEventListener("resize", onResize)
+window.addEventListener("orientationchange", onResize)
+return () => { window.removeEventListener("resize", onResize); window.removeEventListener("orientationchange", onResize) }
+}, [])
 const [liveRate, setLiveRate] = useState(() => {
 const cached = Number(localStorage.getItem("zappi_rate"))
 return cached > 0 ? cached : 2150
@@ -752,8 +759,8 @@ return (
 {receiptTx&&<TransactionReceipt receipt={txToReceipt(receiptTx)} onDone={()=>setReceiptTx(null)}/>}
 
 {showNotif&&createPortal(
-<div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:500}} onClick={()=>setShowNotif(false)}>
-<div style={{position:"fixed",top:0,right:0,width:300,maxWidth:"85vw",height:"100%",background:"var(--card-bg)",padding:16,overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+<div style={{position:"absolute",top:0,left:0,width:winSize.w,height:winSize.h,background:"rgba(0,0,0,0.5)",zIndex:500}} onClick={()=>setShowNotif(false)}>
+<div style={{position:"absolute",top:0,right:0,width:Math.min(300,winSize.w*0.85),height:winSize.h,background:"var(--card-bg)",padding:16,overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
 <p style={{margin:0,fontSize:16,fontWeight:700}}>Notifications</p>
 <button onClick={()=>setShowNotif(false)} style={{background:"none",border:"none",fontSize:20,cursor:"pointer"}}>✕</button>
