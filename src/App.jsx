@@ -8,6 +8,7 @@ import { PrivacyPolicy, TermsOfService } from "./pages/LegalPages.jsx"
 import SupportPage from "./pages/SupportPage.jsx"
 import { SplashScreen, LoginScreen, TxnPinModal, ProfileScreen, ChangePinFlow } from "./ZappiAuth"
 import { hasServerPin, hasLegacyPin, REAL_PAYMENTS, completeBillPayment } from "./hooks/useTxnConfirmation"
+import SavedBeneficiaries, { useBeneficiaries, SaveBeneficiaryPrompt } from "./components/SavedBeneficiaries.jsx"
 
 // VTPass serviceID mappings for the real-payments path (VITE_REAL_PAYMENTS).
 // NOTE: data-bundle/cable variation codes are still local placeholders — the
@@ -296,6 +297,25 @@ if (state.status === "error") return <p style={{ fontSize: 12, color: "#DC2626",
 return <p style={{ fontSize: 12, color: "#16A34A", fontWeight: 600, margin: "-8px 0 12px" }}>✓ {state.name}</p>
 }
 
+// Quick-reuse strip of the user's own past successful purchases of this type —
+// tapping one calls the existing buyAgain(), the same function History's own
+// "Buy Again" button already uses, so it's guaranteed to prefill correctly.
+function RecentList({ transactions, type, onSelect, limit = 2 }) {
+const items = transactions.filter(tx => tx.type === type && tx.status === "success" && tx.raw).slice(0, limit)
+if (!items.length) return null
+return (
+<div style={{ marginBottom: 16 }}>
+<FL>Recent</FL>
+{items.map(tx => (
+<button key={tx.id} onClick={() => onSelect(tx)} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", marginBottom: 6, cursor: "pointer", textAlign: "left" }}>
+<span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{tx.sub}</span>
+<span style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>{tx.amount}</span>
+</button>
+))}
+</div>
+)
+}
+
 // Renders a brand's real logo where VTPass's catalog has one for it, with a
 // graceful emoji fallback otherwise (a brand not in VTPass's catalog yet, or
 // a slow/failed network request never leaves a blank or broken-looking spot).
@@ -433,6 +453,12 @@ const [bundle,setBundle]=useState(null)
 const [disco,setDisco]=useState("")
 const [meter,setMeter]=useState("")
 const [verifiedName,setVerifiedName]=useState("")
+const [savePromptFor,setSavePromptFor]=useState(null)
+const { save: saveAirtimeBeneficiary } = useBeneficiaries("airtime")
+const { save: saveDataBeneficiary } = useBeneficiaries("data")
+const { save: saveElectricityBeneficiary } = useBeneficiaries("electricity")
+const { save: saveCableBeneficiary } = useBeneficiaries("cable")
+const { save: saveInternetBeneficiary } = useBeneficiaries("internet")
 const [meterType,setMeterType]=useState("prepaid")
 const [recipient,setRecipient]=useState("")
 const [piAmount,setPiAmount]=useState("")
@@ -880,8 +906,13 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div><Header title="Buy Airtime" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
 <FL>Network</FL><NetGrid selected={network} onSelect={setNetwork}/>
-<FL>Phone number</FL><Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
+<RecentList transactions={transactions} type="airtime" onSelect={buyAgain}/>
+<FL>Phone number</FL>
+<SavedBeneficiaries type="airtime" currentValue={phone} onSelect={b=>{setPhone(b.value); if(b.provider) setNetwork(b.provider)}}/>
+<Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
 {phoneDetected&&<p style={{color:"#16a34a",fontSize:12,fontWeight:600,margin:"-8px 0 12px"}}>✓ Number verified ({phoneDetected} Nigeria)</p>}
+{phone&&savePromptFor!=="airtime"&&<button onClick={()=>setSavePromptFor("airtime")} style={{background:"none",border:"none",color:C.primary,fontSize:12,fontWeight:600,cursor:"pointer",margin:"-8px 0 12px",padding:0,display:"block"}}>☆ Save this number</button>}
+{savePromptFor==="airtime"&&<SaveBeneficiaryPrompt type="airtime" value={phone} provider={network} onSkip={()=>setSavePromptFor(null)} onSave={name=>{saveAirtimeBeneficiary({name,value:phone,provider:network});setSavePromptFor(null)}}/>}
 <FL>Amount (₦)</FL>
 <div style={{display:"flex",gap:8,marginBottom:8}}>{[100,200,500,1000].map(a=><button key={a} onClick={()=>setAmount(String(a))} style={{flex:1,padding:10,borderRadius:10,border:`2px solid ${amount==a?C.primary:"var(--border)"}`,background:amount==a?C.light:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>₦{a}</button>)}</div>
 <Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Or enter amount"/>
@@ -894,8 +925,13 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div><Header title="Buy Data" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
 <FL>Network</FL><NetGrid selected={network} onSelect={n=>{setNetwork(n);setBundle(null)}}/>
-<FL>Phone number</FL><Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
+<RecentList transactions={transactions} type="data" onSelect={buyAgain}/>
+<FL>Phone number</FL>
+<SavedBeneficiaries type="data" currentValue={phone} onSelect={b=>{setPhone(b.value); if(b.provider) setNetwork(b.provider)}}/>
+<Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
 {phoneDetected&&<p style={{color:"#16a34a",fontSize:12,fontWeight:600,margin:"-8px 0 12px"}}>✓ Number verified ({phoneDetected} Nigeria)</p>}
+{phone&&savePromptFor!=="data"&&<button onClick={()=>setSavePromptFor("data")} style={{background:"none",border:"none",color:C.primary,fontSize:12,fontWeight:600,cursor:"pointer",margin:"-8px 0 12px",padding:0,display:"block"}}>☆ Save this number</button>}
+{savePromptFor==="data"&&<SaveBeneficiaryPrompt type="data" value={phone} provider={network} onSkip={()=>setSavePromptFor(null)} onSave={name=>{saveDataBeneficiary({name,value:phone,provider:network});setSavePromptFor(null)}}/>}
 {network&&<><FL>Select bundle</FL>
 <VariationGrid serviceID={VTPASS_DATA[network]} selected={bundle} onSelect={setBundle}/>
 </>}
@@ -911,10 +947,15 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <select value={disco} onChange={e=>setDisco(e.target.value)} style={{width:"100%",padding:13,borderRadius:10,border:"1.5px solid #E5E7EB",marginBottom:16,boxSizing:"border-box",fontSize:14,outline:"none",background:"var(--card-bg)",fontFamily:"inherit"}}>
 <option value="">Select your DISCO</option>{DISCOS.map(d=><option key={d}>{d}</option>)}
 </select>
+<RecentList transactions={transactions} type="electricity" onSelect={buyAgain}/>
 <FL>Meter type</FL>
 <div style={{display:"flex",gap:8,marginBottom:16}}>{["prepaid","postpaid"].map(t=><button key={t} onClick={()=>setMeterType(t)} style={{flex:1,padding:12,borderRadius:10,border:`2px solid ${meterType===t?C.primary:"var(--border)"}`,background:meterType===t?C.light:"white",cursor:"pointer",fontWeight:600,textTransform:"capitalize"}}>{t}</button>)}</div>
-<FL>Meter number</FL><Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Enter meter number"/>
+<FL>Meter number</FL>
+<SavedBeneficiaries type="electricity" currentValue={meter} onSelect={b=>{setMeter(b.value); if(b.provider) setDisco(b.provider)}}/>
+<Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Enter meter number"/>
 {disco&&meter&&<VerifyName serviceID={VTPASS_DISCO[disco.split(" ")[0]]} billersCode={meter} type={meterType} onVerified={setVerifiedName}/>}
+{meter&&savePromptFor!=="electricity"&&<button onClick={()=>setSavePromptFor("electricity")} style={{background:"none",border:"none",color:C.primary,fontSize:12,fontWeight:600,cursor:"pointer",margin:"-8px 0 12px",padding:0,display:"block"}}>☆ Save this meter</button>}
+{savePromptFor==="electricity"&&<SaveBeneficiaryPrompt type="electricity" value={meter} provider={disco} onSkip={()=>setSavePromptFor(null)} onSave={name=>{saveElectricityBeneficiary({name,value:meter,provider:disco});setSavePromptFor(null)}}/>}
 <FL>Amount (₦)</FL>
 <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:8}}>{[1000,2000,5000,10000].map(a=><button key={a} onClick={()=>setAmount(String(a))} style={{padding:"10px 14px",borderRadius:10,border:`2px solid ${amount==a?C.primary:"var(--border)"}`,background:amount==a?C.light:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>₦{a.toLocaleString()}</button>)}</div>
 <Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Or enter amount"/>
@@ -928,8 +969,13 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div style={{padding:16}}>
 <FL>Provider</FL>
 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>{["DStv","GOtv","Startimes"].map(p=><button key={p} onClick={()=>{setNetwork(p);setBundle(null)}} style={{padding:14,borderRadius:10,border:`2px solid ${network===p?C.primary:"var(--border)"}`,background:network===p?C.light:"white",cursor:"pointer",fontWeight:700,fontSize:13,display:"flex",flexDirection:"column",alignItems:"center",gap:6}}><BrandLogo category="tv-subscription" match={p} fallback="📺" size={26}/>{p}</button>)}</div>
-<FL>Smart card / IUC number</FL><Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Enter smart card number"/>
+<RecentList transactions={transactions} type="cable" onSelect={buyAgain}/>
+<FL>Smart card / IUC number</FL>
+<SavedBeneficiaries type="cable" currentValue={meter} onSelect={b=>{setMeter(b.value); if(b.provider) setNetwork(b.provider); setBundle(null)}}/>
+<Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Enter smart card number"/>
 {network&&meter&&<VerifyName serviceID={VTPASS_CABLE[network]} billersCode={meter} onVerified={setVerifiedName}/>}
+{meter&&savePromptFor!=="cable"&&<button onClick={()=>setSavePromptFor("cable")} style={{background:"none",border:"none",color:C.primary,fontSize:12,fontWeight:600,cursor:"pointer",margin:"-8px 0 12px",padding:0,display:"block"}}>☆ Save this smart card</button>}
+{savePromptFor==="cable"&&<SaveBeneficiaryPrompt type="cable" value={meter} provider={network} onSkip={()=>setSavePromptFor(null)} onSave={name=>{saveCableBeneficiary({name,value:meter,provider:network});setSavePromptFor(null)}}/>}
 {network&&<><FL>Select package</FL>
 <VariationGrid serviceID={VTPASS_CABLE[network]} selected={bundle} onSelect={setBundle} columns={1}/>
 </>}
@@ -942,12 +988,18 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div><Header title="Internet" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
 <FL>Select provider</FL>
+<RecentList transactions={transactions} type="internet" onSelect={buyAgain}/>
 {INTERNET_PROVIDERS.map(p=><button key={p.id} onClick={()=>{setInternetProvider(p);setBundle(null)}} style={{width:"100%",background:"var(--card-bg)",border:`2px solid ${internetProvider?.id===p.id?C.primary:"var(--border)"}`,borderRadius:12,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
 <span style={{fontSize:24}}>{p.icon}</span>
 <div style={{flex:1}}><p style={{margin:0,fontSize:14,fontWeight:700}}>{p.label}</p></div>
 {internetProvider?.id===p.id&&<span style={{color:C.primary,fontSize:18}}>✓</span>}
 </button>)}
-{internetProvider&&<><FL>Account number</FL><Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Account number"/><FL>Select plan</FL><VariationGrid serviceID={VTPASS_INTERNET[internetProvider.id]} selected={bundle} onSelect={setBundle}/>{bundle&&<PiSummary amount={bundle.price} bg="#EFF6FF" color="#2563EB" rate={liveRate}/>}<Btn label={bundle?`Pay ${bundle.label} — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a plan"} disabled={!meter||!bundle} onClick={()=>validate("internet")&&handlePay("Internet",{type:"internet",label:`${internetProvider.label} ${bundle.label}`,sub:`Acct: ${meter}`,ngn:bundle.price,icon:"🌐",color:"#EFF6FF",raw:{page:"bills",subPage:"internet",providerId:internetProvider.id,meter,bundleCode:bundle.code,bundleLabel:bundle.label,bundlePrice:bundle.price}})}/></>}
+{internetProvider&&<><FL>Account number</FL>
+<SavedBeneficiaries type="internet" currentValue={meter} onSelect={b=>{setMeter(b.value); if(b.provider){const p=INTERNET_PROVIDERS.find(x=>x.label===b.provider); if(p) setInternetProvider(p)} setBundle(null)}}/>
+<Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Account number"/>
+{meter&&savePromptFor!=="internet"&&<button onClick={()=>setSavePromptFor("internet")} style={{background:"none",border:"none",color:C.primary,fontSize:12,fontWeight:600,cursor:"pointer",margin:"0 0 12px",padding:0,display:"block"}}>☆ Save this account</button>}
+{savePromptFor==="internet"&&<SaveBeneficiaryPrompt type="internet" value={meter} provider={internetProvider.label} onSkip={()=>setSavePromptFor(null)} onSave={name=>{saveInternetBeneficiary({name,value:meter,provider:internetProvider.label});setSavePromptFor(null)}}/>}
+<FL>Select plan</FL><VariationGrid serviceID={VTPASS_INTERNET[internetProvider.id]} selected={bundle} onSelect={setBundle}/>{bundle&&<PiSummary amount={bundle.price} bg="#EFF6FF" color="#2563EB" rate={liveRate}/>}<Btn label={bundle?`Pay ${bundle.label} — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a plan"} disabled={!meter||!bundle} onClick={()=>validate("internet")&&handlePay("Internet",{type:"internet",label:`${internetProvider.label} ${bundle.label}`,sub:`Acct: ${meter}`,ngn:bundle.price,icon:"🌐",color:"#EFF6FF",raw:{page:"bills",subPage:"internet",providerId:internetProvider.id,meter,bundleCode:bundle.code,bundleLabel:bundle.label,bundlePrice:bundle.price}})}/></>}
 </div></div>
 )}
 
@@ -1069,7 +1121,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 {page==="history"&&(
 <div><Header title="Transactions"/>
 <div style={{padding:"12px 16px 6px",display:"flex",gap:8,overflowX:"auto"}}>
-{[{id:"all",label:"All"},{id:"airtime",label:"Airtime"},{id:"data",label:"Data"},{id:"electricity",label:"Electric"},{id:"send",label:"Sent"},{id:"receive",label:"Received"}].map(f=>(
+{[{id:"all",label:"All"},{id:"airtime",label:"Airtime"},{id:"data",label:"Data"},{id:"electricity",label:"Electric"},{id:"cable",label:"Cable"},{id:"internet",label:"Internet"},{id:"send",label:"Sent"},{id:"receive",label:"Received"}].map(f=>(
 <button key={f.id} onClick={()=>setTxFilter(f.id)} style={{padding:"6px 14px",borderRadius:20,border:"none",background:txFilter===f.id?C.primary:"var(--border)",color:txFilter===f.id?"white":"var(--text-secondary)",cursor:"pointer",fontSize:12,fontWeight:600,whiteSpace:"nowrap",flexShrink:0}}>{f.label}</button>
 ))}
 </div>
