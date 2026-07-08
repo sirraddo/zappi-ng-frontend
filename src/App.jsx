@@ -5,7 +5,7 @@ import NotificationBell from "./components/NotificationBell.jsx"
 import PiRateTicker from "./components/PiRateTicker.jsx"
 import TransactionReceipt from "./components/TransactionReceipt.jsx"
 import { PrivacyPolicy, TermsOfService } from "./pages/LegalPages.jsx"
-import SupportPage from "./pages/SupportPage.jsx"
+import SupportPage, { CONFIG } from "./pages/SupportPage.jsx"
 import { SplashScreen, LoginScreen, TxnPinModal, ProfileScreen, ChangePinFlow } from "./ZappiAuth"
 import { hasServerPin, hasLegacyPin, REAL_PAYMENTS, completeBillPayment } from "./hooks/useTxnConfirmation"
 import SavedBeneficiaries, { useBeneficiaries, SaveBeneficiaryPrompt } from "./components/SavedBeneficiaries.jsx"
@@ -95,7 +95,7 @@ const steps = [
 { n:4, title:"Confirm with your PIN", desc:"Approve with your transaction PIN, then complete payment in Pi Wallet." },
 ]
 return (
-<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:9998,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={onClose}>
+<div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.6)",zIndex:9998,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={onClose}>
 <div style={{width:"100%",maxWidth:430,background:"var(--card-bg)",borderRadius:"24px 24px 0 0",padding:"24px 20px max(32px, calc(env(safe-area-inset-bottom, 0px) + 20px))",maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
 <h3 style={{margin:0,fontSize:18,fontWeight:800}}>How Zappi NG works</h3>
@@ -564,6 +564,11 @@ setBettingSite(null); setBettingId(""); setHotel(null); setTransport(null); setI
 // purchase) and jumps back to the matching screen so the user can review and resubmit.
 // tx.raw is only present on transactions made after this feature shipped — older
 // seed/demo entries simply won't show the button (see the History row rendering).
+const reportIssue=(tx)=>{
+const ref = "ZAP-" + String(tx.id).slice(-10).toUpperCase()
+const msg = `Hi Zappi NG Support, I'd like to report an issue with a transaction.\n\nReference: ${ref}\nService: ${tx.label}\nAmount: ${tx.amount} (${tx.pi})\nDate: ${tx.ts ? new Date(tx.ts).toLocaleString() : tx.date}\n\nIssue: `
+window.open(`https://wa.me/${CONFIG.whatsappNumber}?text=${encodeURIComponent(msg)}`, "_blank")
+}
 const buyAgain=(tx)=>{
 const r = tx.raw
 if (!r) { showToast("Can't repeat this transaction","danger"); return }
@@ -728,8 +733,8 @@ return (
 {receiptTx&&<TransactionReceipt receipt={txToReceipt(receiptTx)} onDone={()=>setReceiptTx(null)}/>}
 
 {showNotif&&(
-<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:500}} onClick={()=>setShowNotif(false)}>
-<div style={{position:"absolute",top:0,right:0,width:300,height:"100vh",background:"var(--card-bg)",padding:16,overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+<div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:500}} onClick={()=>setShowNotif(false)}>
+<div style={{position:"absolute",top:0,right:0,width:300,maxWidth:"85vw",height:"100%",background:"var(--card-bg)",padding:16,overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
 <p style={{margin:0,fontSize:16,fontWeight:700}}>Notifications</p>
 <button onClick={()=>setShowNotif(false)} style={{background:"none",border:"none",fontSize:20,cursor:"pointer"}}>✕</button>
@@ -771,6 +776,11 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <p style={{color:"rgba(255,255,255,0.65)",fontSize:12,margin:0}}>≈ ₦{Math.round(balance * liveRate).toLocaleString()} · Rate: ₦{liveRate}/π</p>
 <div style={{marginTop:10}}><PiRateTicker rate={liveRate} live={rateLive} /></div>
 <p style={{color:"rgba(255,255,255,0.45)",fontSize:9,margin:"6px 0 0",lineHeight:1.3}}>Zappi NG's own rate for pricing our services, calculated from live market data — not an official Pi Network value</p>
+{isSandbox&&(
+<button onClick={()=>{updateBalance(50);showToast("Added π50 test balance","success")}} style={{marginTop:10,width:"100%",background:"rgba(255,255,255,0.2)",border:"1px dashed rgba(255,255,255,0.5)",borderRadius:10,padding:"8px 10px",color:"white",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+🧪 Add π50 test balance (sandbox only)
+</button>
+)}
 </div>
 </div>
 
@@ -1184,10 +1194,17 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <span style={{background:tx.status==="success"?"#DCFCE7":"#FEE2E2",color:tx.status==="success"?"#166534":"#991B1B",fontSize:10,padding:"2px 8px",borderRadius:10,fontWeight:700}}>{tx.status==="success"?"✓ Success":"✗ Failed"}</span>
 </div>
 </div>
+{tx.type!=="receive"&&(
+<div style={{display:"flex",borderTop:"1px solid var(--border)"}}>
 {tx.raw&&tx.status==="success"&&(
-<button onClick={()=>buyAgain(tx)} style={{width:"100%",background:"none",border:"none",borderTop:"1px solid var(--border)",padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"center",gap:6,cursor:"pointer",color:C.primary,fontSize:12,fontWeight:700}}>
+<button onClick={()=>buyAgain(tx)} style={{flex:1,background:"none",border:"none",borderRight:"1px solid var(--border)",padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"center",gap:6,cursor:"pointer",color:C.primary,fontSize:12,fontWeight:700}}>
 🔁 Buy Again
 </button>
+)}
+<button onClick={()=>reportIssue(tx)} style={{flex:1,background:"none",border:"none",padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"center",gap:6,cursor:"pointer",color:"var(--text-secondary)",fontSize:12,fontWeight:700}}>
+🚩 Report Issue
+</button>
+</div>
 )}
 </div>
 ))}
