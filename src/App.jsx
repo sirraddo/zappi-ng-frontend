@@ -656,7 +656,7 @@ if (piCost > balance) return showToast("Insufficient Pi balance","danger")
 const txnFields = buildTxnFields(tx)
 requireTxnConfirmation(`Confirm ${service}`, txnFields, (confirmationToken)=>{
 setTxnPinModal(null)
-const vtpassEligible = ["airtime","data","electricity","cable"].includes(tx.type) && !!txnFields.serviceID
+const vtpassEligible = ["airtime","data","electricity","cable","internet","education","insurance"].includes(tx.type) && !!txnFields.serviceID
 if (REAL_PAYMENTS && vtpassEligible && isReady && window.Pi) {
 runRealPayment(service, tx, txnFields, piCost, confirmationToken)
 } else {

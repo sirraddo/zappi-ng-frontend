@@ -49,7 +49,13 @@ export function usePiNetwork() {
   const piAuth = useCallback(async () => {
     if (!window.Pi) throw new Error("Pi SDK not loaded");
 
-    const scopes = ["username"];
+    // "payments" is REQUIRED here, not just in ZappiAuth's piLogin: PiProvider
+    // auto-calls this piAuth() on EVERY app load, so whatever scopes are listed
+    // here become the active Pi session scopes — a username-only list silently
+    // downgrades the session and makes Pi.createPayment reject every payment
+    // (surfaced as the INVALID ARGUMENTS toast). Stripped during June 11 login
+    // debugging (bccf08e); do not remove again.
+    const scopes = ["username", "payments"];
 
     return new Promise((resolve, reject) => {
       window.Pi.authenticate(scopes, async (payment) => {
