@@ -15,10 +15,11 @@ import SavedBeneficiaries, { useBeneficiaries, SaveBeneficiaryPrompt } from "./c
 // NOTE: data-bundle/cable variation codes are still local placeholders — the
 // catalog should come from /api/payments/services + /variations (follow-up).
 const VTPASS_AIRTIME = { MTN: "mtn", Airtel: "airtel", Glo: "glo", "9mobile": "etisalat" }
-const VTPASS_DATA = { MTN: "mtn-data", Airtel: "airtel-data", Glo: "glo-data", "9mobile": "etisalat-data" }
+const VTPASS_DATA = { MTN: "mtn-data", Airtel: "airtel-data", Glo: "glo-data", "9mobile": "etisalat-data", "GLO SME": "GLO-sme-data" }
 const VTPASS_CABLE = { DStv: "dstv", GOtv: "gotv", Startimes: "startimes" }
 const VTPASS_EDU = { waec: "waec", "waec-registration": "waec-registration", jamb: "jamb" }
 const VTPASS_INSURANCE = "personal-accident-insurance"
+const VTPASS_SHOWMAX = "showmax"
 const VTPASS_DISCO = { IKEDC: "ikeja-electric", EKEDC: "eko-electric", IBEDC: "ibadan-electric", AEDC: "abuja-electric", PHED: "portharcourt-electric", EEDC: "enugu-electric", KEDCO: "kano-electric", BEDC: "benin-electric", JED: "jos-electric", KAEDC: "kaduna-electric", YEDC: "yola-electric", ABEDC: "aba-electric" }
 
 const RATE = 600 // fallback only — app uses live rate from backend
@@ -352,6 +353,39 @@ if (state.status === "error") return <p style={{ fontSize: 12, color: "#DC2626",
 return <p style={{ fontSize: 12, color: "#16A34A", fontWeight: 600, margin: "-8px 0 12px" }}>✓ {state.name}</p>
 }
 
+function SmileVerify({ email, onVerified, minLength = 5 }) {
+const [state, setState] = useState({ status: "idle" })
+useEffect(() => {
+onVerified(null)
+if (!email || email.length < minLength || !email.includes("@")) { setState({ status: "idle" }); return }
+let cancelled = false
+setState({ status: "loading" })
+const timer = setTimeout(() => {
+const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const token = localStorage.getItem("zappi_token")
+fetch(`${apiUrl}/api/payments/verify-smile-email`, {
+method: "POST",
+headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+body: JSON.stringify({ email }),
+})
+.then(async r => {
+if (!r.ok) { if (!cancelled) setState({ status: "error" }); return }
+const data = await r.json()
+if (!cancelled) {
+setState({ status: "ok", name: data.name || "", accounts: data.accounts || [] })
+onVerified({ name: data.name || "", accounts: data.accounts || [] })
+}
+})
+.catch(() => { if (!cancelled) setState({ status: "error" }) })
+}, 600)
+return () => { cancelled = true; clearTimeout(timer) }
+}, [email])
+if (state.status === "idle") return null
+if (state.status === "loading") return <p style={{ fontSize: 12, color: "var(--text-tertiary)", margin: "-8px 0 12px" }}>Verifying…</p>
+if (state.status === "error") return <p style={{ fontSize: 12, color: "#DC2626", margin: "-8px 0 12px" }}>⚠ Could not verify this email — double-check and try again</p>
+return <p style={{ fontSize: 12, color: "#16A34A", fontWeight: 600, margin: "-8px 0 12px" }}>✓ {state.name}</p>
+}
+
 // Quick-reuse strip of the user's own past successful purchases of this type —
 // tapping one calls the existing buyAgain(), the same function History's own
 // "Buy Again" button already uses, so it's guaranteed to prefill correctly.
@@ -401,12 +435,13 @@ style={{ width: size, height: size, borderRadius: 6, objectFit: "contain", backg
 )
 }
 
-function NetGrid({ selected, onSelect }) {
+function NetGrid({ selected, onSelect, extra = [] }) {
+const items = [...["MTN","Airtel","Glo","9mobile"].map(n=>({label:n,match:n})), ...extra]
 return (
 <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:16}}>
-{["MTN","Airtel","Glo","9mobile"].map(n=>(
-<button key={n} onClick={()=>onSelect(n)} style={{padding:10,borderRadius:10,border:`2px solid ${selected===n?C.primary:"var(--border)"}`,background:selected===n?C.light:"white",cursor:"pointer",fontWeight:600,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-<BrandLogo category="airtime" match={n} fallback="📱" size={20}/>{n}
+{items.map(({label,match})=>(
+<button key={label} onClick={()=>onSelect(label)} style={{padding:10,borderRadius:10,border:`2px solid ${selected===label?C.primary:"var(--border)"}`,background:selected===label?C.light:"white",cursor:"pointer",fontWeight:600,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+<BrandLogo category="airtime" match={match} fallback="📱" size={20}/>{label}
 </button>
 ))}
 </div>
@@ -522,6 +557,9 @@ const [insDob,setInsDob]=useState("")
 const [insNextKinName,setInsNextKinName]=useState("")
 const [insNextKinPhone,setInsNextKinPhone]=useState("")
 const [insOccupation,setInsOccupation]=useState("")
+const [smileEmail,setSmileEmail]=useState("")
+const [smileAccounts,setSmileAccounts]=useState([])
+const [smileAccount,setSmileAccount]=useState(null)
 const [savePromptFor,setSavePromptFor]=useState(null)
 const { save: saveAirtimeBeneficiary } = useBeneficiaries("airtime")
 const { save: saveDataBeneficiary } = useBeneficiaries("data")
@@ -625,6 +663,7 @@ setAmount(""); setPhone(""); setNetwork(""); setBundle(null)
 setDisco(""); setMeter(""); setRecipient(""); setPiAmount(""); setNote("")
 setBettingSite(null); setBettingId(""); setHotel(null); setTransport(null); setInternetProvider(null)
 setInsFullName(""); setInsAddress(""); setInsDob(""); setInsNextKinName(""); setInsNextKinPhone(""); setInsOccupation("")
+setSmileEmail(""); setSmileAccounts([]); setSmileAccount(null)
 }
 
 // Restores a past purchase's exact details (from tx.raw, saved at the time of that
@@ -666,10 +705,13 @@ case "airtime": return { serviceID: VTPASS_AIRTIME[network]||"", billType:"airti
 case "data": return { serviceID: VTPASS_DATA[network]||"", billType:"data", amount: tx.ngn, phone, billersCode: phone }
 case "electricity": return { serviceID: VTPASS_DISCO[disco.split(" ")[0]]||"", billType:"electricity", amount: tx.ngn, phone: meter, billersCode: meter }
 case "cable": return { serviceID: VTPASS_CABLE[network]||"", billType:"cable", amount: tx.ngn, phone: meter, billersCode: meter }
-case "internet": return { serviceID: VTPASS_INTERNET[internetProvider?.id]||"", billType:"internet", amount: tx.ngn, phone: meter, billersCode: meter }
+case "internet": return internetProvider?.id === "smile"
+? { serviceID: VTPASS_INTERNET.smile, billType:"internet", amount: tx.ngn, phone, billersCode: smileAccount?.id || "" }
+: { serviceID: VTPASS_INTERNET[internetProvider?.id]||"", billType:"internet", amount: tx.ngn, phone: meter, billersCode: meter }
 case "education": return { serviceID: VTPASS_EDU[eduProduct]||"", billType:"education", amount: tx.ngn, phone, billersCode: eduProduct==="jamb" ? meter : phone }
 // billersCode is the customer's full name here, per VTPass's own sample payload — not phone, unlike every other product.
 case "insurance": return { serviceID: VTPASS_INSURANCE, billType:"insurance", amount: tx.ngn, phone, billersCode: insFullName }
+case "showmax": return { serviceID: VTPASS_SHOWMAX, billType:"showmax", amount: tx.ngn, phone, billersCode: phone }
 default: return { serviceID: tx.type, billType: tx.type, amount: tx.ngn, phone: tx.sub||"", billersCode: "" }
 }
 }
@@ -699,7 +741,7 @@ const runRealPayment=(service, tx, txnFields, piCost, confirmationToken)=>{
 const extras = {
 // electricity REQUIRES variation_code = "prepaid"|"postpaid" — omitting it makes
 // VTPass reject delivery with code 011 "INVALID ARGUMENTS" AFTER Pi has charged.
-variation_code: tx.type === "electricity" ? meterType : ["data","cable","internet","education","insurance"].includes(tx.type) ? bundle?.code : undefined,
+variation_code: tx.type === "electricity" ? meterType : ["data","cable","internet","education","insurance","showmax"].includes(tx.type) ? bundle?.code : undefined,
 // VTPass's Personal Accident Insurance purchase needs these on top of the usual
 // fields — full_name, address, dob (YYYY-MM-DD), and next-of-kin details.
 ...(tx.type === "insurance" ? {
@@ -741,7 +783,7 @@ if (piCost > balance) return showToast("Insufficient Pi balance","danger")
 const txnFields = buildTxnFields(tx)
 requireTxnConfirmation(`Confirm ${service}`, txnFields, (confirmationToken)=>{
 setTxnPinModal(null)
-const vtpassEligible = ["airtime","data","electricity","cable","internet","education","insurance"].includes(tx.type) && !!txnFields.serviceID
+const vtpassEligible = ["airtime","data","electricity","cable","internet","education","insurance","showmax"].includes(tx.type) && !!txnFields.serviceID
 if (REAL_PAYMENTS && vtpassEligible && isReady && window.Pi) {
 runRealPayment(service, tx, txnFields, piCost, confirmationToken)
 } else {
@@ -991,7 +1033,7 @@ document.body
 <div>
 <Header title="Pay Bills"/>
 <div style={{padding:16}}>
-{[{label:"Buy Airtime",icon:"📱",bg:"#EDE9FE",sub:"airtime",desc:"MTN, Airtel, Glo, 9mobile"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",sub:"data",desc:"Data bundles"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",sub:"electricity",desc:"Prepaid & postpaid meters"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",sub:"cable",desc:"DStv, GOtv, Startimes"},{label:"Internet",icon:"🌐",bg:"#EFF6FF",sub:"internet",desc:"Smile, Spectranet"},{label:"Education",icon:"🎓",bg:"#EEF2FF",sub:"education",desc:"WAEC, JAMB"},{label:"Insurance",icon:"🛡️",bg:"#F0FDFA",sub:"insurance",desc:"Personal Accident cover"}].map(item=>(
+{[{label:"Buy Airtime",icon:"📱",bg:"#EDE9FE",sub:"airtime",desc:"MTN, Airtel, Glo, 9mobile"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",sub:"data",desc:"Data bundles"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",sub:"electricity",desc:"Prepaid & postpaid meters"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",sub:"cable",desc:"DStv, GOtv, Startimes"},{label:"Showmax",icon:"🎬",bg:"#FEF2F2",sub:"showmax",desc:"Streaming subscription"},{label:"Internet",icon:"🌐",bg:"#EFF6FF",sub:"internet",desc:"Smile, Spectranet"},{label:"Education",icon:"🎓",bg:"#EEF2FF",sub:"education",desc:"WAEC, JAMB"},{label:"Insurance",icon:"🛡️",bg:"#F0FDFA",sub:"insurance",desc:"Personal Accident cover"}].map(item=>(
 <SCard key={item.label} icon={item.icon} label={item.label} desc={item.desc} bg={item.bg} onClick={()=>setSubPage(item.sub)}/>
 ))}
 </div>
@@ -1020,7 +1062,7 @@ document.body
 {page==="bills"&&subPage==="data"&&(
 <div><Header title="Buy Data" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
-<FL>Network</FL><NetGrid selected={network} onSelect={n=>{setNetwork(n);setBundle(null)}}/>
+<FL>Network</FL><NetGrid selected={network} onSelect={n=>{setNetwork(n);setBundle(null)}} extra={[{label:"GLO SME",match:"Glo"}]}/>
 <RecentList transactions={transactions} type="data" onSelect={buyAgain}/>
 <FL>Phone number</FL>
 <SavedBeneficiaries type="data" currentValue={phone} onSelect={b=>{setPhone(b.value); if(b.provider) setNetwork(b.provider)}}/>
@@ -1080,6 +1122,18 @@ document.body
 </div></div>
 )}
 
+{page==="bills"&&subPage==="showmax"&&(
+<div><Header title="Showmax" onBack={()=>setSubPage(null)}/>
+<div style={{padding:16}}>
+<RecentList transactions={transactions} type="showmax" onSelect={buyAgain}/>
+<FL>Phone number</FL><Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
+<FL>Select plan</FL>
+<VariationGrid serviceID={VTPASS_SHOWMAX} selected={bundle} onSelect={setBundle} columns={1}/>
+{bundle&&<PiSummary amount={bundle.price} bg="#FEF2F2" color="#B91C1C" rate={liveRate}/>}
+<Btn label={bundle?`Pay ${bundle.label} — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a plan"} disabled={!phone||!bundle} onClick={()=>validate("showmax")&&handlePay("Showmax",{type:"showmax",label:bundle.label,sub:`Phone: ${phone}`,ngn:bundle.price,icon:"🎬",color:"#FEF2F2",raw:{page:"bills",subPage:"showmax",phone,bundleCode:bundle.code,bundleLabel:bundle.label,bundlePrice:bundle.price}})}/>
+</div></div>
+)}
+
 {page==="bills"&&subPage==="internet"&&(
 <div><Header title="Internet" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
@@ -1090,7 +1144,28 @@ document.body
 <div style={{flex:1}}><p style={{margin:0,fontSize:14,fontWeight:700}}>{p.label}</p></div>
 {internetProvider?.id===p.id&&<span style={{color:C.primary,fontSize:18}}>✓</span>}
 </button>)}
-{internetProvider&&<><FL>Account number</FL>
+{internetProvider?.id==="smile"&&<>
+<FL>Smile email</FL>
+<Inp value={smileEmail} onChange={e=>{setSmileEmail(e.target.value);setSmileAccount(null)}} placeholder="you@example.com"/>
+<SmileVerify email={smileEmail} onVerified={v=>{setSmileAccounts(v?.accounts||[]);setSmileAccount(null)}}/>
+{smileAccounts.length>0&&<>
+<FL>Select account</FL>
+<div style={{display:"grid",gap:8,marginBottom:16}}>
+{smileAccounts.map((a,i)=>(
+<button key={i} onClick={()=>setSmileAccount(a)} style={{padding:12,borderRadius:10,border:`2px solid ${smileAccount===a?C.primary:"var(--border)"}`,background:smileAccount===a?C.light:"white",cursor:"pointer",textAlign:"left",fontSize:13,fontWeight:600}}>
+{a.label} · {a.id}
+</button>
+))}
+</div>
+</>}
+{smileAccount&&<>
+<FL>Phone number</FL><Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
+<FL>Select plan</FL><VariationGrid serviceID={VTPASS_INTERNET.smile} selected={bundle} onSelect={setBundle}/>
+{bundle&&<PiSummary amount={bundle.price} bg="#EFF6FF" color="#2563EB" rate={liveRate}/>}
+<Btn label={bundle?`Pay ${bundle.label} — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a plan"} disabled={!phone||!bundle} onClick={()=>validate("internet")&&handlePay("Internet",{type:"internet",label:`Smile ${bundle.label}`,sub:`${smileAccount.label} · ${smileAccount.id}`,ngn:bundle.price,icon:"🌐",color:"#EFF6FF",raw:{page:"bills",subPage:"internet",providerId:"smile",phone,smileAccountId:smileAccount.id,smileAccountLabel:smileAccount.label,bundleCode:bundle.code,bundleLabel:bundle.label,bundlePrice:bundle.price}})}/>
+</>}
+</>}
+{internetProvider&&internetProvider.id!=="smile"&&<><FL>Account number</FL>
 <SavedBeneficiaries type="internet" currentValue={meter} onSelect={b=>{setMeter(b.value); if(b.provider){const p=INTERNET_PROVIDERS.find(x=>x.label===b.provider); if(p) setInternetProvider(p)} setBundle(null)}}/>
 <Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Account number"/>
 {meter&&savePromptFor!=="internet"&&<button onClick={()=>setSavePromptFor("internet")} style={{background:"none",border:"none",color:C.primary,fontSize:12,fontWeight:600,cursor:"pointer",margin:"0 0 12px",padding:0,display:"block"}}>☆ Save this account</button>}
