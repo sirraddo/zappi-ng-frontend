@@ -15,10 +15,11 @@ import SavedBeneficiaries, { useBeneficiaries, SaveBeneficiaryPrompt } from "./c
 // NOTE: data-bundle/cable variation codes are still local placeholders — the
 // catalog should come from /api/payments/services + /variations (follow-up).
 const VTPASS_AIRTIME = { MTN: "mtn", Airtel: "airtel", Glo: "glo", "9mobile": "etisalat" }
-const VTPASS_DATA = { MTN: "mtn-data", Airtel: "airtel-data", Glo: "glo-data", "9mobile": "etisalat-data" }
+const VTPASS_DATA = { MTN: "mtn-data", Airtel: "airtel-data", Glo: "glo-data", "9mobile": "etisalat-data", "GLO SME": "GLO-sme-data" }
 const VTPASS_CABLE = { DStv: "dstv", GOtv: "gotv", Startimes: "startimes" }
 const VTPASS_EDU = { waec: "waec", "waec-registration": "waec-registration", jamb: "jamb" }
 const VTPASS_INSURANCE = "personal-accident-insurance"
+const VTPASS_SHOWMAX = "showmax"
 const VTPASS_DISCO = { IKEDC: "ikeja-electric", EKEDC: "eko-electric", IBEDC: "ibadan-electric", AEDC: "abuja-electric", PHED: "portharcourt-electric", EEDC: "enugu-electric", KEDCO: "kano-electric", BEDC: "benin-electric", JED: "jos-electric", KAEDC: "kaduna-electric", YEDC: "yola-electric", ABEDC: "aba-electric" }
 
 const RATE = 600 // fallback only — app uses live rate from backend
@@ -434,12 +435,13 @@ style={{ width: size, height: size, borderRadius: 6, objectFit: "contain", backg
 )
 }
 
-function NetGrid({ selected, onSelect }) {
+function NetGrid({ selected, onSelect, extra = [] }) {
+const items = [...["MTN","Airtel","Glo","9mobile"].map(n=>({label:n,match:n})), ...extra]
 return (
 <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:16}}>
-{["MTN","Airtel","Glo","9mobile"].map(n=>(
-<button key={n} onClick={()=>onSelect(n)} style={{padding:10,borderRadius:10,border:`2px solid ${selected===n?C.primary:"var(--border)"}`,background:selected===n?C.light:"white",cursor:"pointer",fontWeight:600,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-<BrandLogo category="airtime" match={n} fallback="📱" size={20}/>{n}
+{items.map(({label,match})=>(
+<button key={label} onClick={()=>onSelect(label)} style={{padding:10,borderRadius:10,border:`2px solid ${selected===label?C.primary:"var(--border)"}`,background:selected===label?C.light:"white",cursor:"pointer",fontWeight:600,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+<BrandLogo category="airtime" match={match} fallback="📱" size={20}/>{label}
 </button>
 ))}
 </div>
@@ -1031,7 +1033,7 @@ document.body
 <div>
 <Header title="Pay Bills"/>
 <div style={{padding:16}}>
-{[{label:"Buy Airtime",icon:"📱",bg:"#EDE9FE",sub:"airtime",desc:"MTN, Airtel, Glo, 9mobile"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",sub:"data",desc:"Data bundles"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",sub:"electricity",desc:"Prepaid & postpaid meters"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",sub:"cable",desc:"DStv, GOtv, Startimes"},{label:"Internet",icon:"🌐",bg:"#EFF6FF",sub:"internet",desc:"Smile, Spectranet"},{label:"Education",icon:"🎓",bg:"#EEF2FF",sub:"education",desc:"WAEC, JAMB"},{label:"Insurance",icon:"🛡️",bg:"#F0FDFA",sub:"insurance",desc:"Personal Accident cover"}].map(item=>(
+{[{label:"Buy Airtime",icon:"📱",bg:"#EDE9FE",sub:"airtime",desc:"MTN, Airtel, Glo, 9mobile"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",sub:"data",desc:"Data bundles"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",sub:"electricity",desc:"Prepaid & postpaid meters"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",sub:"cable",desc:"DStv, GOtv, Startimes"},{label:"Showmax",icon:"🎬",bg:"#FEF2F2",sub:"showmax",desc:"Streaming subscription"},{label:"Internet",icon:"🌐",bg:"#EFF6FF",sub:"internet",desc:"Smile, Spectranet"},{label:"Education",icon:"🎓",bg:"#EEF2FF",sub:"education",desc:"WAEC, JAMB"},{label:"Insurance",icon:"🛡️",bg:"#F0FDFA",sub:"insurance",desc:"Personal Accident cover"}].map(item=>(
 <SCard key={item.label} icon={item.icon} label={item.label} desc={item.desc} bg={item.bg} onClick={()=>setSubPage(item.sub)}/>
 ))}
 </div>
@@ -1060,7 +1062,7 @@ document.body
 {page==="bills"&&subPage==="data"&&(
 <div><Header title="Buy Data" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
-<FL>Network</FL><NetGrid selected={network} onSelect={n=>{setNetwork(n);setBundle(null)}}/>
+<FL>Network</FL><NetGrid selected={network} onSelect={n=>{setNetwork(n);setBundle(null)}} extra={[{label:"GLO SME",match:"Glo"}]}/>
 <RecentList transactions={transactions} type="data" onSelect={buyAgain}/>
 <FL>Phone number</FL>
 <SavedBeneficiaries type="data" currentValue={phone} onSelect={b=>{setPhone(b.value); if(b.provider) setNetwork(b.provider)}}/>
