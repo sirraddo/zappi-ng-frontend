@@ -186,7 +186,7 @@ export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment", tx
   }, [pin])
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 9999, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.65)", zIndex: 9999, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 430, background: "var(--card-bg)", borderRadius: "24px 24px 0 0", padding: "24px 20px max(48px, calc(env(safe-area-inset-bottom, 0px) + 24px))" }}>
         <div style={{ width: 40, height: 4, background: "var(--border)", borderRadius: 2, margin: "0 auto 20px" }} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
