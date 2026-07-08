@@ -16,6 +16,8 @@ import SavedBeneficiaries, { useBeneficiaries, SaveBeneficiaryPrompt } from "./c
 const VTPASS_AIRTIME = { MTN: "mtn", Airtel: "airtel", Glo: "glo", "9mobile": "etisalat" }
 const VTPASS_DATA = { MTN: "mtn-data", Airtel: "airtel-data", Glo: "glo-data", "9mobile": "etisalat-data" }
 const VTPASS_CABLE = { DStv: "dstv", GOtv: "gotv", Startimes: "startimes" }
+const VTPASS_EDU = { waec: "waec", "waec-registration": "waec-registration", jamb: "jamb" }
+const VTPASS_INSURANCE = "personal-accident-insurance"
 const VTPASS_DISCO = { IKEDC: "ikeja-electric", EKEDC: "eko-electric", IBEDC: "ibadan-electric", AEDC: "abuja-electric", PHED: "portharcourt-electric", EEDC: "enugu-electric", KEDCO: "kano-electric", BEDC: "benin-electric", JED: "jos-electric", KAEDC: "kaduna-electric", YEDC: "yola-electric", ABEDC: "aba-electric" }
 
 const RATE = 600 // fallback only — app uses live rate from backend
@@ -453,6 +455,7 @@ const [bundle,setBundle]=useState(null)
 const [disco,setDisco]=useState("")
 const [meter,setMeter]=useState("")
 const [verifiedName,setVerifiedName]=useState("")
+const [eduProduct,setEduProduct]=useState(null)
 const [savePromptFor,setSavePromptFor]=useState(null)
 const { save: saveAirtimeBeneficiary } = useBeneficiaries("airtime")
 const { save: saveDataBeneficiary } = useBeneficiaries("data")
@@ -592,6 +595,8 @@ case "data": return { serviceID: VTPASS_DATA[network]||"", billType:"data", amou
 case "electricity": return { serviceID: VTPASS_DISCO[disco.split(" ")[0]]||"", billType:"electricity", amount: tx.ngn, phone: meter, billersCode: meter }
 case "cable": return { serviceID: VTPASS_CABLE[network]||"", billType:"cable", amount: tx.ngn, phone: meter, billersCode: meter }
 case "internet": return { serviceID: VTPASS_INTERNET[internetProvider?.id]||"", billType:"internet", amount: tx.ngn, phone: meter, billersCode: meter }
+case "education": return { serviceID: VTPASS_EDU[eduProduct]||"", billType:"education", amount: tx.ngn, phone, billersCode: eduProduct==="jamb" ? meter : phone }
+case "insurance": return { serviceID: VTPASS_INSURANCE, billType:"insurance", amount: tx.ngn, phone, billersCode: phone }
 default: return { serviceID: tx.type, billType: tx.type, amount: tx.ngn, phone: tx.sub||"", billersCode: "" }
 }
 }
@@ -619,7 +624,7 @@ resetInputs()
 // delivery returns 401 — we re-confirm (Pi is NOT re-charged) and retry delivery only.
 const runRealPayment=(service, tx, txnFields, piCost, confirmationToken)=>{
 const extras = {
-variation_code: ["data","cable","internet"].includes(tx.type) ? bundle?.code : undefined,
+variation_code: ["data","cable","internet","education","insurance"].includes(tx.type) ? bundle?.code : undefined,
 piAmount: piCost,
 }
 const deliver = async (token, piPaymentId) => {
@@ -895,7 +900,7 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <div>
 <Header title="Pay Bills"/>
 <div style={{padding:16}}>
-{[{label:"Buy Airtime",icon:"📱",bg:"#EDE9FE",sub:"airtime",desc:"MTN, Airtel, Glo, 9mobile"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",sub:"data",desc:"Data bundles"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",sub:"electricity",desc:"Prepaid & postpaid meters"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",sub:"cable",desc:"DStv, GOtv, Startimes"},{label:"Internet",icon:"🌐",bg:"#EFF6FF",sub:"internet",desc:"Smile, Spectranet"}].map(item=>(
+{[{label:"Buy Airtime",icon:"📱",bg:"#EDE9FE",sub:"airtime",desc:"MTN, Airtel, Glo, 9mobile"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",sub:"data",desc:"Data bundles"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",sub:"electricity",desc:"Prepaid & postpaid meters"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",sub:"cable",desc:"DStv, GOtv, Startimes"},{label:"Internet",icon:"🌐",bg:"#EFF6FF",sub:"internet",desc:"Smile, Spectranet"},{label:"Education",icon:"🎓",bg:"#EEF2FF",sub:"education",desc:"WAEC, JAMB"},{label:"Insurance",icon:"🛡️",bg:"#F0FDFA",sub:"insurance",desc:"Personal Accident cover"}].map(item=>(
 <SCard key={item.label} icon={item.icon} label={item.label} desc={item.desc} bg={item.bg} onClick={()=>setSubPage(item.sub)}/>
 ))}
 </div>
@@ -1000,6 +1005,41 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 {meter&&savePromptFor!=="internet"&&<button onClick={()=>setSavePromptFor("internet")} style={{background:"none",border:"none",color:C.primary,fontSize:12,fontWeight:600,cursor:"pointer",margin:"0 0 12px",padding:0,display:"block"}}>☆ Save this account</button>}
 {savePromptFor==="internet"&&<SaveBeneficiaryPrompt type="internet" value={meter} provider={internetProvider.label} onSkip={()=>setSavePromptFor(null)} onSave={name=>{saveInternetBeneficiary({name,value:meter,provider:internetProvider.label});setSavePromptFor(null)}}/>}
 <FL>Select plan</FL><VariationGrid serviceID={VTPASS_INTERNET[internetProvider.id]} selected={bundle} onSelect={setBundle}/>{bundle&&<PiSummary amount={bundle.price} bg="#EFF6FF" color="#2563EB" rate={liveRate}/>}<Btn label={bundle?`Pay ${bundle.label} — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a plan"} disabled={!meter||!bundle} onClick={()=>validate("internet")&&handlePay("Internet",{type:"internet",label:`${internetProvider.label} ${bundle.label}`,sub:`Acct: ${meter}`,ngn:bundle.price,icon:"🌐",color:"#EFF6FF",raw:{page:"bills",subPage:"internet",providerId:internetProvider.id,meter,bundleCode:bundle.code,bundleLabel:bundle.label,bundlePrice:bundle.price}})}/></>}
+</div></div>
+)}
+
+{page==="bills"&&subPage==="education"&&(
+<div><Header title="Education Payments" onBack={()=>{setSubPage(null);setEduProduct(null);setBundle(null)}}/>
+<div style={{padding:16}}>
+{!eduProduct&&<>
+<FL>Select service</FL>
+{[{id:"waec",label:"WAEC Result Checker PIN",icon:"📄"},{id:"waec-registration",label:"WAEC Registration PIN",icon:"📝"},{id:"jamb",label:"JAMB UTME/DE PIN",icon:"🎓"}].map(p=>
+<button key={p.id} onClick={()=>{setEduProduct(p.id);setBundle(null)}} style={{width:"100%",background:"var(--card-bg)",border:"1.5px solid var(--border)",borderRadius:12,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
+<span style={{fontSize:22}}>{p.icon}</span><p style={{margin:0,fontSize:14,fontWeight:700,flex:1}}>{p.label}</p>
+</button>)}
+</>}
+{eduProduct&&<>
+<button onClick={()=>{setEduProduct(null);setBundle(null)}} style={{background:"none",border:"none",color:C.primary,fontSize:12,fontWeight:600,cursor:"pointer",padding:0,marginBottom:12,display:"block"}}>← Change service</button>
+{eduProduct==="jamb"&&<><FL>JAMB Profile ID</FL><Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Enter Profile ID from JAMB portal"/>
+{meter&&<VerifyName serviceID="jamb" billersCode={meter} onVerified={setVerifiedName}/>}</>}
+<FL>Phone number</FL><Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
+<FL>Select {eduProduct==="jamb"?"PIN type":"plan"}</FL>
+<VariationGrid serviceID={VTPASS_EDU[eduProduct]} selected={bundle} onSelect={setBundle} columns={1}/>
+{bundle&&<PiSummary amount={bundle.price} bg="#EEF2FF" color="#4338CA" rate={liveRate}/>}
+<Btn label={eduProduct==="jamb"&&!verifiedName?"Verify Profile ID to continue":bundle?`Pay ${bundle.label} — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a plan"} disabled={!phone||!bundle||(eduProduct==="jamb"&&(!meter||!verifiedName))} onClick={()=>handlePay("Education",{type:"education",label:bundle.label,sub:eduProduct==="jamb"?`Profile: ${meter}`:`Phone: ${phone}`,ngn:bundle.price,icon:"🎓",color:"#EEF2FF",raw:{page:"bills",subPage:"education",eduProduct,phone,meter,bundleCode:bundle.code,bundleLabel:bundle.label,bundlePrice:bundle.price}})}/>
+</>}
+</div></div>
+)}
+
+{page==="bills"&&subPage==="insurance"&&(
+<div><Header title="Insurance" onBack={()=>{setSubPage(null);setBundle(null)}}/>
+<div style={{padding:16}}>
+<p style={{fontSize:12,color:"var(--text-tertiary)",margin:"0 0 16px"}}>Personal Accident cover — pays out for injury, disability, or death resulting from an accident.</p>
+<FL>Phone number</FL><Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
+<FL>Select plan</FL>
+<VariationGrid serviceID={VTPASS_INSURANCE} selected={bundle} onSelect={setBundle} columns={1}/>
+{bundle&&<PiSummary amount={bundle.price} bg="#F0FDFA" color="#0F766E" rate={liveRate}/>}
+<Btn label={bundle?`Pay ${bundle.label} — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a plan"} disabled={!phone||!bundle} onClick={()=>handlePay("Insurance",{type:"insurance",label:bundle.label,sub:`Phone: ${phone}`,ngn:bundle.price,icon:"🛡️",color:"#F0FDFA",raw:{page:"bills",subPage:"insurance",phone,bundleCode:bundle.code,bundleLabel:bundle.label,bundlePrice:bundle.price}})}/>
 </div></div>
 )}
 
