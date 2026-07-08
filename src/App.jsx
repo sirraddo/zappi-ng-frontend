@@ -457,6 +457,12 @@ const [disco,setDisco]=useState("")
 const [meter,setMeter]=useState("")
 const [verifiedName,setVerifiedName]=useState("")
 const [eduProduct,setEduProduct]=useState(null)
+const [insFullName,setInsFullName]=useState("")
+const [insAddress,setInsAddress]=useState("")
+const [insDob,setInsDob]=useState("")
+const [insNextKinName,setInsNextKinName]=useState("")
+const [insNextKinPhone,setInsNextKinPhone]=useState("")
+const [insOccupation,setInsOccupation]=useState("")
 const [savePromptFor,setSavePromptFor]=useState(null)
 const { save: saveAirtimeBeneficiary } = useBeneficiaries("airtime")
 const { save: saveDataBeneficiary } = useBeneficiaries("data")
@@ -559,6 +565,7 @@ const resetInputs=()=>{
 setAmount(""); setPhone(""); setNetwork(""); setBundle(null)
 setDisco(""); setMeter(""); setRecipient(""); setPiAmount(""); setNote("")
 setBettingSite(null); setBettingId(""); setHotel(null); setTransport(null); setInternetProvider(null)
+setInsFullName(""); setInsAddress(""); setInsDob(""); setInsNextKinName(""); setInsNextKinPhone(""); setInsOccupation("")
 }
 
 // Restores a past purchase's exact details (from tx.raw, saved at the time of that
@@ -602,7 +609,8 @@ case "electricity": return { serviceID: VTPASS_DISCO[disco.split(" ")[0]]||"", b
 case "cable": return { serviceID: VTPASS_CABLE[network]||"", billType:"cable", amount: tx.ngn, phone: meter, billersCode: meter }
 case "internet": return { serviceID: VTPASS_INTERNET[internetProvider?.id]||"", billType:"internet", amount: tx.ngn, phone: meter, billersCode: meter }
 case "education": return { serviceID: VTPASS_EDU[eduProduct]||"", billType:"education", amount: tx.ngn, phone, billersCode: eduProduct==="jamb" ? meter : phone }
-case "insurance": return { serviceID: VTPASS_INSURANCE, billType:"insurance", amount: tx.ngn, phone, billersCode: phone }
+// billersCode is the customer's full name here, per VTPass's own sample payload — not phone, unlike every other product.
+case "insurance": return { serviceID: VTPASS_INSURANCE, billType:"insurance", amount: tx.ngn, phone, billersCode: insFullName }
 default: return { serviceID: tx.type, billType: tx.type, amount: tx.ngn, phone: tx.sub||"", billersCode: "" }
 }
 }
@@ -633,6 +641,16 @@ const extras = {
 // electricity REQUIRES variation_code = "prepaid"|"postpaid" — omitting it makes
 // VTPass reject delivery with code 011 "INVALID ARGUMENTS" AFTER Pi has charged.
 variation_code: tx.type === "electricity" ? meterType : ["data","cable","internet","education","insurance"].includes(tx.type) ? bundle?.code : undefined,
+// VTPass's Personal Accident Insurance purchase needs these on top of the usual
+// fields — full_name, address, dob (YYYY-MM-DD), and next-of-kin details.
+...(tx.type === "insurance" ? {
+full_name: insFullName,
+address: insAddress,
+dob: insDob,
+next_kin_name: insNextKinName,
+next_kin_phone: insNextKinPhone,
+business_occupation: insOccupation,
+} : {}),
 piAmount: piCost,
 }
 const deliver = async (token, piPaymentId) => {
@@ -1034,26 +1052,42 @@ document.body
 </>}
 {eduProduct&&<>
 <button onClick={()=>{setEduProduct(null);setBundle(null)}} style={{background:"none",border:"none",color:C.primary,fontSize:12,fontWeight:600,cursor:"pointer",padding:0,marginBottom:12,display:"block"}}>← Change service</button>
-{eduProduct==="jamb"&&<><FL>JAMB Profile ID</FL><Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Enter Profile ID from JAMB portal"/>
-{meter&&<VerifyName serviceID="jamb" billersCode={meter} onVerified={setVerifiedName}/>}</>}
+{eduProduct==="jamb"?<>
+{/* VTPass's JAMB verify endpoint requires "type" = the variation_code (utme-mock /
+    utme-no-mock) alongside the Profile ID — so PIN type must be picked first,
+    otherwise verification is sent incomplete and fails VTPass-side. */}
+<FL>Select PIN type</FL>
+<VariationGrid serviceID={VTPASS_EDU[eduProduct]} selected={bundle} onSelect={b=>{setBundle(b);setVerifiedName("")}} columns={1}/>
+{bundle&&<PiSummary amount={bundle.price} bg="#EEF2FF" color="#4338CA" rate={liveRate}/>}
+{bundle&&<><FL>JAMB Profile ID</FL><Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Enter Profile ID from JAMB portal"/>
+{meter&&<VerifyName serviceID="jamb" billersCode={meter} type={bundle.code} onVerified={setVerifiedName}/>}</>}
 <FL>Phone number</FL><Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
-<FL>Select {eduProduct==="jamb"?"PIN type":"plan"}</FL>
+</>:<>
+<FL>Phone number</FL><Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
+<FL>Select plan</FL>
 <VariationGrid serviceID={VTPASS_EDU[eduProduct]} selected={bundle} onSelect={setBundle} columns={1}/>
 {bundle&&<PiSummary amount={bundle.price} bg="#EEF2FF" color="#4338CA" rate={liveRate}/>}
+</>}
 <Btn label={eduProduct==="jamb"&&!verifiedName?"Verify Profile ID to continue":bundle?`Pay ${bundle.label} — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a plan"} disabled={!phone||!bundle||(eduProduct==="jamb"&&(!meter||!verifiedName))} onClick={()=>handlePay("Education",{type:"education",label:bundle.label,sub:eduProduct==="jamb"?`Profile: ${meter}`:`Phone: ${phone}`,ngn:bundle.price,icon:"🎓",color:"#EEF2FF",raw:{page:"bills",subPage:"education",eduProduct,phone,meter,bundleCode:bundle.code,bundleLabel:bundle.label,bundlePrice:bundle.price}})}/>
 </>}
 </div></div>
 )}
 
 {page==="bills"&&subPage==="insurance"&&(
-<div><Header title="Insurance" onBack={()=>{setSubPage(null);setBundle(null)}}/>
+<div><Header title="Insurance" onBack={()=>{setSubPage(null);setBundle(null);setInsFullName("");setInsAddress("");setInsDob("");setInsNextKinName("");setInsNextKinPhone("");setInsOccupation("")}}/>
 <div style={{padding:16}}>
 <p style={{fontSize:12,color:"var(--text-tertiary)",margin:"0 0 16px"}}>Personal Accident cover — pays out for injury, disability, or death resulting from an accident.</p>
-<FL>Phone number</FL><Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
 <FL>Select plan</FL>
 <VariationGrid serviceID={VTPASS_INSURANCE} selected={bundle} onSelect={setBundle} columns={1}/>
 {bundle&&<PiSummary amount={bundle.price} bg="#F0FDFA" color="#0F766E" rate={liveRate}/>}
-<Btn label={bundle?`Pay ${bundle.label} — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a plan"} disabled={!phone||!bundle} onClick={()=>handlePay("Insurance",{type:"insurance",label:bundle.label,sub:`Phone: ${phone}`,ngn:bundle.price,icon:"🛡️",color:"#F0FDFA",raw:{page:"bills",subPage:"insurance",phone,bundleCode:bundle.code,bundleLabel:bundle.label,bundlePrice:bundle.price}})}/>
+<FL>Full name</FL><Inp value={insFullName} onChange={e=>setInsFullName(e.target.value)} placeholder="As it should appear on the policy"/>
+<FL>Phone number</FL><Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
+<FL>Home address</FL><Inp value={insAddress} onChange={e=>setInsAddress(e.target.value)} placeholder="Street, city, state"/>
+<FL>Date of birth</FL><Inp type="date" value={insDob} onChange={e=>setInsDob(e.target.value)}/>
+<FL>Occupation</FL><Inp value={insOccupation} onChange={e=>setInsOccupation(e.target.value)} placeholder="e.g. Trader, Civil Servant"/>
+<FL>Next of kin — full name</FL><Inp value={insNextKinName} onChange={e=>setInsNextKinName(e.target.value)} placeholder="Full name"/>
+<FL>Next of kin — phone number</FL><Inp value={insNextKinPhone} onChange={e=>setInsNextKinPhone(e.target.value)} placeholder="08012345678"/>
+<Btn label={bundle?`Pay ${bundle.label} — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a plan"} disabled={!phone||!bundle||!insFullName||!insAddress||!insDob||!insOccupation||!insNextKinName||!insNextKinPhone} onClick={()=>handlePay("Insurance",{type:"insurance",label:bundle.label,sub:`${insFullName} · Phone: ${phone}`,ngn:bundle.price,icon:"🛡️",color:"#F0FDFA",raw:{page:"bills",subPage:"insurance",phone,bundleCode:bundle.code,bundleLabel:bundle.label,bundlePrice:bundle.price,insFullName,insAddress,insDob,insNextKinName,insNextKinPhone,insOccupation}})}/>
 </div></div>
 )}
 
