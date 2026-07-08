@@ -355,6 +355,62 @@ export function ProfileScreen({ onBack, onLogout }) {
 
   const avatars = ["😊", "👨🏾", "👩🏾", "🦁", "⚡", "🔥", "💎", "🎯", "🚀", "🦅"]
 
+  // -- Photo avatar (synced) --
+  // Picked photo is cover-cropped to a 256px JPEG (~10-30KB) client-side, shown
+  // immediately, cached in zappi_user, and uploaded to the backend so it follows
+  // the account across devices. On mount we hydrate from GET /api/user/me.
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const authHdrs = () => {
+    const token = localStorage.getItem("zappi_token")
+    return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+  }
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API_URL}/api/user/me`, { headers: authHdrs() })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (cancelled || !d?.user?.avatarImage) return
+        setUser(u => {
+          const merged = { ...u, avatarImage: d.user.avatarImage }
+          localStorage.setItem("zappi_user", JSON.stringify(merged))
+          return merged
+        })
+      })
+      .catch(() => { /* offline or endpoint not deployed yet — local cache still shows */ })
+    return () => { cancelled = true }
+  }, [])
+  const pickAvatar = (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = "" // allow re-picking the same file
+    if (!file || !file.type.startsWith("image/")) return
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = async () => {
+      URL.revokeObjectURL(url)
+      const S = 256
+      const canvas = document.createElement("canvas")
+      canvas.width = S; canvas.height = S
+      const ctx = canvas.getContext("2d")
+      // cover-crop: scale the short side to S, center the long side
+      const scale = S / Math.min(img.width, img.height)
+      const w = img.width * scale, h = img.height * scale
+      ctx.drawImage(img, (S - w) / 2, (S - h) / 2, w, h)
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.82)
+      const merged = { ...user, avatarImage: dataUrl }
+      setUser(merged); setForm(f => ({ ...f, avatarImage: dataUrl }))
+      localStorage.setItem("zappi_user", JSON.stringify(merged))
+      setUploadingAvatar(true)
+      try {
+        const res = await fetch(`${API_URL}/api/user/avatar`, { method: "POST", headers: authHdrs(), body: JSON.stringify({ avatarImage: dataUrl }) })
+        if (!res.ok) throw new Error()
+      } catch {
+        alert("Photo saved on this device, but syncing to your account failed — it will still show here.")
+      } finally { setUploadingAvatar(false) }
+    }
+    img.onerror = () => URL.revokeObjectURL(url)
+    img.src = url
+  }
+
   // Real numbers from the same localStorage ledger the rest of the app writes to
   // (App.jsx addTransaction → "zappi_txs"), replacing the hardcoded 24 / π45.5 / ₦12k
   // placeholders that never changed no matter how many payments were made.
@@ -381,7 +437,11 @@ export function ProfileScreen({ onBack, onLogout }) {
     <div style={{ minHeight: "100vh", background: C.bg }}>
       <div style={{ background: `linear-gradient(135deg,${C.primary},#9F67F5)`, padding: "calc(env(safe-area-inset-top, 0px) + 48px) 20px 32px", textAlign: "center" , position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", left: 16, top: 40, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 10, padding: "6px 14px", cursor: "pointer", fontSize: 14, fontWeight: 500 }}>←</button>
-        <div style={{ width: 70, height: 70, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, margin: "0 auto 12px", border: "3px solid rgba(255,255,255,0.4)" }}>{user.avatar || "⚡"}</div>
+        <label style={{ width: 70, height: 70, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, margin: "0 auto 12px", border: "3px solid rgba(255,255,255,0.4)", cursor: "pointer", position: "relative", overflow: "visible" }}>
+          {user.avatarImage ? <img src={user.avatarImage} alt="" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover", opacity: uploadingAvatar ? 0.5 : 1 }} /> : (user.avatar || "⚡")}
+          <span style={{ position: "absolute", bottom: -2, right: -2, width: 24, height: 24, borderRadius: "50%", background: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, boxShadow: "0 1px 4px rgba(0,0,0,0.25)" }}>📷</span>
+          <input type="file" accept="image/*" onChange={pickAvatar} style={{ display: "none" }} />
+        </label>
         <h2 style={{ color: "white", margin: "0 0 4px", fontSize: 20, fontWeight: 800 }}>{user.fullName || "User"}</h2>
         <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, margin: 0 }}>{user.email}</p>
       </div>
