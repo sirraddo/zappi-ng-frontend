@@ -517,13 +517,13 @@ return true
 if(type==="cable"){
 if(!network) return showToast("Select a provider","danger")
 if(meter.length<10) return showToast("Enter a valid smartcard/IUC number","danger")
-if(!amount) return showToast("Select a package","danger")
+if(!bundle) return showToast("Select a package","danger")
 return true
 }
 if(type==="internet"){
 if(!internetProvider) return showToast("Select a provider","danger")
 if(meter.length<6) return showToast("Enter a valid account number","danger")
-if(!amount||Number(amount)<500) return showToast("Enter a valid amount","danger")
+if(!bundle) return showToast("Select a plan","danger")
 return true
 }
 if(type==="betting"){
