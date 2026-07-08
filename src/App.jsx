@@ -1168,8 +1168,12 @@ document.body
 <div><Header title="More Services"/>
 <div style={{padding:16}}>
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"0 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Travel & Lifestyle</p>
-<SCard icon="🏨" label="Hotels" desc="Book hotels across Nigeria" bg="#FEF9C3" onClick={()=>setSubPage("hotel")}/>
-<SCard icon="✈️" label="Travel & Transport" desc="Flights, rides, tolls & more" bg="#DBEAFE" onClick={()=>setSubPage("transport")}/>
+{/* Coming Soon, same treatment as Pi Savings below — not wired to any real
+    backend or VTPass product (VTPass has no hotel/travel category at all), so
+    the deeper screens are intentionally left unreachable rather than letting
+    someone "pay" for a booking that's actually just the local mock ledger. */}
+<SCard icon="🏨" label="Hotels" desc="Book hotels across Nigeria (Coming soon)" bg="#FEF9C3" onClick={()=>showToast("Hotel booking launching soon!","success")}/>
+<SCard icon="✈️" label="Travel & Transport" desc="Flights, rides, tolls & more (Coming soon)" bg="#DBEAFE" onClick={()=>showToast("Travel & Transport launching soon!","success")}/>
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Finance & Rewards</p>
 <SCard icon="📊" label="Pi Market Rate" desc="Our own live rate — not an official Pi price" bg="#FFF7ED" onClick={()=>showToast(`Current rate: ₦${liveRate}/π`,"success")}/>
 <SCard icon="💰" label="Pi Savings" desc="Save Pi and earn interest (Coming soon)" bg="#EDE9FE" onClick={()=>showToast("Pi Savings launching soon!","success")}/>
