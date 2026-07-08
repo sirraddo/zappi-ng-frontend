@@ -13,7 +13,7 @@ import { useState } from "react";
 import { useTheme } from "../context/ThemeContext";
 import "./SupportPage.css";
 
-const CONFIG = {
+export const CONFIG = {
   whatsappNumber: "2348000000000",     // TODO: replace with your WhatsApp number (no +)
   supportEmail: "support@zappi.ng",    // TODO: replace
   appVersion: "1.0.0",
