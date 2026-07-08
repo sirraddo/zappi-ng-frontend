@@ -624,7 +624,9 @@ resetInputs()
 // delivery returns 401 — we re-confirm (Pi is NOT re-charged) and retry delivery only.
 const runRealPayment=(service, tx, txnFields, piCost, confirmationToken)=>{
 const extras = {
-variation_code: ["data","cable","internet","education","insurance"].includes(tx.type) ? bundle?.code : undefined,
+// electricity REQUIRES variation_code = "prepaid"|"postpaid" — omitting it makes
+// VTPass reject delivery with code 011 "INVALID ARGUMENTS" AFTER Pi has charged.
+variation_code: tx.type === "electricity" ? meterType : ["data","cable","internet","education","insurance"].includes(tx.type) ? bundle?.code : undefined,
 piAmount: piCost,
 }
 const deliver = async (token, piPaymentId) => {
