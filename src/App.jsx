@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
+import { createPortal } from "react-dom"
 import { usePi } from "./context/PiContext.jsx"
 import { useTheme } from "./context/ThemeContext.jsx"
 import NotificationBell from "./components/NotificationBell.jsx"
@@ -732,9 +733,9 @@ return (
 {showHowTo&&<HowToModal onClose={()=>setShowHowTo(false)}/>}
 {receiptTx&&<TransactionReceipt receipt={txToReceipt(receiptTx)} onDone={()=>setReceiptTx(null)}/>}
 
-{showNotif&&(
+{showNotif&&createPortal(
 <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:500}} onClick={()=>setShowNotif(false)}>
-<div style={{position:"absolute",top:0,right:0,width:300,maxWidth:"85vw",height:"100%",background:"var(--card-bg)",padding:16,overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+<div style={{position:"fixed",top:0,right:0,width:300,maxWidth:"85vw",height:"100%",background:"var(--card-bg)",padding:16,overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
 <p style={{margin:0,fontSize:16,fontWeight:700}}>Notifications</p>
 <button onClick={()=>setShowNotif(false)} style={{background:"none",border:"none",fontSize:20,cursor:"pointer"}}>✕</button>
@@ -749,7 +750,8 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 </div>
 ))}
 </div>
-</div>
+</div>,
+document.body
 )}
 
 <div style={{flex:1,overflowY:"auto"}}>
