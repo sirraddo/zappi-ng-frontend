@@ -259,6 +259,43 @@ return (
 )
 }
 
+// Shows the account owner's name before payment via VTPass's merchant-verify
+// (documented for every electricity disco and for DStv/GOtv/Startimes), so
+// the user can confirm they're paying for the right meter/smartcard before
+// proceeding. Calls onVerified(name) with an empty string while
+// unverified/loading/failed, and the real name only once VTPass confirms a
+// match — the parent gates its Pay button on that alone, so a wrong or
+// unverifiable number can't slip through as a false positive.
+function VerifyName({ serviceID, billersCode, type, onVerified, minLength = 8 }) {
+const [state, setState] = useState({ status: "idle", name: "" })
+useEffect(() => {
+onVerified("")
+if (!serviceID || !billersCode || billersCode.length < minLength) { setState({ status: "idle", name: "" }); return }
+let cancelled = false
+setState({ status: "loading", name: "" })
+const timer = setTimeout(() => {
+const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const token = localStorage.getItem("zappi_token")
+fetch(`${apiUrl}/api/payments/verify`, {
+method: "POST",
+headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+body: JSON.stringify({ serviceID, billersCode, ...(type ? { type } : {}) }),
+})
+.then(async r => {
+if (!r.ok) { if (!cancelled) setState({ status: "error", name: "" }); return }
+const data = await r.json()
+if (!cancelled) { setState({ status: "ok", name: data.name || "" }); onVerified(data.name || "") }
+})
+.catch(() => { if (!cancelled) setState({ status: "error", name: "" }) })
+}, 600)
+return () => { cancelled = true; clearTimeout(timer) }
+}, [serviceID, billersCode, type])
+if (state.status === "idle") return null
+if (state.status === "loading") return <p style={{ fontSize: 12, color: "var(--text-tertiary)", margin: "-8px 0 12px" }}>Verifying…</p>
+if (state.status === "error") return <p style={{ fontSize: 12, color: "#DC2626", margin: "-8px 0 12px" }}>⚠ Could not verify this number — double-check and try again</p>
+return <p style={{ fontSize: 12, color: "#16A34A", fontWeight: 600, margin: "-8px 0 12px" }}>✓ {state.name}</p>
+}
+
 // Renders a brand's real logo where VTPass's catalog has one for it, with a
 // graceful emoji fallback otherwise (a brand not in VTPass's catalog yet, or
 // a slow/failed network request never leaves a blank or broken-looking spot).
@@ -395,6 +432,7 @@ const [amount,setAmount]=useState("")
 const [bundle,setBundle]=useState(null)
 const [disco,setDisco]=useState("")
 const [meter,setMeter]=useState("")
+const [verifiedName,setVerifiedName]=useState("")
 const [meterType,setMeterType]=useState("prepaid")
 const [recipient,setRecipient]=useState("")
 const [piAmount,setPiAmount]=useState("")
@@ -876,11 +914,12 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <FL>Meter type</FL>
 <div style={{display:"flex",gap:8,marginBottom:16}}>{["prepaid","postpaid"].map(t=><button key={t} onClick={()=>setMeterType(t)} style={{flex:1,padding:12,borderRadius:10,border:`2px solid ${meterType===t?C.primary:"var(--border)"}`,background:meterType===t?C.light:"white",cursor:"pointer",fontWeight:600,textTransform:"capitalize"}}>{t}</button>)}</div>
 <FL>Meter number</FL><Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Enter meter number"/>
+{disco&&meter&&<VerifyName serviceID={VTPASS_DISCO[disco.split(" ")[0]]} billersCode={meter} type={meterType} onVerified={setVerifiedName}/>}
 <FL>Amount (₦)</FL>
 <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:8}}>{[1000,2000,5000,10000].map(a=><button key={a} onClick={()=>setAmount(String(a))} style={{padding:"10px 14px",borderRadius:10,border:`2px solid ${amount==a?C.primary:"var(--border)"}`,background:amount==a?C.light:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>₦{a.toLocaleString()}</button>)}</div>
 <Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Or enter amount"/>
 <PiSummary amount={amount} bg="#FFF7ED" color="#EA580C" rate={liveRate}/>
-<Btn label={`Pay ₦${Number(amount||0).toLocaleString()} — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!disco||!meter||!amount} onClick={()=>validate("electricity")&&handlePay("Electricity",{type:"electricity",label:`${disco.split(" ")[0]} Electricity`,sub:`Meter: ${meter}`,ngn:Number(amount),icon:"⚡",color:"#FFF7ED",raw:{page:"bills",subPage:"electricity",disco,meter,meterType,amount}})}/>
+<Btn label={verifiedName?`Pay ₦${Number(amount||0).toLocaleString()} — π ${amount?(amount/liveRate).toFixed(4):"0"}`:"Verify meter to continue"} disabled={!disco||!meter||!amount||!verifiedName} onClick={()=>validate("electricity")&&handlePay("Electricity",{type:"electricity",label:`${disco.split(" ")[0]} Electricity`,sub:`Meter: ${meter} (${verifiedName})`,ngn:Number(amount),icon:"⚡",color:"#FFF7ED",raw:{page:"bills",subPage:"electricity",disco,meter,meterType,amount}})}/>
 </div></div>
 )}
 
@@ -890,11 +929,12 @@ style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0
 <FL>Provider</FL>
 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>{["DStv","GOtv","Startimes"].map(p=><button key={p} onClick={()=>{setNetwork(p);setBundle(null)}} style={{padding:14,borderRadius:10,border:`2px solid ${network===p?C.primary:"var(--border)"}`,background:network===p?C.light:"white",cursor:"pointer",fontWeight:700,fontSize:13,display:"flex",flexDirection:"column",alignItems:"center",gap:6}}><BrandLogo category="tv-subscription" match={p} fallback="📺" size={26}/>{p}</button>)}</div>
 <FL>Smart card / IUC number</FL><Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Enter smart card number"/>
+{network&&meter&&<VerifyName serviceID={VTPASS_CABLE[network]} billersCode={meter} onVerified={setVerifiedName}/>}
 {network&&<><FL>Select package</FL>
 <VariationGrid serviceID={VTPASS_CABLE[network]} selected={bundle} onSelect={setBundle} columns={1}/>
 </>}
 {bundle&&<PiSummary amount={bundle.price} bg="#FDF2F8" color="#A21CAF" rate={liveRate}/>}
-<Btn label={bundle?`Pay ${bundle.label} — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a package"} disabled={!network||!meter||!bundle} onClick={()=>validate("cable")&&handlePay("Cable TV",{type:"cable",label:`${network} ${bundle.label}`,sub:`Smart card: ${meter}`,ngn:bundle.price,icon:"📺",color:"#FDF2F8",raw:{page:"bills",subPage:"cable",network,meter,bundleCode:bundle.code,bundleLabel:bundle.label,bundlePrice:bundle.price}})}/>
+<Btn label={!verifiedName?"Verify smart card to continue":bundle?`Pay ${bundle.label} — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a package"} disabled={!network||!meter||!bundle||!verifiedName} onClick={()=>validate("cable")&&handlePay("Cable TV",{type:"cable",label:`${network} ${bundle.label}`,sub:`Smart card: ${meter} (${verifiedName})`,ngn:bundle.price,icon:"📺",color:"#FDF2F8",raw:{page:"bills",subPage:"cable",network,meter,bundleCode:bundle.code,bundleLabel:bundle.label,bundlePrice:bundle.price}})}/>
 </div></div>
 )}
 
