@@ -86,7 +86,16 @@ const TRANSPORT=[{id:"uber",label:"Uber Ride",icon:"🚗",desc:"Book a ride"},{i
 // "other-services" categories), so it was never deliverable — removed, same
 // reasoning as Betting. Smile and Spectranet are real, VTPass-backed services.
 const INTERNET_PROVIDERS=[{id:"smile",label:"Smile",icon:"😊"},{id:"spectranet",label:"Spectranet",icon:"📡"}]
-const VTPASS_INTERNET = { smile: "smile-data", spectranet: "spectranet" }
+// NOTE: Smile's serviceID was "smile-data" (wrong) — VTPass's actual serviceID
+// is "smile-direct". Fixed here, but Smile purchases need a fundamentally
+// different flow than every other Internet/Data product: VTPass requires
+// verifying the customer's EMAIL first (merchant-verify/smile/email, sandbox
+// test value tester@sandbox.com) to get back an AccountID, which THEN becomes
+// billersCode for the purchase — there's no "type in an account number and
+// go" path like Spectranet has. This screen still treats Smile identically
+// to Spectranet, so Smile purchases will still fail even with the correct
+// serviceID until that verify-by-email + account-picker flow is built.
+const VTPASS_INTERNET = { smile: "smile-direct", spectranet: "spectranet" }
 
 function HowToModal({ onClose }) {
 const steps = [
@@ -236,7 +245,30 @@ return promise
 // by Data, Cable TV, and Internet, replacing what used to be static, invented
 // bundle lists. Selecting an item calls onSelect with {code, label, price}
 // sourced entirely from VTPass's own response, never a guessed value.
-function VariationGrid({ serviceID, selected, onSelect, columns = 2 }) {
+// Parses a validity period out of VTPass's free-text bundle name, e.g.
+// "MTN N800 3GB - 2 days" → 2, "...Monthly Bundle" → 30 (word form, no digit).
+// Returns null when nothing recognizable is found (VTPass's naming isn't
+// fully consistent across networks — some bundles carry no validity at all,
+// e.g. "MTN N200 Xtradata").
+const parseValidityDays = (name) => {
+const m = name.match(/(\d+)\s*day/i)
+if (m) return Number(m[1])
+if (/month/i.test(name)) return 30
+return null
+}
+// Buckets match the Daily/Weekly/Monthly/Others grouping used by Opay, PalmPay,
+// etc. — cheapest/shortest validity first, with a final catch-all for VTPass's
+// occasional 60/90/120/365-day plans and anything with no parseable validity.
+const bucketForDays = (days) => {
+if (days == null) return "Others"
+if (days <= 1) return "Daily"
+if (days <= 7) return "Weekly"
+if (days <= 30) return "Monthly"
+return "Others"
+}
+const BUNDLE_GROUP_ORDER = ["Daily", "Weekly", "Monthly", "Others"]
+
+function VariationGrid({ serviceID, selected, onSelect, columns = 2, grouped = false }) {
 const [state, setState] = useState({ loading: true, items: [] })
 useEffect(() => {
 if (!serviceID) { setState({ loading: false, items: [] }); return }
@@ -247,9 +279,8 @@ return () => { cancelled = true }
 }, [serviceID])
 if (state.loading) return <p style={{ fontSize: 12, color: "var(--text-tertiary)", margin: "0 0 12px" }}>Loading live prices from VTPass…</p>
 if (!state.items.length) return <p style={{ fontSize: 12, color: "var(--text-tertiary)", margin: "0 0 12px" }}>No packages available right now — please try again shortly.</p>
-return (
-<div style={{ display: "grid", gridTemplateColumns: `repeat(${columns},1fr)`, gap: 8, marginBottom: 16, maxHeight: 340, overflowY: "auto" }}>
-{state.items.map(v => {
+
+const renderCard = (v) => {
 const code = v.variation_code, price = Number(v.variation_amount) || 0
 const active = selected?.code === code
 return (
@@ -258,7 +289,28 @@ return (
 <p style={{ margin: "4px 0 0", fontSize: 13, fontWeight: 700, color: C.primary }}>₦{price.toLocaleString()}</p>
 </button>
 )
-})}
+}
+
+if (!grouped) {
+return (
+<div style={{ display: "grid", gridTemplateColumns: `repeat(${columns},1fr)`, gap: 8, marginBottom: 16, maxHeight: 340, overflowY: "auto" }}>
+{state.items.map(renderCard)}
+</div>
+)
+}
+
+const groups = { Daily: [], Weekly: [], Monthly: [], Others: [] }
+state.items.forEach(v => { groups[bucketForDays(parseValidityDays(v.name))].push(v) })
+return (
+<div style={{ maxHeight: 420, overflowY: "auto", marginBottom: 16 }}>
+{BUNDLE_GROUP_ORDER.filter(g => groups[g].length).map(g => (
+<div key={g} style={{ marginBottom: 12 }}>
+<p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: 0.5, margin: "0 0 8px" }}>{g}</p>
+<div style={{ display: "grid", gridTemplateColumns: `repeat(${columns},1fr)`, gap: 8 }}>
+{groups[g].map(renderCard)}
+</div>
+</div>
+))}
 </div>
 )
 }
@@ -977,7 +1029,7 @@ document.body
 {phone&&savePromptFor!=="data"&&<button onClick={()=>setSavePromptFor("data")} style={{background:"none",border:"none",color:C.primary,fontSize:12,fontWeight:600,cursor:"pointer",margin:"-8px 0 12px",padding:0,display:"block"}}>☆ Save this number</button>}
 {savePromptFor==="data"&&<SaveBeneficiaryPrompt type="data" value={phone} provider={network} onSkip={()=>setSavePromptFor(null)} onSave={name=>{saveDataBeneficiary({name,value:phone,provider:network});setSavePromptFor(null)}}/>}
 {network&&<><FL>Select bundle</FL>
-<VariationGrid serviceID={VTPASS_DATA[network]} selected={bundle} onSelect={setBundle}/>
+<VariationGrid serviceID={VTPASS_DATA[network]} selected={bundle} onSelect={setBundle} grouped/>
 </>}
 {bundle&&<PiSummary amount={bundle.price} rate={liveRate}/>}
 <Btn label={bundle?`Buy ${bundle.label} — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a bundle"} disabled={!network||!phone||!bundle} onClick={()=>validate("data")&&handlePay("Data",{type:"data",label:`${network} ${bundle.label}`,sub:phone,ngn:bundle.price,icon:"📶",color:"#ECFDF5",raw:{page:"bills",subPage:"data",network,phone,bundleCode:bundle.code,bundleLabel:bundle.label,bundlePrice:bundle.price}})}/>
