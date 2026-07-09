@@ -266,7 +266,13 @@ if (days <= 7) return "Weekly"
 if (days <= 30) return "Monthly"
 return "Others"
 }
-const BUNDLE_GROUP_ORDER = ["Daily", "Weekly", "Monthly", "Others"]
+const categorizeBundle = (name) => {
+const n = name.toLowerCase()
+if (/night|xtranite|xtra\s*nite/.test(n)) return "Night"
+if (/social|whatsapp|youtube|instagram|facebook|twitter|x\s*premium/.test(n)) return "Social"
+return bucketForDays(parseValidityDays(name))
+}
+const BUNDLE_GROUP_ORDER = ["Night", "Social", "Daily", "Weekly", "Monthly", "Others"]
 
 function VariationGrid({ serviceID, selected, onSelect, columns = 2, grouped = false }) {
 const [state, setState] = useState({ loading: true, items: [] })
@@ -299,8 +305,8 @@ return (
 )
 }
 
-const groups = { Daily: [], Weekly: [], Monthly: [], Others: [] }
-state.items.forEach(v => { groups[bucketForDays(parseValidityDays(v.name))].push(v) })
+const groups = { Night: [], Social: [], Daily: [], Weekly: [], Monthly: [], Others: [] }
+state.items.forEach(v => { groups[categorizeBundle(v.name)].push(v) })
 return (
 <div style={{ maxHeight: 420, overflowY: "auto", marginBottom: 16 }}>
 {BUNDLE_GROUP_ORDER.filter(g => groups[g].length).map(g => (
@@ -649,6 +655,7 @@ setDisco(""); setMeter(""); setRecipient(""); setPiAmount(""); setNote("")
 setBettingSite(null); setBettingId(""); setHotel(null); setTransport(null); setInternetProvider(null)
 setInsFullName(""); setInsAddress(""); setInsDob(""); setInsNextKinName(""); setInsNextKinPhone(""); setInsOccupation("")
 setSmileEmail(""); setSmileAccounts([]); setSmileAccount(null)
+setElecMinAmount(null)
 }
 
 // Restores a past purchase's exact details (from tx.raw, saved at the time of that
@@ -723,6 +730,7 @@ resetInputs()
 // If the 120s confirmation token expires while the Pi wallet ceremony runs, the
 // delivery returns 401 — we re-confirm (Pi is NOT re-charged) and retry delivery only.
 const runRealPayment=(service, tx, txnFields, piCost, confirmationToken)=>{
+showToast("Processing your payment — this can take up to 30 seconds…","success")
 const extras = {
 // electricity REQUIRES variation_code = "prepaid"|"postpaid" — omitting it makes
 // VTPass reject delivery with code 011 "INVALID ARGUMENTS" AFTER Pi has charged.
