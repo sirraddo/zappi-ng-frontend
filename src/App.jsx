@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react"
-import { createPortal } from "react-dom"
 import { usePi } from "./context/PiContext.jsx"
 import { useTheme } from "./context/ThemeContext.jsx"
 import NotificationBell from "./components/NotificationBell.jsx"
@@ -452,13 +451,6 @@ return (
 export default function App() {
 const { piAuth, piUser, isSandbox, createPayment, isReady } = usePi()
 const { theme, toggleTheme } = useTheme()
-const [winSize, setWinSize] = useState({ w: window.innerWidth, h: window.innerHeight })
-useEffect(() => {
-const onResize = () => setWinSize({ w: window.innerWidth, h: window.innerHeight })
-window.addEventListener("resize", onResize)
-window.addEventListener("orientationchange", onResize)
-return () => { window.removeEventListener("resize", onResize); window.removeEventListener("orientationchange", onResize) }
-}, [])
 const [liveRate, setLiveRate] = useState(() => {
 const cached = Number(localStorage.getItem("zappi_rate"))
 return cached > 0 ? cached : 2150
@@ -508,15 +500,9 @@ const [toast, setToast] = useState(null)
 const [toastType, setToastType] = useState("success")
 // Daily bonus persists per calendar day instead of resetting every reload
 const [bonusClaimed, setBonusClaimed] = useState(() => localStorage.getItem("zappi_bonus_date") === new Date().toDateString())
-const [showNotif, setShowNotif] = useState(false)
 const [txnPinModal, setTxnPinModal] = useState(null) // {label, onSuccess}
 const [receiptTx, setReceiptTx] = useState(null)
 const txToReceipt = (tx) => ({ status: tx.status || "success", type: tx.type, amount: Number(String(tx.pi).replace(/[^0-9.]/g,"")) || 0, nairaAmount: Number(String(tx.amount).replace(/[^0-9.]/g,"")) || 0, provider: tx.label, recipient: tx.sub, reference: "ZAP-" + String(tx.id).slice(-10).toUpperCase(), date: tx.ts ? new Date(tx.ts) : new Date() })
-const [notifications, setNotifications] = useState([
-{id:1,text:"Your ₦500 MTN airtime was delivered!",time:"10 mins ago",read:false,icon:"📱"},
-{id:2,text:"Daily bonus of π0.05 is ready to claim!",time:"1 hour ago",read:false,icon:"🎁"},
-{id:3,text:"Airtel 2GB data purchase failed. Pi refunded.",time:"5 days ago",read:true,icon:"❌"},
-])
 
 // ── MOCK LEDGER (until /api/payments lands) ─────────────────────────────────
 // Balance and transactions live in state + localStorage so every payment,
@@ -592,7 +578,6 @@ setPhoneDetected(null)
 }
 },[phone])
 
-const unread = notifications.filter(n=>!n.read).length
 const user = JSON.parse(localStorage.getItem("zappi_user")||"{}")
 
 const showToast=(msg,type="success")=>{ setToast(msg); setToastType(type); setTimeout(()=>setToast(null),3500) }
@@ -851,27 +836,6 @@ return (
 {txnPinModal&&<TxnPinModal label={txnPinModal.label} txnFields={txnPinModal.txnFields} onSuccess={txnPinModal.onConfirmed} onCancel={()=>setTxnPinModal(null)}/>}
 {showHowTo&&<HowToModal onClose={()=>setShowHowTo(false)}/>}
 {receiptTx&&<TransactionReceipt receipt={txToReceipt(receiptTx)} onDone={()=>setReceiptTx(null)}/>}
-
-{showNotif&&createPortal(
-<div style={{position:"absolute",top:0,left:0,width:winSize.w,height:winSize.h,background:"rgba(0,0,0,0.5)",zIndex:500}} onClick={()=>setShowNotif(false)}>
-<div style={{position:"absolute",top:0,right:0,width:Math.min(300,winSize.w*0.85),height:winSize.h,background:"var(--card-bg)",padding:16,overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
-<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-<p style={{margin:0,fontSize:16,fontWeight:700}}>Notifications</p>
-<button onClick={()=>setShowNotif(false)} style={{background:"none",border:"none",fontSize:20,cursor:"pointer"}}>✕</button>
-</div>
-{notifications.map(n=>(
-<div key={n.id} onClick={()=>setNotifications(prev=>prev.map(x=>x.id===n.id?{...x,read:true}:x))}
-style={{padding:12,borderRadius:10,marginBottom:8,background:n.read?"white":"#F0EBFF",border:`1px solid ${n.read?"var(--border)":"#DDD6FE"}`,cursor:"pointer"}}>
-<div style={{display:"flex",gap:10}}>
-<span style={{fontSize:20}}>{n.icon}</span>
-<div><p style={{margin:0,fontSize:13,fontWeight:n.read?400:600}}>{n.text}</p><p style={{margin:"4px 0 0",fontSize:11,color:"var(--text-tertiary)"}}>{n.time}</p></div>
-</div>
-</div>
-))}
-</div>
-</div>,
-document.body
-)}
 
 <div style={{flex:1,overflowY:"auto"}}>
 
