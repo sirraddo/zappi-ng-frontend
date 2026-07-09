@@ -38,17 +38,22 @@
 }
 
 .notif-panel {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  /* .notif-wrap sits mid-header (between the help "?" and profile-avatar
-     buttons), nowhere near the screen's actual right edge — a fixed 320px
-     width extending leftward from that point routinely overflowed clean off
-     the left side of the viewport on typical phone widths, which is exactly
-     what showed up as the panel's title text getting clipped ("fications"
-     instead of "Notifications"). Cap it responsively instead. */
-  width: min(320px, 85vw);
-  max-width: calc(100vw - 32px);
+  /* Second attempt: capping the width (min(320px,85vw)) reduced but didn't
+     eliminate the overflow, because the real problem is the ANCHOR point,
+     not just the width. .notif-wrap is only as wide as the bell icon itself,
+     sitting mid-header between the help "?" and profile-avatar buttons — not
+     at the screen's actual right edge. Any width extending purely leftward
+     from that anchor can still overflow the left edge on typical phone
+     widths, however narrow the panel gets.
+     Fix: stop anchoring to the wrap at all. position:fixed + left/right
+     margins spans the panel across the viewport (minus safe margins),
+     independent of wherever the bell happens to sit. */
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 98px);
+  left: 16px;
+  right: 16px;
+  width: auto;
+  max-width: none;
   max-height: 400px;
   background: var(--bg-primary, #fff);
   border: 1px solid var(--border, #e5e7eb);
