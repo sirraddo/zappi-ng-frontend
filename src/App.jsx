@@ -346,7 +346,7 @@ body: JSON.stringify({ serviceID, billersCode, ...(type ? { type } : {}) }),
 .then(async r => {
 if (!r.ok) { if (!cancelled) setState({ status: "error", name: "" }); return }
 const data = await r.json()
-if (!cancelled) { setState({ status: "ok", name: data.name || "" }); onVerified(data.name || "") }
+if (!cancelled) { setState({ status: "ok", name: data.name || "" }); onVerified(data.name || "", data.raw || null) }
 })
 .catch(() => { if (!cancelled) setState({ status: "error", name: "" }) })
 }, 600)
@@ -542,6 +542,7 @@ const [bundle,setBundle]=useState(null)
 const [disco,setDisco]=useState("")
 const [meter,setMeter]=useState("")
 const [verifiedName,setVerifiedName]=useState("")
+const [elecMinAmount,setElecMinAmount]=useState(null)
 const [eduProduct,setEduProduct]=useState(null)
 const [insFullName,setInsFullName]=useState("")
 const [insAddress,setInsAddress]=useState("")
@@ -609,7 +610,8 @@ return true
 if(type==="electricity"){
 if(!disco) return showToast("Select your DISCO","danger")
 if(meter.length<11||meter.length>13) return showToast("Enter a valid meter number (11-13 digits)","danger")
-if(!amount||Number(amount)<1000) return showToast("Minimum electricity payment is ₦1,000","danger")
+const minReq = elecMinAmount || 1000
+if(!amount||Number(amount)<minReq) return showToast(`Minimum for this meter is ₦${minReq.toLocaleString()}`,"danger")
 return true
 }
 if(type==="cable"){
@@ -620,7 +622,12 @@ return true
 }
 if(type==="internet"){
 if(!internetProvider) return showToast("Select a provider","danger")
+if(internetProvider.id==="smile"){
+if(!smileAccount) return showToast("Verify your Smile email and select an account","danger")
+if(!phone) return showToast("Enter your phone number","danger")
+}else{
 if(meter.length<6) return showToast("Enter a valid account number","danger")
+}
 if(!bundle) return showToast("Select a plan","danger")
 return true
 }
@@ -1063,12 +1070,13 @@ return (
 <FL>Meter number</FL>
 <SavedBeneficiaries type="electricity" currentValue={meter} onSelect={b=>{setMeter(b.value); if(b.provider) setDisco(b.provider)}}/>
 <Inp value={meter} onChange={e=>setMeter(e.target.value)} placeholder="Enter meter number"/>
-{disco&&meter&&<VerifyName serviceID={VTPASS_DISCO[disco.split(" ")[0]]} billersCode={meter} type={meterType} onVerified={setVerifiedName}/>}
+{disco&&meter&&<VerifyName serviceID={VTPASS_DISCO[disco.split(" ")[0]]} billersCode={meter} type={meterType} onVerified={(name,raw)=>{setVerifiedName(name);const min=Number(raw?.Minimum_Amount||raw?.Min_Purchase_Amount)||null;setElecMinAmount(min>0?Math.ceil(min):null)}}/>}
 {meter&&savePromptFor!=="electricity"&&<button onClick={()=>setSavePromptFor("electricity")} style={{background:"none",border:"none",color:C.primary,fontSize:12,fontWeight:600,cursor:"pointer",margin:"-8px 0 12px",padding:0,display:"block"}}>☆ Save this meter</button>}
 {savePromptFor==="electricity"&&<SaveBeneficiaryPrompt type="electricity" value={meter} provider={disco} onSkip={()=>setSavePromptFor(null)} onSave={name=>{saveElectricityBeneficiary({name,value:meter,provider:disco});setSavePromptFor(null)}}/>}
 <FL>Amount (₦)</FL>
-<div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:8}}>{[1000,2000,5000,10000].map(a=><button key={a} onClick={()=>setAmount(String(a))} style={{padding:"10px 14px",borderRadius:10,border:`2px solid ${amount==a?C.primary:"var(--border)"}`,background:amount==a?C.light:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>₦{a.toLocaleString()}</button>)}</div>
-<Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Or enter amount"/>
+{elecMinAmount&&<p style={{fontSize:12,color:"var(--text-tertiary)",margin:"-8px 0 8px"}}>Minimum for this meter: ₦{elecMinAmount.toLocaleString()}</p>}
+<div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:8}}>{(elecMinAmount?[elecMinAmount,elecMinAmount*2,elecMinAmount*5,elecMinAmount*10]:[1000,2000,5000,10000]).map(a=><button key={a} onClick={()=>setAmount(String(a))} style={{padding:"10px 14px",borderRadius:10,border:`2px solid ${amount==a?C.primary:"var(--border)"}`,background:amount==a?C.light:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>₦{a.toLocaleString()}</button>)}</div>
+<Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder={elecMinAmount?`Or enter amount (min ₦${elecMinAmount.toLocaleString()})`:"Or enter amount"}/>
 <PiSummary amount={amount} bg="#FFF7ED" color="#EA580C" rate={liveRate}/>
 <Btn label={verifiedName?`Pay ₦${Number(amount||0).toLocaleString()} — π ${amount?(amount/liveRate).toFixed(4):"0"}`:"Verify meter to continue"} disabled={!disco||!meter||!amount||!verifiedName} onClick={()=>validate("electricity")&&handlePay("Electricity",{type:"electricity",label:`${disco.split(" ")[0]} Electricity`,sub:`Meter: ${meter} (${verifiedName})`,ngn:Number(amount),icon:"⚡",color:"#FFF7ED",raw:{page:"bills",subPage:"electricity",disco,meter,meterType,amount}})}/>
 </div></div>
