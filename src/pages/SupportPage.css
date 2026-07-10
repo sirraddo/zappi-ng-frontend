@@ -139,8 +139,8 @@
 }
 
 .faq-item.open .faq-question {
-  color: var(--primary, #7c3aed);
-  background: var(--primary-light, #f5f3ff);
+  color: var(--primary, #CC4E00);
+  background: var(--primary-light, #FDEEE3);
 }
 
 .faq-chevron {
@@ -155,7 +155,7 @@
   font-size: 13px;
   color: var(--text-secondary, #374151);
   line-height: 1.6;
-  background: var(--primary-light, #f5f3ff);
+  background: var(--primary-light, #FDEEE3);
 }
 
 /* Settings rows */
@@ -203,7 +203,7 @@
 .about-logo {
   font-size: 40px;
   font-weight: 900;
-  color: var(--primary, #7c3aed);
+  color: var(--primary, #CC4E00);
   margin-bottom: 8px;
 }
 
@@ -236,7 +236,7 @@
 
 .about-link {
   font-size: 13px;
-  color: var(--primary, #7c3aed);
+  color: var(--primary, #CC4E00);
   text-decoration: none;
 }
 
