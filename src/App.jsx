@@ -759,7 +759,7 @@ await completeBillPayment(txnFields, { ...extras, piPaymentId }, token)
 finishPayment(service, tx, piCost)
 }
 createPayment(
-{ amount: Number(piCost.toFixed(7)), memo: `Zappi NG — ${service}`, metadata: { billType: txnFields.billType, serviceID: txnFields.serviceID } },
+{ amount: Number(piCost.toFixed(7)), memo: `Zappi NG — ${service}`, metadata: { ...txnFields, ...extras } },
 async (txid, piData, paymentId) => {
 try { await deliver(confirmationToken, paymentId) }
 catch (e) {
