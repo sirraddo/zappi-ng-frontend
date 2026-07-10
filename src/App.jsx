@@ -1038,7 +1038,7 @@ return (
 <div>
 <Header title="Pay Bills"/>
 <div style={{padding:16}}>
-{[{label:"Buy Airtime",icon:"📱",bg:"#EDE9FE",sub:"airtime",desc:"MTN, Airtel, Glo, 9mobile"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",sub:"data",desc:"Data bundles"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",sub:"electricity",desc:"Prepaid & postpaid meters"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",sub:"cable",desc:"DStv, GOtv, Startimes"},{label:"Showmax",icon:"🎬",bg:"#FEF2F2",sub:"showmax",desc:"Streaming subscription"},{label:"Internet",icon:"🌐",bg:"#EFF6FF",sub:"internet",desc:"Smile, Spectranet"},{label:"Education",icon:"🎓",bg:"#EEF2FF",sub:"education",desc:"WAEC, JAMB"},{label:"Insurance",icon:"🛡️",bg:"#F0FDFA",sub:"insurance",desc:"Personal Accident cover"}].map(item=>(
+{[{label:"Buy Airtime",icon:"📱",bg:"#EDE9FE",sub:"airtime",desc:"MTN, Airtel, Glo, 9mobile"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",sub:"data",desc:"Data bundles"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",sub:"electricity",desc:"Prepaid & postpaid meters"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",sub:"cable",desc:"DStv, GOtv, Startimes"},{label:"Showmax",icon:"🎬",bg:"#FEF2F2",sub:"showmax",desc:"Streaming subscription"},{label:"Internet",icon:"🌐",bg:"#EFF6FF",sub:"internet",desc:"Smile, Spectranet"},{label:"Education",icon:"🎓",bg:"#EEF2FF",sub:"education",desc:"WAEC, JAMB"}].map(item=>(
 <SCard key={item.label} icon={item.icon} label={item.label} desc={item.desc} bg={item.bg} onClick={()=>setSubPage(item.sub)}/>
 ))}
 </div>
@@ -1305,6 +1305,14 @@ return (
     backend or VTPass product (VTPass has no hotel/travel category at all), so
     the deeper screens are intentionally left unreachable rather than letting
     someone "pay" for a booking that's actually just the local mock ledger. */}
+{/* Personal Accident Insurance — confirmed via testing that VTPass's sandbox
+    returns response code 034 (SERVICE_SUSPENDED) on purchase, despite the
+    product being correctly whitelisted on our account and the request
+    payload being correct (serviceID, variation codes, and all 6 required
+    fields all verified against VTPass's own docs). This is entirely on
+    VTPass's side, not something fixable in our code — left hidden rather
+    than deleted so it's trivial to re-enable if VTPass un-suspends it. */}
+<SCard icon="🛡️" label="Insurance" desc="Personal Accident cover (Temporarily unavailable)" bg="#F0FDFA" onClick={()=>showToast("Insurance is temporarily suspended by our payments provider — check back soon","danger")}/>
 <SCard icon="🏨" label="Hotels" desc="Book hotels across Nigeria (Coming soon)" bg="#FEF9C3" onClick={()=>showToast("Hotel booking launching soon!","success")}/>
 <SCard icon="✈️" label="Travel & Transport" desc="Flights, rides, tolls & more (Coming soon)" bg="#DBEAFE" onClick={()=>showToast("Travel & Transport launching soon!","success")}/>
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Finance & Rewards</p>
