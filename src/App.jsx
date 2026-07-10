@@ -520,6 +520,13 @@ const [page, setPage] = useState("home")
 const [subPage, setSubPage] = useState(null)
 const [toast, setToast] = useState(null)
 const [toastType, setToastType] = useState("success")
+// Persists across navigation (unlike a toast) — the Pi wallet ceremony plus
+// our backend's VTPass round-trip can take up to ~30s with zero feedback
+// otherwise, which made the eventual receipt feel like it "popped up from
+// nowhere" after someone had already moved on to browsing elsewhere in the
+// app. The 45s safety timeout is a bounded worst-case fallback in case a
+// failure path doesn't explicitly clear it — never gets permanently stuck.
+const [isPaying, setIsPaying] = useState(false)
 // Daily bonus persists per calendar day instead of resetting every reload
 const [bonusClaimed, setBonusClaimed] = useState(() => localStorage.getItem("zappi_bonus_date") === new Date().toDateString())
 const [txnPinModal, setTxnPinModal] = useState(null) // {label, onSuccess}
@@ -733,6 +740,7 @@ default: return { serviceID: tx.type, billType: tx.type, amount: tx.ngn, phone: 
 
 // Deducts the balance and records the transaction so History/Home stay truthful.
 const finishPayment=(service, tx, piCost)=>{
+setIsPaying(false)
 updateBalance(-piCost)
 const newTx = {
 id: Date.now(), ts: Date.now(), status: "success",
@@ -753,7 +761,8 @@ resetInputs()
 // If the 120s confirmation token expires while the Pi wallet ceremony runs, the
 // delivery returns 401 — we re-confirm (Pi is NOT re-charged) and retry delivery only.
 const runRealPayment=(service, tx, txnFields, piCost, confirmationToken)=>{
-showToast("Processing your payment — this can take up to 30 seconds…","success")
+setIsPaying(true)
+setTimeout(() => setIsPaying(false), 45000)
 const extras = {
 // electricity REQUIRES variation_code = "prepaid"|"postpaid" — omitting it makes
 // VTPass reject delivery with code 011 "INVALID ARGUMENTS" AFTER Pi has charged.
@@ -869,6 +878,7 @@ return (
 {receiptTx&&<TransactionReceipt receipt={txToReceipt(receiptTx)} onDone={()=>setReceiptTx(null)}/>}
 
 <div style={{flex:1,overflowY:"auto"}}>
+{isPaying&&<div style={{background:"#FEF3C7",color:"#92400E",padding:"10px 16px",fontSize:13,fontWeight:600,textAlign:"center"}}>⏳ Processing your last payment — this can take up to 30 seconds…</div>}
 
 {page==="home"&&!subPage&&(
 <div>
