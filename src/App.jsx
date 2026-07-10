@@ -23,7 +23,7 @@ const VTPASS_DISCO = { IKEDC: "ikeja-electric", EKEDC: "eko-electric", IBEDC: "i
 
 const RATE = 600 // fallback only — app uses live rate from backend
 const C = {
-primary: "#6C3AED", light: "var(--primary-light)",
+primary: "#CC4E00", light: "var(--primary-light)",
 success: "#22C55E", danger: "#EF4444", bg: "var(--bg-secondary)",
 }
 
@@ -114,7 +114,7 @@ return (
 <p style={{margin:"0 0 20px",fontSize:13,color:"var(--text-tertiary)"}}>Pay Nigerian bills with Pi in 4 simple steps.</p>
 {steps.map(s=>(
 <div key={s.n} style={{display:"flex",gap:12,marginBottom:16}}>
-<div style={{width:28,height:28,borderRadius:"50%",background:"var(--primary-light)",color:"#6C3AED",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:13,flexShrink:0}}>{s.n}</div>
+<div style={{width:28,height:28,borderRadius:"50%",background:"var(--primary-light)",color:"#CC4E00",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:13,flexShrink:0}}>{s.n}</div>
 <div>
 <p style={{margin:0,fontSize:14,fontWeight:700,color:"var(--text-primary)"}}>{s.title}</p>
 <p style={{margin:"2px 0 0",fontSize:12,color:"var(--text-secondary)",lineHeight:1.4}}>{s.desc}</p>
