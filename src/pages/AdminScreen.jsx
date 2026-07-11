@@ -33,8 +33,17 @@ export function isAdminUser() {
   }
 }
 
+function StatCard({ label, value }) {
+  return (
+    <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14 }}>
+      <div style={{ fontSize: 22, fontWeight: 700 }}>{value ?? 0}</div>
+      <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{label}</div>
+    </div>
+  );
+}
+
 export default function AdminScreen({ onBack, showToast = () => {} }) {
-  const [tab, setTab] = useState("announcements");
+  const [tab, setTab] = useState("stats");
   const [announcements, setAnnouncements] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -45,6 +54,9 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
   const [newBannerDesc, setNewBannerDesc] = useState("");
   const [newBannerLink, setNewBannerLink] = useState("");
   const [newBannerOrder, setNewBannerOrder] = useState("0");
+  const [stats, setStats] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [txFilter, setTxFilter] = useState("");
 
   function loadAnnouncements() {
     setLoading(true);
@@ -73,11 +85,32 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
       .finally(() => setLoading(false));
   }
 
+  function loadStats() {
+    setLoading(true);
+    fetch(`${API_URL}/api/admin/stats`, { headers: authHdrs() })
+      .then((r) => r.json())
+      .then((d) => setStats(d))
+      .catch(() => showToast("Could not load stats", "danger"))
+      .finally(() => setLoading(false));
+  }
+
+  function loadTransactions() {
+    setLoading(true);
+    const qs = txFilter ? `?status=${txFilter}` : "";
+    fetch(`${API_URL}/api/admin/transactions/recent${qs}`, { headers: authHdrs() })
+      .then((r) => r.json())
+      .then((d) => setTransactions(d.transactions || []))
+      .catch(() => showToast("Could not load transactions", "danger"))
+      .finally(() => setLoading(false));
+  }
+
   useEffect(() => {
-    if (tab === "announcements") loadAnnouncements();
+    if (tab === "stats") loadStats();
+    else if (tab === "transactions") loadTransactions();
+    else if (tab === "announcements") loadAnnouncements();
     else if (tab === "tickets") loadTickets();
     else loadBanners();
-  }, [tab]);
+  }, [tab, txFilter]);
 
   function createAnnouncement() {
     if (!newTitle.trim() || !newBody.trim()) {
@@ -165,11 +198,29 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
         <h2 style={{ margin: 0, fontSize: 18 }}>Admin</h2>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto" }}>
+        <button
+          onClick={() => setTab("stats")}
+          style={{
+            flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "none",
+            background: tab === "stats" ? "var(--primary-light)" : "var(--bg-secondary)",
+            color: tab === "stats" ? "var(--primary)" : "var(--text-secondary)",
+            fontWeight: 700, cursor: "pointer",
+          }}
+        >Stats</button>
+        <button
+          onClick={() => setTab("transactions")}
+          style={{
+            flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "none",
+            background: tab === "transactions" ? "var(--primary-light)" : "var(--bg-secondary)",
+            color: tab === "transactions" ? "var(--primary)" : "var(--text-secondary)",
+            fontWeight: 700, cursor: "pointer",
+          }}
+        >Transactions</button>
         <button
           onClick={() => setTab("announcements")}
           style={{
-            flex: 1, padding: "8px 0", borderRadius: 10, border: "none",
+            flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "none",
             background: tab === "announcements" ? "var(--primary-light)" : "var(--bg-secondary)",
             color: tab === "announcements" ? "var(--primary)" : "var(--text-secondary)",
             fontWeight: 700, cursor: "pointer",
@@ -178,7 +229,7 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
         <button
           onClick={() => setTab("tickets")}
           style={{
-            flex: 1, padding: "8px 0", borderRadius: 10, border: "none",
+            flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "none",
             background: tab === "tickets" ? "var(--primary-light)" : "var(--bg-secondary)",
             color: tab === "tickets" ? "var(--primary)" : "var(--text-secondary)",
             fontWeight: 700, cursor: "pointer",
@@ -187,13 +238,97 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
         <button
           onClick={() => setTab("banners")}
           style={{
-            flex: 1, padding: "8px 0", borderRadius: 10, border: "none",
+            flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "none",
             background: tab === "banners" ? "var(--primary-light)" : "var(--bg-secondary)",
             color: tab === "banners" ? "var(--primary)" : "var(--text-secondary)",
             fontWeight: 700, cursor: "pointer",
           }}
         >Banners</button>
       </div>
+
+      {tab === "stats" && (
+        loading ? (
+          <div>Loading…</div>
+        ) : !stats ? (
+          <div style={{ color: "var(--text-secondary)" }}>No data yet</div>
+        ) : (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+              <StatCard label="Total users" value={stats.totalUsers} />
+              <StatCard label="New users today" value={stats.usersToday} />
+              <StatCard label="Transactions today" value={stats.transactionsToday} />
+              <StatCard label="Transactions this week" value={stats.transactionsThisWeek} />
+            </div>
+            <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, marginBottom: 10, fontSize: 14 }}>Successful volume</div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ color: "var(--text-secondary)", fontSize: 13 }}>Naira</span>
+                <span style={{ fontWeight: 700, fontSize: 14 }}>₦{Number(stats.volumeNGN).toLocaleString()}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--text-secondary)", fontSize: 13 }}>Pi</span>
+                <span style={{ fontWeight: 700, fontSize: 14 }}>π{Number(stats.volumePi).toFixed(4)}</span>
+              </div>
+            </div>
+            <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14 }}>
+              <div style={{ fontWeight: 700, marginBottom: 10, fontSize: 14 }}>Transaction status</div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ color: "#16a34a", fontSize: 13 }}>Success</span>
+                <span style={{ fontWeight: 700, fontSize: 14 }}>{stats.success}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ color: "#d97706", fontSize: 13 }}>Pending</span>
+                <span style={{ fontWeight: 700, fontSize: 14 }}>{stats.pending}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#dc2626", fontSize: 13 }}>Failed</span>
+                <span style={{ fontWeight: 700, fontSize: 14 }}>{stats.failed}</span>
+              </div>
+            </div>
+          </>
+        )
+      )}
+
+      {tab === "transactions" && (
+        <>
+          <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto" }}>
+            {["", "failed", "pending", "success"].map((s) => (
+              <button
+                key={s || "all"}
+                onClick={() => setTxFilter(s)}
+                style={{
+                  flexShrink: 0, padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)",
+                  background: txFilter === s ? "var(--primary)" : "var(--bg-secondary)",
+                  color: txFilter === s ? "white" : "var(--text-secondary)",
+                  fontSize: 12, fontWeight: 600, cursor: "pointer",
+                }}
+              >{s ? s[0].toUpperCase() + s.slice(1) : "All"}</button>
+            ))}
+          </div>
+          {loading ? (
+            <div>Loading…</div>
+          ) : transactions.length === 0 ? (
+            <div style={{ color: "var(--text-secondary)" }}>No transactions found</div>
+          ) : (
+            transactions.map((t) => (
+              <div key={t._id} style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{t.billType} — @{t.user?.piUsername || "unknown"}</div>
+                  <span style={{
+                    fontSize: 11, padding: "2px 8px", borderRadius: 10,
+                    background: t.status === "success" ? "#DCFCE7" : t.status === "failed" ? "#FEE2E2" : "#FEF3C7",
+                    color: t.status === "success" ? "#166534" : t.status === "failed" ? "#991B1B" : "#92400E",
+                  }}>{t.status}</span>
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0" }}>
+                  ₦{Number(t.amountNGN).toLocaleString()} · π{Number(t.amountPi).toFixed(4)} · {t.serviceID}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>{new Date(t.createdAt).toLocaleString()}</div>
+              </div>
+            ))
+          )}
+        </>
+      )}
 
       {tab === "announcements" && (
         <>
