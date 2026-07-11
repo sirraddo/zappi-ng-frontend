@@ -696,6 +696,15 @@ setElecMinAmount(null)
 const reportIssue=(tx)=>{
 const ref = "ZAP-" + String(tx.id).slice(-10).toUpperCase()
 const msg = `Hi Zappi NG Support, I'd like to report an issue with a transaction.\n\nReference: ${ref}\nService: ${tx.label}\nAmount: ${tx.amount} (${tx.pi})\nDate: ${tx.ts ? new Date(tx.ts).toLocaleString() : tx.date}\n\nIssue: `
+const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const token = localStorage.getItem("zappi_token")
+if (token) {
+fetch(`${apiUrl}/api/tickets`, {
+method: "POST",
+headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+body: JSON.stringify({ subject: `Transaction issue — ${ref}`, message: `Service: ${tx.label}\nAmount: ${tx.amount} (${tx.pi})\nReference: ${ref}` }),
+}).catch(() => {}) // fire-and-forget — WhatsApp opening should never be blocked by this
+}
 window.open(`https://wa.me/${CONFIG.whatsappNumber}?text=${encodeURIComponent(msg)}`, "_blank")
 }
 const buyAgain=(tx)=>{
