@@ -125,9 +125,23 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
       .catch(() => showToast("Could not update ticket", "danger"));
   }
 
+  function isValidLink(link) {
+    if (!link.trim()) return true;
+    try {
+      const u = new URL(link.trim());
+      return u.protocol === "http:" || u.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }
+
   function createBanner() {
     if (!newBannerTitle.trim() || !newBannerDesc.trim()) {
       showToast("Title and description are required", "danger");
+      return;
+    }
+    if (!isValidLink(newBannerLink)) {
+      showToast("Link must be a valid http(s) URL", "danger");
       return;
     }
     fetch(`${API_URL}/api/banners`, {
