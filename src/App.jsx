@@ -891,8 +891,10 @@ return (
 <div style={{display:"flex",gap:10,alignItems:"center"}}>
 <button onClick={()=>setShowHowTo(true)} style={{width:38,height:38,borderRadius:"50%",background:"rgba(255,255,255,0.25)",border:"2px solid rgba(255,255,255,0.4)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:800,color:"white",cursor:"pointer"}}>?</button>
 <NotificationBell />
-<button onClick={()=>setShowProfile(true)} style={{width:38,height:38,borderRadius:"50%",background:"rgba(255,255,255,0.25)",border:"2px solid rgba(255,255,255,0.4)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,cursor:"pointer"}}>
-{user.avatar||"⚡"}
+<button onClick={()=>setShowProfile(true)} style={{width:38,height:38,borderRadius:"50%",background:"rgba(255,255,255,0.25)",border:"2px solid rgba(255,255,255,0.4)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:800,color:"white",cursor:"pointer",overflow:"hidden"}}>
+{user.avatarImage
+? <img src={user.avatarImage} alt="" style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:"50%"}}/>
+: (user.fullName||"Zappi User").trim().charAt(0).toUpperCase()}
 </button>
 </div>
 </div>
