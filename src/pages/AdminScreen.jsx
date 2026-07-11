@@ -33,6 +33,13 @@ export function isAdminUser() {
   }
 }
 
+// The only flags the app currently checks anywhere. A dropdown of exactly
+// these — rather than free-text key entry — makes a typo (like "Insurance"
+// instead of "insurance_enabled") structurally impossible.
+const KNOWN_FLAGS = [
+  { key: "insurance_enabled", label: "Insurance" },
+];
+
 function StatCard({ label, value }) {
   return (
     <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14 }}>
@@ -129,24 +136,34 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
   }, [tab, txFilter]);
 
   function createFlag() {
-    if (!newFlagKey.trim() || !newFlagLabel.trim()) {
-      showToast("Key and label are required", "danger");
+    const known = KNOWN_FLAGS.find((f) => f.key === newFlagKey);
+    if (!known) {
+      showToast("Choose a feature from the list", "danger");
       return;
     }
     fetch(`${API_URL}/api/flags`, {
       method: "POST",
       headers: authHdrs(),
-      body: JSON.stringify({ key: newFlagKey.trim(), label: newFlagLabel, enabled: false }),
+      body: JSON.stringify({ key: known.key, label: known.label, enabled: false }),
     })
       .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
       .then(({ ok, d }) => {
         if (!ok) { showToast(d.error || "Could not create flag", "danger"); return; }
         setNewFlagKey("");
-        setNewFlagLabel("");
         loadFlags();
         showToast("Flag created", "success");
       })
       .catch(() => showToast("Could not create flag", "danger"));
+  }
+
+  function deleteFlag(key) {
+    fetch(`${API_URL}/api/flags/${key}`, { method: "DELETE", headers: authHdrs() })
+      .then((r) => r.json())
+      .then(() => {
+        loadFlags();
+        showToast("Flag deleted", "success");
+      })
+      .catch(() => showToast("Could not delete flag", "danger"));
   }
 
   function toggleFlag(key, enabled) {
@@ -487,18 +504,16 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
         <>
           <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 16 }}>
             <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 14 }}>New flag</div>
-            <input
+            <select
               value={newFlagKey}
               onChange={(e) => setNewFlagKey(e.target.value)}
-              placeholder="Key (e.g. insurance_enabled)"
               style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 8, boxSizing: "border-box", background: "var(--card-bg)", color: "var(--text-primary)" }}
-            />
-            <input
-              value={newFlagLabel}
-              onChange={(e) => setNewFlagLabel(e.target.value)}
-              placeholder="Label (e.g. Insurance)"
-              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 8, boxSizing: "border-box", background: "var(--card-bg)", color: "var(--text-primary)" }}
-            />
+            >
+              <option value="">Select a feature…</option>
+              {KNOWN_FLAGS.filter((k) => !flags.some((f) => f.key === k.key)).map((k) => (
+                <option key={k.key} value={k.key}>{k.label}</option>
+              ))}
+            </select>
             <button
               onClick={createFlag}
               style={{ width: "100%", padding: 12, borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer" }}
@@ -516,14 +531,20 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
                   <div style={{ fontWeight: 700, fontSize: 14 }}>{f.label}</div>
                   <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>{f.key}</div>
                 </div>
-                <button
-                  onClick={() => toggleFlag(f.key, f.enabled)}
-                  style={{
-                    fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer",
-                    background: f.enabled ? "#DCFCE7" : "var(--bg-tertiary, #F3F4F6)",
-                    color: f.enabled ? "#166534" : "var(--text-secondary)",
-                  }}
-                >{f.enabled ? "Enabled" : "Disabled"}</button>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    onClick={() => toggleFlag(f.key, f.enabled)}
+                    style={{
+                      fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer",
+                      background: f.enabled ? "#DCFCE7" : "var(--bg-tertiary, #F3F4F6)",
+                      color: f.enabled ? "#166534" : "var(--text-secondary)",
+                    }}
+                  >{f.enabled ? "Enabled" : "Disabled"}</button>
+                  <button
+                    onClick={() => deleteFlag(f.key)}
+                    style={{ fontSize: 12, fontWeight: 700, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "none", color: "#dc2626", cursor: "pointer" }}
+                  >Delete</button>
+                </div>
               </div>
             ))
           )}
