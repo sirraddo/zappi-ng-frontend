@@ -766,7 +766,15 @@ resetInputs()
 // delivery returns 401 — we re-confirm (Pi is NOT re-charged) and retry delivery only.
 const runRealPayment=(service, tx, txnFields, piCost, confirmationToken)=>{
 setIsPaying(true)
-setTimeout(() => setIsPaying(false), 45000)
+setTimeout(() => {
+setIsPaying(prevIsPaying => {
+if (!prevIsPaying) return prevIsPaying // already resolved (success/error) — nothing stuck, don't interfere
+showToast("This payment is taking much longer than expected. Nothing has been deducted — please check History in a few minutes before trying again.", "danger")
+setSubPage(null)
+resetInputs()
+return false
+})
+}, 75000)
 const extras = {
 // electricity REQUIRES variation_code = "prepaid"|"postpaid" — omitting it makes
 // VTPass reject delivery with code 011 "INVALID ARGUMENTS" AFTER Pi has charged.
