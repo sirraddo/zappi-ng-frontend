@@ -27,7 +27,7 @@ export function isAdminUser() {
     const token = localStorage.getItem("zappi_token");
     if (!token) return false;
     const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.username === "Sirraddo";
+    return payload.username?.toLowerCase() === "sirraddo";
   } catch {
     return false;
   }
