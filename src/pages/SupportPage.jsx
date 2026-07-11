@@ -14,8 +14,8 @@ import { useTheme } from "../context/ThemeContext";
 import "./SupportPage.css";
 
 export const CONFIG = {
-  whatsappNumber: "2348000000000",     // TODO: replace with your WhatsApp number (no +)
-  supportEmail: "support@zappi.ng",    // TODO: replace
+  whatsappNumber: "2349011653172",
+  supportEmail: "zapping9900.pinet@gmail.com",
   appVersion: "1.0.0",
   buildDate: "January 2025",
 };
