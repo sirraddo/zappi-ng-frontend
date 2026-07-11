@@ -3,12 +3,12 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: linear-gradient(90deg, #f5f3ff, #ede9fe);
-  border: 1px solid #c4b5fd;
+  background: linear-gradient(90deg, #FFF4EC, #FDE4D1);
+  border: 1px solid #FFCBA3;
   border-radius: 20px;
   padding: 6px 14px;
   font-size: 13px;
-  color: #5b21b6;
+  color: #7A3300;
   font-weight: 500;
 }
 
@@ -23,7 +23,7 @@
 .rate-pi-logo {
   font-size: 16px;
   font-weight: 800;
-  color: #7c3aed;
+  color: #CC4E00;
 }
 
 .rate-equals {
@@ -31,13 +31,13 @@
 }
 
 .rate-separator {
-  color: #8b5cf6;
+  color: #FF7A33;
 }
 
 .rate-naira {
   font-weight: 700;
   font-size: 14px;
-  color: #4c1d95;
+  color: #993D00;
 }
 
 .rate-trend {
@@ -49,18 +49,18 @@
 
 .rate-badge {
   font-size: 10px;
-  background: rgba(124, 58, 237, 0.1);
-  color: #7c3aed;
+  background: rgba(204, 78, 0, 0.1);
+  color: #CC4E00;
   padding: 2px 6px;
   border-radius: 10px;
   font-weight: 600;
 }
 
 [data-theme="dark"] .rate-ticker {
-  background: linear-gradient(90deg, #2d1f4a, #1f1535);
-  border-color: #4c1d95;
-  color: #c4b5fd;
+  background: linear-gradient(90deg, #402710, #2E1B0B);
+  border-color: #993D00;
+  color: #FFCBA3;
 }
 
-[data-theme="dark"] .rate-naira { color: #ddd6fe; }
-[data-theme="dark"] .rate-pi-logo { color: #a78bfa; }
+[data-theme="dark"] .rate-naira { color: #FFD9B3; }
+[data-theme="dark"] .rate-pi-logo { color: #FF8A4C; }
