@@ -23,7 +23,7 @@
   background: none;
   border: none;
   font-size: 14px;
-  color: var(--primary, #7c3aed);
+  color: var(--primary, #CC4E00);
   cursor: pointer;
   padding: 4px 0;
   font-weight: 500;
@@ -84,7 +84,7 @@
 }
 
 .legal-body a {
-  color: var(--primary, #7c3aed);
+  color: var(--primary, #CC4E00);
   text-decoration: none;
 }
 
