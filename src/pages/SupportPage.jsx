@@ -15,7 +15,7 @@ import "./SupportPage.css";
 
 export const CONFIG = {
   whatsappNumber: "2349011653172",
-  supportEmail: "zapping9900.pinet@gmail.com",
+  supportEmail: "zappingsupport@gmail.com",
   appVersion: "1.0.0",
   buildDate: "January 2025",
 };
