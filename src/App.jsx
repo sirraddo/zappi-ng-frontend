@@ -714,6 +714,9 @@ case "internet": setInternetProvider(INTERNET_PROVIDERS.find(p=>p.id===r.provide
 case "betting": showToast("Betting top-ups are no longer available","danger"); return
 case "hotel": setHotel(HOTELS.find(h=>h.id===r.hotelId) || null); setAmount(r.amount); break
 case "transport": setTransport(TRANSPORT.find(t=>t.id===r.transportId) || null); setAmount(r.amount); break
+case "education": setEduProduct(r.eduProduct); setPhone(r.phone); setMeter(r.meter); setBundle(r.bundleCode ? { code: r.bundleCode, label: r.bundleLabel, price: r.bundlePrice } : null); break
+case "showmax": setPhone(r.phone); setBundle(r.bundleCode ? { code: r.bundleCode, label: r.bundleLabel, price: r.bundlePrice } : null); break
+case "insurance": showToast("Insurance is temporarily suspended by our payments provider — check back soon","danger"); return
 default: showToast("Can't repeat this transaction","danger"); return
 }
 setPage(r.page); setSubPage(r.subPage)
