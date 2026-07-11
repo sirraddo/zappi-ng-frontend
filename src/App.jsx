@@ -520,6 +520,20 @@ if (user) setAuthScreen("login")
 const [page, setPage] = useState("home")
 const [subPage, setSubPage] = useState(null)
 const [toast, setToast] = useState(null)
+// Admin-editable home-screen promo strip (title/desc/link only — icon and
+// gradient stay a small fixed rotation, per the deliberate design choice
+// in the backend PR: keeps the strip visually consistent instead of
+// becoming a full design tool for 3 cards). null = not loaded yet, use
+// the hardcoded fallback below so the strip is never empty/broken.
+const [banners, setBanners] = useState(null)
+useEffect(() => {
+const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const token = localStorage.getItem("zappi_token")
+fetch(`${apiUrl}/api/banners`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+.then(r => r.ok ? r.json() : { banners: [] })
+.then(d => setBanners(d.banners && d.banners.length ? d.banners : null))
+.catch(() => setBanners(null))
+}, [])
 const [toastType, setToastType] = useState("success")
 // Persists across navigation (unlike a toast) — the Pi wallet ceremony plus
 // our backend's VTPass round-trip can take up to ~30s with zero feedback
@@ -969,12 +983,12 @@ return (
 
 <div style={{padding:"8px 16px 0"}}>
 <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:4}}>
-{[
-{icon:"⚡",title:"Instant bill payments",desc:"Airtime, data, electricity & more — paid with Pi",bg:"linear-gradient(135deg,#CC4E00,#FF7A33)"},
-{icon:"📊",title:"Live market rate",desc:"Our Pi/NGN rate updates in real time, not fixed",bg:"linear-gradient(135deg,#059669,#10B981)"},
-{icon:"🔒",title:"Secure by design",desc:"Every payment needs your transaction PIN",bg:"linear-gradient(135deg,#EA580C,#F59E0B)"},
-].map(promo=>(
-<div key={promo.title} style={{minWidth:220,background:promo.bg,borderRadius:14,padding:16,flexShrink:0}}>
+{(banners || [
+{title:"Instant bill payments",desc:"Airtime, data, electricity & more — paid with Pi"},
+{title:"Live market rate",desc:"Our Pi/NGN rate updates in real time, not fixed"},
+{title:"Secure by design",desc:"Every payment needs your transaction PIN"},
+]).map((b,i)=>({...b,icon:["⚡","📊","🔒"][i%3],bg:["linear-gradient(135deg,#CC4E00,#FF7A33)","linear-gradient(135deg,#059669,#10B981)","linear-gradient(135deg,#EA580C,#F59E0B)"][i%3]})).map((promo,i)=>(
+<div key={promo.title+i} onClick={()=>{if(promo.link) window.open(promo.link,"_blank")}} style={{minWidth:220,background:promo.bg,borderRadius:14,padding:16,flexShrink:0,cursor:promo.link?"pointer":"default"}}>
 <p style={{fontSize:22,margin:"0 0 8px"}}>{promo.icon}</p>
 <p style={{color:"white",fontWeight:700,fontSize:13,margin:"0 0 4px"}}>{promo.title}</p>
 <p style={{color:"rgba(255,255,255,0.85)",fontSize:11,margin:0,lineHeight:1.4}}>{promo.desc}</p>
