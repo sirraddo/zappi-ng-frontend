@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { usePi } from "./context/PiContext.jsx"
 import { useTheme } from "./context/ThemeContext.jsx"
-import NotificationBell from "./components/NotificationBell.jsx"
+import NotificationBell, { addNotification } from "./components/NotificationBell.jsx"
 import PiRateTicker from "./components/PiRateTicker.jsx"
 import TransactionReceipt from "./components/TransactionReceipt.jsx"
 import { PrivacyPolicy, TermsOfService } from "./pages/LegalPages.jsx"
@@ -754,6 +754,7 @@ color: tx.color || "#EDE9FE", icon: tx.icon || "💳",
 raw: tx.raw || null,
 }
 addTransaction(newTx)
+addNotification({ title: "Payment successful", body: `${service} — ${newTx.amount} paid with ${newTx.pi}`, type: "success", txRef: newTx.id })
 setReceiptTx(newTx)
 showToast(`${service} payment successful! 🎉`,"success")
 setSubPage(null)
