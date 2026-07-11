@@ -1134,7 +1134,7 @@ return (
 <div><Header title="Electricity Bill" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
 <FL>Distribution company</FL>
-<select value={disco} onChange={e=>setDisco(e.target.value)} style={{width:"100%",padding:13,borderRadius:10,border:"1.5px solid #E5E7EB",marginBottom:16,boxSizing:"border-box",fontSize:14,outline:"none",background:"var(--card-bg)",fontFamily:"inherit"}}>
+<select value={disco} onChange={e=>setDisco(e.target.value)} style={{width:"100%",padding:13,borderRadius:10,border:"1.5px solid #E5E7EB",marginBottom:16,boxSizing:"border-box",fontSize:14,outline:"none",background:"var(--card-bg)",color:"var(--text-primary)",fontFamily:"inherit"}}>
 <option value="">Select your DISCO</option>{DISCOS.map(d=><option key={d}>{d}</option>)}
 </select>
 <RecentList transactions={transactions} type="electricity" onSelect={buyAgain}/>
@@ -1192,7 +1192,7 @@ return (
 <div style={{padding:16}}>
 <FL>Select provider</FL>
 <RecentList transactions={transactions} type="internet" onSelect={buyAgain}/>
-{INTERNET_PROVIDERS.map(p=><button key={p.id} onClick={()=>{setInternetProvider(p);setBundle(null)}} style={{width:"100%",background:"var(--card-bg)",border:`2px solid ${internetProvider?.id===p.id?C.primary:"var(--border)"}`,borderRadius:12,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
+{INTERNET_PROVIDERS.map(p=><button key={p.id} onClick={()=>{setInternetProvider(p);setBundle(null)}} style={{width:"100%",background:"var(--card-bg)",color:"var(--text-primary)",border:`2px solid ${internetProvider?.id===p.id?C.primary:"var(--border)"}`,borderRadius:12,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
 <span style={{fontSize:24}}>{p.icon}</span>
 <div style={{flex:1}}><p style={{margin:0,fontSize:14,fontWeight:700}}>{p.label}</p></div>
 {internetProvider?.id===p.id&&<span style={{color:C.primary,fontSize:18}}>✓</span>}
@@ -1233,7 +1233,7 @@ return (
 {!eduProduct&&<>
 <FL>Select service</FL>
 {[{id:"waec",label:"WAEC Result Checker PIN",icon:"📄"},{id:"waec-registration",label:"WAEC Registration PIN",icon:"📝"},{id:"jamb",label:"JAMB UTME/DE PIN",icon:"🎓"}].map(p=>
-<button key={p.id} onClick={()=>{setEduProduct(p.id);setBundle(null)}} style={{width:"100%",background:"var(--card-bg)",border:"1.5px solid var(--border)",borderRadius:12,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
+<button key={p.id} onClick={()=>{setEduProduct(p.id);setBundle(null)}} style={{width:"100%",background:"var(--card-bg)",color:"var(--text-primary)",border:"1.5px solid var(--border)",borderRadius:12,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
 <span style={{fontSize:22}}>{p.icon}</span><p style={{margin:0,fontSize:14,fontWeight:700,flex:1}}>{p.label}</p>
 </button>)}
 </>}
