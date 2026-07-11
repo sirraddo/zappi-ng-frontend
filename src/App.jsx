@@ -534,6 +534,19 @@ fetch(`${apiUrl}/api/banners`, { headers: token ? { Authorization: `Bearer ${tok
 .then(d => setBanners(d.banners && d.banners.length ? d.banners : null))
 .catch(() => setBanners(null))
 }, [])
+// Admin-editable feature flags — e.g. re-enabling Insurance the moment
+// VTPass's SERVICE_SUSPENDED clears, without a redeploy. Empty object
+// until loaded, so every flag check below defaults to "off" (the current,
+// known-safe state) until we actually hear back.
+const [flags, setFlags] = useState({})
+useEffect(() => {
+const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const token = localStorage.getItem("zappi_token")
+fetch(`${apiUrl}/api/flags`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+.then(r => r.ok ? r.json() : { flags: {} })
+.then(d => setFlags(d.flags || {}))
+.catch(() => setFlags({}))
+}, [])
 const [toastType, setToastType] = useState("success")
 // Persists across navigation (unlike a toast) — the Pi wallet ceremony plus
 // our backend's VTPass round-trip can take up to ~30s with zero feedback
@@ -1087,7 +1100,10 @@ return (
     fields all verified against VTPass's own docs). This is entirely on
     VTPass's side, not something fixable in our code — left hidden rather
     than deleted so it's trivial to re-enable if VTPass un-suspends it. */}
-<SCard icon="🛡️" label="Insurance" desc="Personal Accident cover (Temporarily unavailable)" bg="#F0FDFA" onClick={()=>showToast("Insurance is temporarily suspended by our payments provider — check back soon","danger")}/>
+<SCard icon="🛡️" label="Insurance" desc={flags.insurance_enabled ? "Personal Accident cover" : "Personal Accident cover (Temporarily unavailable)"} bg="#F0FDFA" onClick={()=>{
+if (flags.insurance_enabled) { setPage("bills"); setSubPage("insurance") }
+else showToast("Insurance is temporarily suspended by our payments provider — check back soon","danger")
+}}/>
 </div>
 </div>
 )}
