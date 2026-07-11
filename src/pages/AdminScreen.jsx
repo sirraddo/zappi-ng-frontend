@@ -57,6 +57,12 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
   const [stats, setStats] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [txFilter, setTxFilter] = useState("");
+  const [flags, setFlags] = useState([]);
+  const [newFlagKey, setNewFlagKey] = useState("");
+  const [newFlagLabel, setNewFlagLabel] = useState("");
+  const [userQuery, setUserQuery] = useState("");
+  const [userResult, setUserResult] = useState(null);
+  const [userError, setUserError] = useState("");
 
   function loadAnnouncements() {
     setLoading(true);
@@ -104,13 +110,70 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
       .finally(() => setLoading(false));
   }
 
+  function loadFlags() {
+    setLoading(true);
+    fetch(`${API_URL}/api/flags/all`, { headers: authHdrs() })
+      .then((r) => r.json())
+      .then((d) => setFlags(d.flags || []))
+      .catch(() => showToast("Could not load flags", "danger"))
+      .finally(() => setLoading(false));
+  }
+
   useEffect(() => {
     if (tab === "stats") loadStats();
     else if (tab === "transactions") loadTransactions();
     else if (tab === "announcements") loadAnnouncements();
     else if (tab === "tickets") loadTickets();
-    else loadBanners();
+    else if (tab === "flags") loadFlags();
+    else if (tab === "banners") loadBanners();
   }, [tab, txFilter]);
+
+  function createFlag() {
+    if (!newFlagKey.trim() || !newFlagLabel.trim()) {
+      showToast("Key and label are required", "danger");
+      return;
+    }
+    fetch(`${API_URL}/api/flags`, {
+      method: "POST",
+      headers: authHdrs(),
+      body: JSON.stringify({ key: newFlagKey.trim(), label: newFlagLabel, enabled: false }),
+    })
+      .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        if (!ok) { showToast(d.error || "Could not create flag", "danger"); return; }
+        setNewFlagKey("");
+        setNewFlagLabel("");
+        loadFlags();
+        showToast("Flag created", "success");
+      })
+      .catch(() => showToast("Could not create flag", "danger"));
+  }
+
+  function toggleFlag(key, enabled) {
+    fetch(`${API_URL}/api/flags/${key}`, {
+      method: "PATCH",
+      headers: authHdrs(),
+      body: JSON.stringify({ enabled: !enabled }),
+    })
+      .then((r) => r.json())
+      .then(() => loadFlags())
+      .catch(() => showToast("Could not update flag", "danger"));
+  }
+
+  function lookupUser() {
+    if (!userQuery.trim()) return;
+    setLoading(true);
+    setUserError("");
+    setUserResult(null);
+    fetch(`${API_URL}/api/admin/users/lookup?username=${encodeURIComponent(userQuery.trim())}`, { headers: authHdrs() })
+      .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        if (!ok) { setUserError(d.error || "User not found"); return; }
+        setUserResult(d);
+      })
+      .catch(() => setUserError("Could not look up user"))
+      .finally(() => setLoading(false));
+  }
 
   function createAnnouncement() {
     if (!newTitle.trim() || !newBody.trim()) {
@@ -235,6 +298,24 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
             fontWeight: 700, cursor: "pointer",
           }}
         >Support Tickets</button>
+        <button
+          onClick={() => setTab("flags")}
+          style={{
+            flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "none",
+            background: tab === "flags" ? "var(--primary-light)" : "var(--bg-secondary)",
+            color: tab === "flags" ? "var(--primary)" : "var(--text-secondary)",
+            fontWeight: 700, cursor: "pointer",
+          }}
+        >Flags</button>
+        <button
+          onClick={() => setTab("users")}
+          style={{
+            flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "none",
+            background: tab === "users" ? "var(--primary-light)" : "var(--bg-secondary)",
+            color: tab === "users" ? "var(--primary)" : "var(--text-secondary)",
+            fontWeight: 700, cursor: "pointer",
+          }}
+        >Users</button>
         <button
           onClick={() => setTab("banners")}
           style={{
@@ -400,6 +481,107 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
             </div>
           ))
         )
+      )}
+
+      {tab === "flags" && (
+        <>
+          <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 14 }}>New flag</div>
+            <input
+              value={newFlagKey}
+              onChange={(e) => setNewFlagKey(e.target.value)}
+              placeholder="Key (e.g. insurance_enabled)"
+              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 8, boxSizing: "border-box", color: "var(--text-primary)" }}
+            />
+            <input
+              value={newFlagLabel}
+              onChange={(e) => setNewFlagLabel(e.target.value)}
+              placeholder="Label (e.g. Insurance)"
+              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 8, boxSizing: "border-box", color: "var(--text-primary)" }}
+            />
+            <button
+              onClick={createFlag}
+              style={{ width: "100%", padding: 12, borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer" }}
+            >Create</button>
+          </div>
+
+          {loading ? (
+            <div>Loading…</div>
+          ) : flags.length === 0 ? (
+            <div style={{ color: "var(--text-secondary)" }}>No flags yet</div>
+          ) : (
+            flags.map((f) => (
+              <div key={f._id} style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{f.label}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>{f.key}</div>
+                </div>
+                <button
+                  onClick={() => toggleFlag(f.key, f.enabled)}
+                  style={{
+                    fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer",
+                    background: f.enabled ? "#DCFCE7" : "var(--bg-tertiary, #F3F4F6)",
+                    color: f.enabled ? "#166534" : "var(--text-secondary)",
+                  }}
+                >{f.enabled ? "Enabled" : "Disabled"}</button>
+              </div>
+            ))
+          )}
+        </>
+      )}
+
+      {tab === "users" && (
+        <>
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            <input
+              value={userQuery}
+              onChange={(e) => setUserQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && lookupUser()}
+              placeholder="Pi username"
+              style={{ flex: 1, padding: 10, borderRadius: 8, border: "1px solid var(--border)", boxSizing: "border-box", color: "var(--text-primary)" }}
+            />
+            <button
+              onClick={lookupUser}
+              style={{ padding: "0 18px", borderRadius: 8, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer" }}
+            >Search</button>
+          </div>
+
+          {loading ? (
+            <div>Loading…</div>
+          ) : userError ? (
+            <div style={{ color: "#dc2626" }}>{userError}</div>
+          ) : userResult ? (
+            <>
+              <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 16 }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>@{userResult.user.piUsername}</div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>{userResult.user.fullName || "No name on file"}</div>
+              </div>
+              <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 13, color: "var(--text-secondary)" }}>Recent transactions</div>
+              {userResult.transactions.length === 0 ? (
+                <div style={{ color: "var(--text-secondary)" }}>No transactions yet</div>
+              ) : (
+                userResult.transactions.map((t) => (
+                  <div key={t._id} style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{t.billType}</div>
+                      <span style={{
+                        fontSize: 11, padding: "2px 8px", borderRadius: 10,
+                        background: t.status === "success" ? "#DCFCE7" : t.status === "failed" ? "#FEE2E2" : "#FEF3C7",
+                        color: t.status === "success" ? "#166534" : t.status === "failed" ? "#991B1B" : "#92400E",
+                      }}>{t.status}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0" }}>
+                      ₦{Number(t.amountNGN).toLocaleString()} · π{Number(t.amountPi).toFixed(4)}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>{new Date(t.createdAt).toLocaleString()}</div>
+                  </div>
+                ))
+              )}
+            </>
+          ) : (
+            <div style={{ color: "var(--text-secondary)" }}>Search a username to see their account and recent transactions</div>
+          )}
+        </>
       )}
 
       {tab === "banners" && (
