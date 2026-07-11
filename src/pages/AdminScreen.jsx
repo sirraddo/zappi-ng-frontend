@@ -44,6 +44,7 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
   const [newBannerTitle, setNewBannerTitle] = useState("");
   const [newBannerDesc, setNewBannerDesc] = useState("");
   const [newBannerLink, setNewBannerLink] = useState("");
+  const [newBannerOrder, setNewBannerOrder] = useState("0");
 
   function loadAnnouncements() {
     setLoading(true);
@@ -132,13 +133,14 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
     fetch(`${API_URL}/api/banners`, {
       method: "POST",
       headers: authHdrs(),
-      body: JSON.stringify({ title: newBannerTitle, desc: newBannerDesc, link: newBannerLink }),
+      body: JSON.stringify({ title: newBannerTitle, desc: newBannerDesc, link: newBannerLink, order: Number(newBannerOrder) || 0 }),
     })
       .then((r) => r.json())
       .then(() => {
         setNewBannerTitle("");
         setNewBannerDesc("");
         setNewBannerLink("");
+        setNewBannerOrder("0");
         loadBanners();
         showToast("Banner published", "success");
       })
@@ -286,6 +288,13 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
               value={newBannerLink}
               onChange={(e) => setNewBannerLink(e.target.value)}
               placeholder="Link (optional — https://...)"
+              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 8, boxSizing: "border-box" }}
+            />
+            <input
+              value={newBannerOrder}
+              onChange={(e) => setNewBannerOrder(e.target.value)}
+              placeholder="Display order (0 = first)"
+              type="number"
               style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 8, boxSizing: "border-box" }}
             />
             <button
