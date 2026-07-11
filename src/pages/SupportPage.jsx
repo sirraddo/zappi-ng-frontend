@@ -129,7 +129,7 @@ export default function SupportPage({ onBack }) {
         {/* About */}
         <div className="support-section-label">About Zappi NG</div>
         <div className="about-card">
-          <div className="about-logo">π</div>
+          <div className="about-logo">Z</div>
           <div className="about-name">Zappi NG</div>
           <div className="about-tagline">Pay bills with Pi · Nigeria</div>
           <div className="about-version">Version {CONFIG.appVersion} · {CONFIG.buildDate}</div>
