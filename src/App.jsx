@@ -32,9 +32,9 @@ const REFERRAL_URL = `https://zappi-ng-frontend.vercel.app/?ref=${REFERRAL_CODE}
 
 // Seed data shown to brand-new users only; real activity is persisted in zappi_txs
 const TRANSACTIONS = [
-{ id:1, type:"airtime", label:"MTN Airtime", sub:"08012345678", amount:"₦500", pi:"π0.83", date:"Today 10:30am", color:"#EDE9FE", icon:"📱", status:"success" },
+{ id:1, type:"airtime", label:"MTN Airtime", sub:"08012345678", amount:"₦500", pi:"π0.83", date:"Today 10:30am", color:"#EFF6FF", icon:"📱", status:"success" },
 { id:2, type:"electricity", label:"IKEDC Electricity", sub:"Meter: 12345678", amount:"₦5,000", pi:"π8.33", date:"Yesterday", color:"#FFF7ED", icon:"⚡", status:"success" },
-{ id:3, type:"send", label:"Sent to @adaeze", sub:"Pioneer transfer", amount:"₦3,000", pi:"π5.00", date:"2 days ago", color:"#EDE9FE", icon:"💸", status:"success" },
+{ id:3, type:"send", label:"Sent to @adaeze", sub:"Pioneer transfer", amount:"₦3,000", pi:"π5.00", date:"2 days ago", color:"#F0FDF4", icon:"💸", status:"success" },
 { id:4, type:"cable", label:"DStv Compact", sub:"Smart card: 456789", amount:"₦9,000", pi:"π15.00", date:"3 days ago", color:"#ECFDF5", icon:"📺", status:"success" },
 { id:5, type:"receive", label:"Received from @tunde", sub:"Pioneer transfer", amount:"₦6,000", pi:"π10.00", date:"4 days ago", color:"#ECFDF5", icon:"💰", status:"success" },
 { id:6, type:"data", label:"Airtel 2GB Data", sub:"08091157430", amount:"₦600", pi:"π1.00", date:"5 days ago", color:"#ECFDF5", icon:"📶", status:"failed" },
@@ -152,7 +152,7 @@ return (
 )
 }
 
-function PiSummary({ amount, bg="#EDE9FE", color="#5B21B6", rate=2150 }) {
+function PiSummary({ amount, bg="#EFF6FF", color="#2563EB", rate=2150 }) {
 const pi=(Number(amount)/rate).toFixed(4)
 if(!amount||amount<=0)return null
 return (
@@ -750,7 +750,7 @@ id: Date.now(), ts: Date.now(), status: "success",
 type: tx.type, label: tx.label, sub: tx.sub,
 amount: `₦${Math.round(Number(tx.ngn)).toLocaleString()}`,
 pi: `π${piCost.toFixed(2)}`,
-color: tx.color || "#EDE9FE", icon: tx.icon || "💳",
+color: tx.color || "#EFF6FF", icon: tx.icon || "💳",
 raw: tx.raw || null,
 }
 addTransaction(newTx)
@@ -1044,7 +1044,7 @@ return (
 <div>
 <Header title="Pay Bills"/>
 <div style={{padding:16}}>
-{[{label:"Buy Airtime",icon:"📱",bg:"#EDE9FE",sub:"airtime",desc:"MTN, Airtel, Glo, 9mobile"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",sub:"data",desc:"Data bundles"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",sub:"electricity",desc:"Prepaid & postpaid meters"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",sub:"cable",desc:"DStv, GOtv, Startimes"},{label:"Showmax",icon:"🎬",bg:"#FEF2F2",sub:"showmax",desc:"Streaming subscription"},{label:"Internet",icon:"🌐",bg:"#EFF6FF",sub:"internet",desc:"Smile, Spectranet"},{label:"Education",icon:"🎓",bg:"#EEF2FF",sub:"education",desc:"WAEC, JAMB"}].map(item=>(
+{[{label:"Buy Airtime",icon:"📱",bg:"#EFF6FF",sub:"airtime",desc:"MTN, Airtel, Glo, 9mobile"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",sub:"data",desc:"Data bundles"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",sub:"electricity",desc:"Prepaid & postpaid meters"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",sub:"cable",desc:"DStv, GOtv, Startimes"},{label:"Showmax",icon:"🎬",bg:"#FEF2F2",sub:"showmax",desc:"Streaming subscription"},{label:"Internet",icon:"🌐",bg:"#EFF6FF",sub:"internet",desc:"Smile, Spectranet"},{label:"Education",icon:"🎓",bg:"#EEF2FF",sub:"education",desc:"WAEC, JAMB"}].map(item=>(
 <SCard key={item.label} icon={item.icon} label={item.label} desc={item.desc} bg={item.bg} onClick={()=>setSubPage(item.sub)}/>
 ))}
 {/* Personal Accident Insurance — confirmed via testing that VTPass's sandbox
@@ -1074,7 +1074,7 @@ return (
 <div style={{display:"flex",gap:8,marginBottom:8}}>{[100,200,500,1000].map(a=><button key={a} onClick={()=>setAmount(String(a))} style={{flex:1,padding:10,borderRadius:10,border:`2px solid ${amount==a?C.primary:"var(--border)"}`,background:amount==a?C.light:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>₦{a}</button>)}</div>
 <Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Or enter amount"/>
 <PiSummary amount={amount} rate={liveRate}/>
-<Btn label={`Buy Airtime — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!network||!phone||!amount} onClick={()=>validate("airtime")&&handlePay("Airtime",{type:"airtime",label:`${network} Airtime`,sub:phone,ngn:Number(amount),icon:"📱",color:"#EDE9FE",raw:{page:"bills",subPage:"airtime",network,phone,amount}})}/>
+<Btn label={`Buy Airtime — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!network||!phone||!amount} onClick={()=>validate("airtime")&&handlePay("Airtime",{type:"airtime",label:`${network} Airtime`,sub:phone,ngn:Number(amount),icon:"📱",color:"#EFF6FF",raw:{page:"bills",subPage:"airtime",network,phone,amount}})}/>
 </div></div>
 )}
 
@@ -1305,9 +1305,9 @@ return (
 <FL>Amount (π)</FL>
 <div style={{display:"flex",gap:8,marginBottom:8}}>{[1,5,10,20].map(a=><button key={a} onClick={()=>setPiAmount(String(a))} style={{flex:1,padding:10,borderRadius:10,border:`2px solid ${piAmount==a?C.primary:"var(--border)"}`,background:piAmount==a?C.light:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>π{a}</button>)}</div>
 <Inp value={piAmount} onChange={e=>setPiAmount(e.target.value)} placeholder="0.00" type="number"/>
-{piAmount>0&&<div style={{background:C.light,borderRadius:10,padding:14,marginBottom:12,display:"flex",justifyContent:"space-between"}}><span style={{color:"#5B21B6",fontSize:13}}>NGN equivalent</span><span style={{color:"#5B21B6",fontSize:14,fontWeight:700}}>₦{(Number(piAmount)*liveRate).toLocaleString()}</span></div>}
+{piAmount>0&&<div style={{background:C.light,borderRadius:10,padding:14,marginBottom:12,display:"flex",justifyContent:"space-between"}}><span style={{color:C.primary,fontSize:13}}>NGN equivalent</span><span style={{color:C.primary,fontSize:14,fontWeight:700}}>₦{(Number(piAmount)*liveRate).toLocaleString()}</span></div>}
 <FL>Note (optional)</FL><Inp value={note} onChange={e=>setNote(e.target.value)} placeholder="What's this for?"/>
-<Btn label={`Send π${piAmount||"0"} to @${recipient||"..."}`} disabled={!recipient||!piAmount} onClick={()=>validate("send")&&handlePay("Pi Transfer",{type:"send",label:`Sent to @${recipient}`,sub:note||"Pioneer transfer",ngn:Number(piAmount)*liveRate,pi:Number(piAmount),icon:"💸",color:"#EDE9FE"})}/>
+<Btn label={`Send π${piAmount||"0"} to @${recipient||"..."}`} disabled={!recipient||!piAmount} onClick={()=>validate("send")&&handlePay("Pi Transfer",{type:"send",label:`Sent to @${recipient}`,sub:note||"Pioneer transfer",ngn:Number(piAmount)*liveRate,pi:Number(piAmount),icon:"💸",color:"#F0FDF4"})}/>
 </div></div>
 )}
 
@@ -1323,7 +1323,7 @@ return (
 <SCard icon="✈️" label="Travel & Transport" desc="Flights, rides, tolls & more (Coming soon)" bg="#DBEAFE" onClick={()=>showToast("Travel & Transport launching soon!","success")}/>
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Finance & Rewards</p>
 <SCard icon="📊" label="Pi Market Rate" desc="Our own live rate — not an official Pi price" bg="#FFF7ED" onClick={()=>showToast(`Current rate: ₦${liveRate}/π`,"success")}/>
-<SCard icon="💰" label="Pi Savings" desc="Save Pi and earn interest (Coming soon)" bg="#EDE9FE" onClick={()=>showToast("Pi Savings launching soon!","success")}/>
+<SCard icon="💰" label="Pi Savings" desc="Save Pi and earn interest (Coming soon)" bg="#FFFBEB" onClick={()=>showToast("Pi Savings launching soon!","success")}/>
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Account</p>
 <SCard icon="👤" label="My Profile" desc="Manage your account" bg="#F0F0FF" onClick={()=>setShowProfile(true)}/>
 <SCard icon="💬" label="Help & Support" desc="FAQ, WhatsApp, contact us" bg="#F0FDF4" onClick={()=>setLegalPage("support")}/>
