@@ -81,7 +81,15 @@ export default function NotificationBell() {
   const [announcements, setAnnouncements] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [loadingRemote, setLoadingRemote] = useState(false);
+  const [announcementsUnread, setAnnouncementsUnread] = useState(0);
   const panelRef = useRef(null);
+
+  function countUnreadAnnouncements(list) {
+    const lastSeen = localStorage.getItem("zappi_announcements_seen_at");
+    if (!lastSeen) return list.length; // never viewed General before — all count as new
+    const lastSeenTime = new Date(lastSeen).getTime();
+    return list.filter((a) => new Date(a.createdAt).getTime() > lastSeenTime).length;
+  }
 
   function load() {
     const all = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
@@ -94,6 +102,27 @@ export default function NotificationBell() {
     return () => window.removeEventListener("zappi:notification", load);
   }, []);
 
+  // Fetch announcements on mount (not lazily) so the unread badge is visible
+  // even before the panel is ever opened.
+  useEffect(() => {
+    fetch(`${API_URL}/api/announcements`, { headers: authHdrs() })
+      .then((r) => (r.ok ? r.json() : { announcements: [] }))
+      .then((d) => {
+        const list = d.announcements || [];
+        setAnnouncements(list);
+        setAnnouncementsUnread(countUnreadAnnouncements(list));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Mark announcements as seen once the General tab is actually viewed
+  useEffect(() => {
+    if (open && tab === "general" && announcements.length > 0) {
+      localStorage.setItem("zappi_announcements_seen_at", new Date().toISOString());
+      setAnnouncementsUnread(0);
+    }
+  }, [open, tab]);
+
   // Close on outside click
   useEffect(() => {
     function handler(e) {
@@ -103,17 +132,11 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  // Fetch remote data lazily — only once per tab, only while the panel is open
+  // Fetch remote data lazily — only once per tab, only while the panel is open.
+  // (Announcements are the exception — fetched on mount above, so the badge
+  // works without opening the panel; this just still handles tickets.)
   useEffect(() => {
     if (!open) return;
-    if (tab === "general" && announcements.length === 0) {
-      setLoadingRemote(true);
-      fetch(`${API_URL}/api/announcements`, { headers: authHdrs() })
-        .then((r) => (r.ok ? r.json() : { announcements: [] }))
-        .then((d) => setAnnouncements(d.announcements || []))
-        .catch(() => {})
-        .finally(() => setLoadingRemote(false));
-    }
     if (tab === "support" && tickets.length === 0) {
       setLoadingRemote(true);
       fetch(`${API_URL}/api/tickets/mine`, { headers: authHdrs() })
@@ -136,7 +159,7 @@ export default function NotificationBell() {
     setOpen(false);
   }
 
-  const unread = notifications.filter((n) => !n.read).length;
+  const unread = notifications.filter((n) => !n.read).length + announcementsUnread;
 
   return (
     <div className="notif-wrap" ref={panelRef}>
