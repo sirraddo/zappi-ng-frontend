@@ -9,6 +9,7 @@ import SupportPage, { CONFIG } from "./pages/SupportPage.jsx"
 import { SplashScreen, LoginScreen, TxnPinModal, ProfileScreen, ChangePinFlow } from "./ZappiAuth"
 import { hasServerPin, hasLegacyPin, REAL_PAYMENTS, completeBillPayment } from "./hooks/useTxnConfirmation"
 import SavedBeneficiaries, { useBeneficiaries, SaveBeneficiaryPrompt } from "./components/SavedBeneficiaries.jsx"
+import AdminScreen, { isAdminUser } from "./pages/AdminScreen.jsx"
 
 // VTPass serviceID mappings for the real-payments path (VITE_REAL_PAYMENTS).
 // These are just VTPass serviceID strings — actual bundle/plan options and
@@ -695,6 +696,15 @@ setElecMinAmount(null)
 const reportIssue=(tx)=>{
 const ref = "ZAP-" + String(tx.id).slice(-10).toUpperCase()
 const msg = `Hi Zappi NG Support, I'd like to report an issue with a transaction.\n\nReference: ${ref}\nService: ${tx.label}\nAmount: ${tx.amount} (${tx.pi})\nDate: ${tx.ts ? new Date(tx.ts).toLocaleString() : tx.date}\n\nIssue: `
+const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const token = localStorage.getItem("zappi_token")
+if (token) {
+fetch(`${apiUrl}/api/tickets`, {
+method: "POST",
+headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+body: JSON.stringify({ subject: `Transaction issue — ${ref}`, message: `Service: ${tx.label}\nAmount: ${tx.amount} (${tx.pi})\nReference: ${ref}` }),
+}).catch(() => {}) // fire-and-forget — WhatsApp opening should never be blocked by this
+}
 window.open(`https://wa.me/${CONFIG.whatsappNumber}?text=${encodeURIComponent(msg)}`, "_blank")
 }
 const buyAgain=(tx)=>{
@@ -858,6 +868,7 @@ const [legalPage, setLegalPage] = useState(null)
 if (legalPage === "privacy") return <PrivacyPolicy onBack={() => setLegalPage(null)} />
 if (legalPage === "terms") return <TermsOfService onBack={() => setLegalPage(null)} />
 if (legalPage === "support") return <SupportPage onBack={() => setLegalPage(null)} />
+if (legalPage === "admin") return <AdminScreen onBack={() => setLegalPage(null)} showToast={showToast} />
 
 const filteredTx = txFilter==="all"?transactions:transactions.filter(t=>t.type===txFilter)
 
@@ -1336,6 +1347,7 @@ return (
 <SCard icon="👤" label="My Profile" desc="Manage your account" bg="#F0F0FF" onClick={()=>setShowProfile(true)}/>
 <SCard icon="💬" label="Help & Support" desc="FAQ, WhatsApp, contact us" bg="#F0FDF4" onClick={()=>setLegalPage("support")}/>
 <SCard icon="🌙" label="Dark Mode" desc={theme==="dark"?"Switch to light mode":"Switch to dark mode"} bg="#F0F0FF" onClick={toggleTheme}/>
+{isAdminUser() && <SCard icon="🛠️" label="Admin" desc="Announcements & support tickets" bg="#F0F0FF" onClick={()=>setLegalPage("admin")}/>}
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Legal</p>
 <SCard icon="📄" label="Privacy Policy" desc="How we handle your data" bg="#F9FAFB" onClick={()=>setLegalPage("privacy")}/>
 <SCard icon="📋" label="Terms of Service" desc="Rules for using Zappi NG" bg="#F9FAFB" onClick={()=>setLegalPage("terms")}/>

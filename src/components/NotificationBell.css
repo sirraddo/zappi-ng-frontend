@@ -101,6 +101,32 @@
   color: #dc2626;
 }
 
+.notif-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  flex-shrink: 0;
+}
+
+.notif-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+  cursor: pointer;
+  padding: 6px 4px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.notif-tab.active {
+  background: var(--primary-light, #FDEEE3);
+  color: var(--primary, #CC4E00);
+}
+
 .notif-list {
   overflow-y: auto;
   flex: 1;
