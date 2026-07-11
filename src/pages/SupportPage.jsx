@@ -13,6 +13,18 @@ import { useState } from "react";
 import { useTheme } from "../context/ThemeContext";
 import "./SupportPage.css";
 
+const API_URL = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com";
+
+function logTicket(subject, message) {
+  const token = localStorage.getItem("zappi_token");
+  if (!token) return; // not logged in yet — nothing to attach the ticket to
+  fetch(`${API_URL}/api/tickets`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ subject, message }),
+  }).catch(() => {}); // fire-and-forget — WhatsApp opening should never be blocked by this
+}
+
 export const CONFIG = {
   whatsappNumber: "2349011653172",
   supportEmail: "zappingsupport@gmail.com",
@@ -56,6 +68,7 @@ export default function SupportPage({ onBack }) {
   const { theme, toggleTheme } = useTheme();
 
   function openWhatsApp() {
+    logTicket("General support request", "Opened WhatsApp support chat from the app.");
     window.open(`https://wa.me/${CONFIG.whatsappNumber}?text=Hi+Zappi+NG+Support,+I+need+help+with+my+account.`, "_blank");
   }
 
