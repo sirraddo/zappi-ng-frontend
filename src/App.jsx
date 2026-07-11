@@ -945,7 +945,7 @@ return (
 <div style={{padding:"8px 16px 0"}}>
 <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:4}}>
 {[
-{icon:"⚡",title:"Instant bill payments",desc:"Airtime, data, electricity & more — paid with Pi",bg:"linear-gradient(135deg,#7C3AED,#9F67F5)"},
+{icon:"⚡",title:"Instant bill payments",desc:"Airtime, data, electricity & more — paid with Pi",bg:"linear-gradient(135deg,#CC4E00,#FF7A33)"},
 {icon:"📊",title:"Live market rate",desc:"Our Pi/NGN rate updates in real time, not fixed",bg:"linear-gradient(135deg,#059669,#10B981)"},
 {icon:"🔒",title:"Secure by design",desc:"Every payment needs your transaction PIN",bg:"linear-gradient(135deg,#EA580C,#F59E0B)"},
 ].map(promo=>(
