@@ -11,8 +11,8 @@ import { hasServerPin, hasLegacyPin, REAL_PAYMENTS, completeBillPayment } from "
 import SavedBeneficiaries, { useBeneficiaries, SaveBeneficiaryPrompt } from "./components/SavedBeneficiaries.jsx"
 
 // VTPass serviceID mappings for the real-payments path (VITE_REAL_PAYMENTS).
-// NOTE: data-bundle/cable variation codes are still local placeholders — the
-// catalog should come from /api/payments/services + /variations (follow-up).
+// These are just VTPass serviceID strings — actual bundle/plan options and
+// prices are fetched live via VariationGrid -> /api/payments/variations.
 const VTPASS_AIRTIME = { MTN: "mtn", Airtel: "airtel", Glo: "glo", "9mobile": "etisalat" }
 const VTPASS_DATA = { MTN: "mtn-data", Airtel: "airtel-data", Glo: "glo-data", "9mobile": "etisalat-data", "GLO SME": "GLO-sme-data" }
 const VTPASS_CABLE = { DStv: "dstv", GOtv: "gotv", Startimes: "startimes" }
