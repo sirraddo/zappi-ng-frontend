@@ -15,7 +15,7 @@ import "./LegalPages.css";
 const CONFIG = {
   appName: "Zappi NG",
   companyName: "Zappi NG",           // TODO: update with your registered business name
-  contactEmail: "support@zappi.ng",  // TODO: update with your support email
+  contactEmail: "zappingsupport@gmail.com",
   website: "https://zappi.ng",       // TODO: update with your deployed URL
   effectiveDate: "1 January 2025",
 };
