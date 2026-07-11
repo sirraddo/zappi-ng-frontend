@@ -40,6 +40,11 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
   const [loading, setLoading] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newBody, setNewBody] = useState("");
+  const [banners, setBanners] = useState([]);
+  const [newBannerTitle, setNewBannerTitle] = useState("");
+  const [newBannerDesc, setNewBannerDesc] = useState("");
+  const [newBannerLink, setNewBannerLink] = useState("");
+  const [newBannerOrder, setNewBannerOrder] = useState("0");
 
   function loadAnnouncements() {
     setLoading(true);
@@ -59,9 +64,19 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
       .finally(() => setLoading(false));
   }
 
+  function loadBanners() {
+    setLoading(true);
+    fetch(`${API_URL}/api/banners/all`, { headers: authHdrs() })
+      .then((r) => r.json())
+      .then((d) => setBanners(d.banners || []))
+      .catch(() => showToast("Could not load banners", "danger"))
+      .finally(() => setLoading(false));
+  }
+
   useEffect(() => {
     if (tab === "announcements") loadAnnouncements();
-    else loadTickets();
+    else if (tab === "tickets") loadTickets();
+    else loadBanners();
   }, [tab]);
 
   function createAnnouncement() {
@@ -110,6 +125,39 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
       .catch(() => showToast("Could not update ticket", "danger"));
   }
 
+  function createBanner() {
+    if (!newBannerTitle.trim() || !newBannerDesc.trim()) {
+      showToast("Title and description are required", "danger");
+      return;
+    }
+    fetch(`${API_URL}/api/banners`, {
+      method: "POST",
+      headers: authHdrs(),
+      body: JSON.stringify({ title: newBannerTitle, desc: newBannerDesc, link: newBannerLink, order: Number(newBannerOrder) || 0 }),
+    })
+      .then((r) => r.json())
+      .then(() => {
+        setNewBannerTitle("");
+        setNewBannerDesc("");
+        setNewBannerLink("");
+        setNewBannerOrder("0");
+        loadBanners();
+        showToast("Banner published", "success");
+      })
+      .catch(() => showToast("Could not create banner", "danger"));
+  }
+
+  function toggleBanner(id, active) {
+    fetch(`${API_URL}/api/banners/${id}`, {
+      method: "PATCH",
+      headers: authHdrs(),
+      body: JSON.stringify({ active: !active }),
+    })
+      .then((r) => r.json())
+      .then(() => loadBanners())
+      .catch(() => showToast("Could not update banner", "danger"));
+  }
+
   return (
     <div style={{ padding: 16 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
@@ -136,6 +184,15 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
             fontWeight: 700, cursor: "pointer",
           }}
         >Support Tickets</button>
+        <button
+          onClick={() => setTab("banners")}
+          style={{
+            flex: 1, padding: "8px 0", borderRadius: 10, border: "none",
+            background: tab === "banners" ? "var(--primary-light)" : "var(--bg-secondary)",
+            color: tab === "banners" ? "var(--primary)" : "var(--text-secondary)",
+            fontWeight: 700, cursor: "pointer",
+          }}
+        >Banners</button>
       </div>
 
       {tab === "announcements" && (
@@ -208,6 +265,67 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
             </div>
           ))
         )
+      )}
+
+      {tab === "banners" && (
+        <>
+          <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 14 }}>New banner</div>
+            <input
+              value={newBannerTitle}
+              onChange={(e) => setNewBannerTitle(e.target.value)}
+              placeholder="Title"
+              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 8, boxSizing: "border-box" }}
+            />
+            <textarea
+              value={newBannerDesc}
+              onChange={(e) => setNewBannerDesc(e.target.value)}
+              placeholder="Description"
+              rows={2}
+              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 8, boxSizing: "border-box", fontFamily: "inherit" }}
+            />
+            <input
+              value={newBannerLink}
+              onChange={(e) => setNewBannerLink(e.target.value)}
+              placeholder="Link (optional — https://...)"
+              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 8, boxSizing: "border-box" }}
+            />
+            <input
+              value={newBannerOrder}
+              onChange={(e) => setNewBannerOrder(e.target.value)}
+              placeholder="Display order (0 = first)"
+              type="number"
+              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 8, boxSizing: "border-box" }}
+            />
+            <button
+              onClick={createBanner}
+              style={{ width: "100%", padding: 12, borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer" }}
+            >Publish</button>
+          </div>
+
+          {loading ? (
+            <div>Loading…</div>
+          ) : banners.length === 0 ? (
+            <div style={{ color: "var(--text-secondary)" }}>No banners yet</div>
+          ) : (
+            banners.map((b) => (
+              <div key={b._id} style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 10, opacity: b.active ? 1 : 0.5 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{b.title}</div>
+                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: b.active ? "#DCFCE7" : "#F3F4F6", color: b.active ? "#166534" : "#6B7280" }}>
+                    {b.active ? "Active" : "Hidden"}
+                  </span>
+                </div>
+                <div style={{ fontSize: 13, color: "var(--text-secondary)", margin: "6px 0" }}>{b.desc}</div>
+                {b.link && <div style={{ fontSize: 12, color: "var(--primary)", marginBottom: 6, wordBreak: "break-all" }}>{b.link}</div>}
+                <button
+                  onClick={() => toggleBanner(b._id, b.active)}
+                  style={{ fontSize: 12, background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}
+                >{b.active ? "Hide" : "Reactivate"}</button>
+              </div>
+            ))
+          )}
+        </>
       )}
     </div>
   );
