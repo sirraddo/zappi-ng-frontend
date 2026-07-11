@@ -882,7 +882,7 @@ return (
 
 {page==="home"&&!subPage&&(
 <div>
-<div style={{background:`linear-gradient(135deg,${C.primary} 0%,#9F67F5 100%)`,padding:"calc(env(safe-area-inset-top, 0px) + 52px) 16px 40px"}}>
+<div style={{background:`linear-gradient(135deg,${C.primary} 0%,#FF7A33 100%)`,padding:"calc(env(safe-area-inset-top, 0px) + 52px) 16px 40px"}}>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
 <div>
 <p style={{color:"rgba(255,255,255,0.8)",fontSize:12,margin:0}}>Good day, Pioneer 👋</p>
@@ -932,7 +932,7 @@ return (
 <div style={{padding:"20px 16px 8px"}}>
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"0 0 12px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Quick actions</p>
 <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
-{[{label:"Buy Airtime",icon:"📱",bg:"#EDE9FE",color:"#7C3AED",sub:"airtime"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",color:"#059669",sub:"data"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",color:"#EA580C",sub:"electricity"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",color:"#A21CAF",sub:"cable"}].map(item=>(
+{[{label:"Buy Airtime",icon:"📱",bg:"#EFF6FF",color:"#2563EB",sub:"airtime"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",color:"#059669",sub:"data"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",color:"#EA580C",sub:"electricity"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",color:"#A21CAF",sub:"cable"}].map(item=>(
 <button key={item.label} onClick={()=>{setPage("bills");setSubPage(item.sub)}} style={{background:"var(--card-bg)",border:"none",borderRadius:14,padding:16,textAlign:"left",cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}} onMouseDown={e=>e.currentTarget.style.transform="scale(0.97)"} onMouseUp={e=>e.currentTarget.style.transform="scale(1)"}>
 <div style={{width:42,height:42,borderRadius:12,background:item.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,marginBottom:8}}>{item.icon}</div>
 <p style={{margin:0,fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>{item.label}</p>
