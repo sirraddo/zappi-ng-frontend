@@ -491,13 +491,13 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
               value={newFlagKey}
               onChange={(e) => setNewFlagKey(e.target.value)}
               placeholder="Key (e.g. insurance_enabled)"
-              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 8, boxSizing: "border-box", color: "var(--text-primary)" }}
+              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 8, boxSizing: "border-box", background: "var(--card-bg)", color: "var(--text-primary)" }}
             />
             <input
               value={newFlagLabel}
               onChange={(e) => setNewFlagLabel(e.target.value)}
               placeholder="Label (e.g. Insurance)"
-              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 8, boxSizing: "border-box", color: "var(--text-primary)" }}
+              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 8, boxSizing: "border-box", background: "var(--card-bg)", color: "var(--text-primary)" }}
             />
             <button
               onClick={createFlag}
@@ -538,7 +538,7 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
               onChange={(e) => setUserQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && lookupUser()}
               placeholder="Pi username"
-              style={{ flex: 1, padding: 10, borderRadius: 8, border: "1px solid var(--border)", boxSizing: "border-box", color: "var(--text-primary)" }}
+              style={{ flex: 1, padding: 10, borderRadius: 8, border: "1px solid var(--border)", boxSizing: "border-box", background: "var(--card-bg)", color: "var(--text-primary)" }}
             />
             <button
               onClick={lookupUser}
