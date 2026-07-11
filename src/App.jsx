@@ -1006,7 +1006,7 @@ return (
 <div>
 <Header title="Refer & Earn" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
-<div style={{background:`linear-gradient(135deg,${C.primary},#9F67F5)`,borderRadius:16,padding:20,textAlign:"center",marginBottom:16}}>
+<div style={{background:`linear-gradient(135deg,${C.primary},#FF7A33)`,borderRadius:16,padding:20,textAlign:"center",marginBottom:16}}>
 <p style={{color:"white",fontSize:30,margin:0}}>🎯</p>
 <p style={{color:"white",fontWeight:700,fontSize:18,margin:"8px 0 4px"}}>Refer & Earn Pi</p>
 <p style={{color:"rgba(255,255,255,0.8)",fontSize:13,margin:0}}>Earn π0.50 for every Pioneer who makes their first payment</p>
