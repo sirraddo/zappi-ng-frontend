@@ -194,7 +194,7 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
   return (
     <div style={{ padding: 16 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer" }}>←</button>
+        <button onClick={onBack} style={{ background: "none", color: "var(--text-primary)", border: "none", fontSize: 20, cursor: "pointer" }}>←</button>
         <h2 style={{ margin: 0, fontSize: 18 }}>Admin</h2>
       </div>
 
@@ -369,7 +369,7 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
                 <div style={{ fontSize: 13, color: "var(--text-secondary)", margin: "6px 0" }}>{a.body}</div>
                 <button
                   onClick={() => toggleAnnouncement(a._id, a.active)}
-                  style={{ fontSize: 12, background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}
+                  style={{ fontSize: 12, background: "none", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}
                 >{a.active ? "Hide" : "Reactivate"}</button>
               </div>
             ))
@@ -395,7 +395,7 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
               <div style={{ fontSize: 13, margin: "6px 0" }}>{t.message}</div>
               <button
                 onClick={() => markTicketSolved(t._id, t.status)}
-                style={{ fontSize: 12, background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}
+                style={{ fontSize: 12, background: "none", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}
               >{t.status === "solved" ? "Reopen" : "Mark Solved"}</button>
             </div>
           ))
@@ -455,7 +455,7 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
                 {b.link && <div style={{ fontSize: 12, color: "var(--primary)", marginBottom: 6, wordBreak: "break-all" }}>{b.link}</div>}
                 <button
                   onClick={() => toggleBanner(b._id, b.active)}
-                  style={{ fontSize: 12, background: "none", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}
+                  style={{ fontSize: 12, background: "none", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}
                 >{b.active ? "Hide" : "Reactivate"}</button>
               </div>
             ))
