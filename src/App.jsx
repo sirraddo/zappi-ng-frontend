@@ -121,7 +121,7 @@ return (
 </div>
 </div>
 ))}
-<button onClick={onClose} style={{width:"100%",background:"#6C3AED",color:"white",border:"none",borderRadius:12,padding:14,fontWeight:700,fontSize:14,cursor:"pointer",marginTop:4}}>Got it</button>
+<button onClick={onClose} style={{width:"100%",background:"#CC4E00",color:"white",border:"none",borderRadius:12,padding:14,fontWeight:700,fontSize:14,cursor:"pointer",marginTop:4}}>Got it</button>
 </div>
 </div>
 )
@@ -144,7 +144,7 @@ return (
 
 function Header({ title, onBack, right }) {
 return (
-<div style={{background:`linear-gradient(135deg,${C.primary},#9F67F5)`,padding:"16px",display:"flex",alignItems:"center",gap:12}}>
+<div style={{background:`linear-gradient(135deg,${C.primary},#FF7A33)`,padding:"16px",display:"flex",alignItems:"center",gap:12}}>
 {onBack&&<button onClick={onBack} style={{background:"rgba(255,255,255,0.2)",border:"none",color:"white",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:14,fontWeight:500}}>←</button>}
 <p style={{color:"white",fontSize:16,fontWeight:600,margin:0,flex:1}}>{title}</p>
 {right&&right}
