@@ -38,8 +38,8 @@
 }
 
 .beneficiary-chip.active {
-  border-color: var(--primary, #7c3aed);
-  background: #f5f3ff;
+  border-color: var(--primary, #CC4E00);
+  background: #FDEEE3;
 }
 
 .beneficiary-select {
@@ -72,7 +72,7 @@
 
 .beneficiary-provider {
   font-size: 10px;
-  color: var(--primary, #7c3aed);
+  color: var(--primary, #CC4E00);
   font-weight: 500;
 }
 
@@ -131,7 +131,7 @@
 }
 
 .save-prompt-input:focus {
-  border-color: var(--primary, #7c3aed);
+  border-color: var(--primary, #CC4E00);
 }
 
 .save-prompt-actions {
@@ -153,7 +153,7 @@
 .save-prompt-save {
   flex: 2;
   padding: 10px;
-  background: var(--primary, #7c3aed);
+  background: var(--primary, #CC4E00);
   border: none;
   border-radius: 10px;
   font-size: 14px;
@@ -175,7 +175,7 @@
 }
 
 [data-theme="dark"] .beneficiary-chip.active {
-  background: #2d1f4a;
+  background: #402710;
 }
 
 [data-theme="dark"] .save-prompt {
