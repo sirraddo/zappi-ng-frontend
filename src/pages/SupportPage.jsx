@@ -66,6 +66,32 @@ const FAQS = [
 export default function SupportPage({ onBack }) {
   const [openFaq, setOpenFaq] = useState(null);
   const { theme, toggleTheme } = useTheme();
+  const [issueText, setIssueText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  function submitIssue() {
+    const text = issueText.trim();
+    if (!text) return;
+    setSending(true);
+    const subject = text.length > 60 ? text.slice(0, 60) + "…" : text;
+    const ticketToken = localStorage.getItem("zappi_token");
+    fetch(`${API_URL}/api/tickets`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(ticketToken ? { Authorization: `Bearer ${ticketToken}` } : {}) },
+      body: JSON.stringify({ subject, message: text }),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("failed");
+        setIssueText("");
+        setSent(true);
+        setTimeout(() => setSent(false), 5000);
+      })
+      .catch(() => {
+        // Couldn't reach the backend (e.g. cold start) — WhatsApp/email below still work
+      })
+      .finally(() => setSending(false));
+  }
 
   function openWhatsApp() {
     logTicket("General support request", "Opened WhatsApp support chat from the app.");
@@ -88,7 +114,22 @@ export default function SupportPage({ onBack }) {
 
       <div className="support-body">
         {/* Contact options */}
-        <div className="support-section-label">Contact Us</div>
+        <div className="support-section-label">Describe your issue</div>
+        <textarea
+          value={issueText}
+          onChange={(e) => setIssueText(e.target.value)}
+          placeholder="Tell us what's going on — we'll get back to you as soon as we can."
+          rows={4}
+          style={{ width: "100%", padding: 12, borderRadius: 10, border: "1px solid var(--border)", marginBottom: 8, boxSizing: "border-box", fontFamily: "inherit", fontSize: 14 }}
+        />
+        <button
+          onClick={submitIssue}
+          disabled={!issueText.trim() || sending}
+          style={{ width: "100%", padding: 12, borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: issueText.trim() ? "pointer" : "not-allowed", opacity: !issueText.trim() || sending ? 0.6 : 1, marginBottom: 6 }}
+        >{sending ? "Sending…" : "Send"}</button>
+        {sent && <div style={{ color: "#16a34a", fontSize: 13, marginBottom: 12 }}>Sent — we'll get back to you soon.</div>}
+
+        <div className="support-section-label" style={{ marginTop: 20 }}>Prefer WhatsApp or email? (e.g. to attach a screenshot)</div>
         <div className="support-contacts">
           <button className="support-contact-btn whatsapp" onClick={openWhatsApp}>
             <span className="contact-icon">💬</span>
