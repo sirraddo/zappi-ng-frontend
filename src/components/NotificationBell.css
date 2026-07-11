@@ -119,7 +119,7 @@
 }
 
 .notif-item.unread {
-  background: var(--primary-light, #f5f3ff);
+  background: var(--primary-light, #FDEEE3);
 }
 
 .notif-item:hover {
@@ -190,7 +190,7 @@
 }
 
 [data-theme="dark"] .notif-item.unread {
-  background: #2d1f4a;
+  background: #402710;
 }
 
 [data-theme="dark"] .notif-item:hover {

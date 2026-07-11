@@ -23,7 +23,7 @@ const VTPASS_DISCO = { IKEDC: "ikeja-electric", EKEDC: "eko-electric", IBEDC: "i
 
 const RATE = 600 // fallback only — app uses live rate from backend
 const C = {
-primary: "#6C3AED", light: "var(--primary-light)",
+primary: "#CC4E00", light: "var(--primary-light)",
 success: "#22C55E", danger: "#EF4444", bg: "var(--bg-secondary)",
 }
 
@@ -114,14 +114,14 @@ return (
 <p style={{margin:"0 0 20px",fontSize:13,color:"var(--text-tertiary)"}}>Pay Nigerian bills with Pi in 4 simple steps.</p>
 {steps.map(s=>(
 <div key={s.n} style={{display:"flex",gap:12,marginBottom:16}}>
-<div style={{width:28,height:28,borderRadius:"50%",background:"var(--primary-light)",color:"#6C3AED",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:13,flexShrink:0}}>{s.n}</div>
+<div style={{width:28,height:28,borderRadius:"50%",background:"var(--primary-light)",color:"#CC4E00",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:13,flexShrink:0}}>{s.n}</div>
 <div>
 <p style={{margin:0,fontSize:14,fontWeight:700,color:"var(--text-primary)"}}>{s.title}</p>
 <p style={{margin:"2px 0 0",fontSize:12,color:"var(--text-secondary)",lineHeight:1.4}}>{s.desc}</p>
 </div>
 </div>
 ))}
-<button onClick={onClose} style={{width:"100%",background:"#6C3AED",color:"white",border:"none",borderRadius:12,padding:14,fontWeight:700,fontSize:14,cursor:"pointer",marginTop:4}}>Got it</button>
+<button onClick={onClose} style={{width:"100%",background:"#CC4E00",color:"white",border:"none",borderRadius:12,padding:14,fontWeight:700,fontSize:14,cursor:"pointer",marginTop:4}}>Got it</button>
 </div>
 </div>
 )
@@ -144,7 +144,7 @@ return (
 
 function Header({ title, onBack, right }) {
 return (
-<div style={{background:`linear-gradient(135deg,${C.primary},#9F67F5)`,padding:"16px",display:"flex",alignItems:"center",gap:12}}>
+<div style={{background:`linear-gradient(135deg,${C.primary},#FF7A33)`,padding:"16px",display:"flex",alignItems:"center",gap:12}}>
 {onBack&&<button onClick={onBack} style={{background:"rgba(255,255,255,0.2)",border:"none",color:"white",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:14,fontWeight:500}}>←</button>}
 <p style={{color:"white",fontSize:16,fontWeight:600,margin:0,flex:1}}>{title}</p>
 {right&&right}
@@ -882,7 +882,7 @@ return (
 
 {page==="home"&&!subPage&&(
 <div>
-<div style={{background:`linear-gradient(135deg,${C.primary} 0%,#9F67F5 100%)`,padding:"calc(env(safe-area-inset-top, 0px) + 52px) 16px 40px"}}>
+<div style={{background:`linear-gradient(135deg,${C.primary} 0%,#FF7A33 100%)`,padding:"calc(env(safe-area-inset-top, 0px) + 52px) 16px 40px"}}>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
 <div>
 <p style={{color:"rgba(255,255,255,0.8)",fontSize:12,margin:0}}>Good day, Pioneer 👋</p>
@@ -932,7 +932,7 @@ return (
 <div style={{padding:"20px 16px 8px"}}>
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"0 0 12px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Quick actions</p>
 <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
-{[{label:"Buy Airtime",icon:"📱",bg:"#EDE9FE",color:"#7C3AED",sub:"airtime"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",color:"#059669",sub:"data"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",color:"#EA580C",sub:"electricity"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",color:"#A21CAF",sub:"cable"}].map(item=>(
+{[{label:"Buy Airtime",icon:"📱",bg:"#EFF6FF",color:"#2563EB",sub:"airtime"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",color:"#059669",sub:"data"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",color:"#EA580C",sub:"electricity"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",color:"#A21CAF",sub:"cable"}].map(item=>(
 <button key={item.label} onClick={()=>{setPage("bills");setSubPage(item.sub)}} style={{background:"var(--card-bg)",border:"none",borderRadius:14,padding:16,textAlign:"left",cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}} onMouseDown={e=>e.currentTarget.style.transform="scale(0.97)"} onMouseUp={e=>e.currentTarget.style.transform="scale(1)"}>
 <div style={{width:42,height:42,borderRadius:12,background:item.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,marginBottom:8}}>{item.icon}</div>
 <p style={{margin:0,fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>{item.label}</p>
@@ -945,7 +945,7 @@ return (
 <div style={{padding:"8px 16px 0"}}>
 <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:4}}>
 {[
-{icon:"⚡",title:"Instant bill payments",desc:"Airtime, data, electricity & more — paid with Pi",bg:"linear-gradient(135deg,#7C3AED,#9F67F5)"},
+{icon:"⚡",title:"Instant bill payments",desc:"Airtime, data, electricity & more — paid with Pi",bg:"linear-gradient(135deg,#CC4E00,#FF7A33)"},
 {icon:"📊",title:"Live market rate",desc:"Our Pi/NGN rate updates in real time, not fixed",bg:"linear-gradient(135deg,#059669,#10B981)"},
 {icon:"🔒",title:"Secure by design",desc:"Every payment needs your transaction PIN",bg:"linear-gradient(135deg,#EA580C,#F59E0B)"},
 ].map(promo=>(
@@ -1006,7 +1006,7 @@ return (
 <div>
 <Header title="Refer & Earn" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
-<div style={{background:`linear-gradient(135deg,${C.primary},#9F67F5)`,borderRadius:16,padding:20,textAlign:"center",marginBottom:16}}>
+<div style={{background:`linear-gradient(135deg,${C.primary},#FF7A33)`,borderRadius:16,padding:20,textAlign:"center",marginBottom:16}}>
 <p style={{color:"white",fontSize:30,margin:0}}>🎯</p>
 <p style={{color:"white",fontWeight:700,fontSize:18,margin:"8px 0 4px"}}>Refer & Earn Pi</p>
 <p style={{color:"rgba(255,255,255,0.8)",fontSize:13,margin:0}}>Earn π0.50 for every Pioneer who makes their first payment</p>

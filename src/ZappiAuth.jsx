@@ -4,7 +4,7 @@ import {
 } from "./hooks/useTxnConfirmation"
 
 const C = {
-  primary: "#6C3AED",
+  primary: "#CC4E00",
   light: "var(--primary-light)",
   success: "#22C55E",
   danger: "#EF4444",
@@ -111,7 +111,7 @@ export function SplashScreen({ onContinue, onSuccess }) {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: `linear-gradient(160deg,${C.primary} 0%,#9F67F5 60%,#C4B5FD 100%)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+    <div style={{ minHeight: "100vh", background: `linear-gradient(160deg,${C.primary} 0%,#FF7A33 60%,#FFCBA3 100%)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ width: 90, height: 90, borderRadius: 28, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 44, marginBottom: 20, backdropFilter: "blur(10px)", border: "2px solid rgba(255,255,255,0.3)" }}>⚡</div>
       <h1 style={{ color: "white", fontSize: 36, fontWeight: 900, margin: "0 0 8px", letterSpacing: "-1px" }}>Zappi NG</h1>
       <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 15, margin: "0 0 60px", textAlign: "center", lineHeight: 1.5 }}>Pay bills. Send Pi. Live better.</p>
@@ -134,7 +134,7 @@ export function LoginScreen({ onSuccess }) {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: `linear-gradient(160deg,${C.primary} 0%,#9F67F5 60%,#C4B5FD 100%)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+    <div style={{ minHeight: "100vh", background: `linear-gradient(160deg,${C.primary} 0%,#FF7A33 60%,#FFCBA3 100%)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ width: 90, height: 90, borderRadius: 28, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 44, marginBottom: 20, backdropFilter: "blur(10px)", border: "2px solid rgba(255,255,255,0.3)" }}>⚡</div>
       <h1 style={{ color: "white", fontSize: 36, fontWeight: 900, margin: "0 0 8px", letterSpacing: "-1px" }}>Welcome back</h1>
       <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 15, margin: "0 0 60px", textAlign: "center", lineHeight: 1.5 }}>Sign in with Pi Network to continue</p>
@@ -435,7 +435,7 @@ export function ProfileScreen({ onBack, onLogout }) {
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg }}>
-      <div style={{ background: `linear-gradient(135deg,${C.primary},#9F67F5)`, padding: "calc(env(safe-area-inset-top, 0px) + 48px) 20px 32px", textAlign: "center" , position: "relative" }}>
+      <div style={{ background: `linear-gradient(135deg,${C.primary},#FF7A33)`, padding: "calc(env(safe-area-inset-top, 0px) + 48px) 20px 32px", textAlign: "center" , position: "relative" }}>
         <button onClick={onBack} style={{ position: "absolute", left: 16, top: 40, background: "rgba(255,255,255,0.2)", border: "none", color: "white", borderRadius: 10, padding: "6px 14px", cursor: "pointer", fontSize: 14, fontWeight: 500 }}>←</button>
         <label style={{ width: 70, height: 70, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, margin: "0 auto 12px", border: "3px solid rgba(255,255,255,0.4)", cursor: "pointer", position: "relative", overflow: "visible" }}>
           {user.avatarImage ? <img src={user.avatarImage} alt="" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover", opacity: uploadingAvatar ? 0.5 : 1 }} /> : (user.avatar || "⚡")}
