@@ -274,7 +274,7 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
   return (
     <div style={{ padding: 16 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer" }}>←</button>
+        <button onClick={onBack} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 4, padding: "6px 8px 6px 0" }}>← <span style={{ fontSize: 15, fontWeight: 600 }}>Back</span></button>
         <h2 style={{ margin: 0, fontSize: 18 }}>Admin</h2>
       </div>
 
