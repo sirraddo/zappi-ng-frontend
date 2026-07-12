@@ -16,7 +16,7 @@ const CONFIG = {
   appName: "Zappi NG",
   companyName: "Zappi NG",           // TODO: update with your registered business name
   contactEmail: "zappingsupport@gmail.com",
-  website: "https://zappi.ng",       // TODO: update with your deployed URL
+  website: "https://zappi-ng-frontend.vercel.app",
   effectiveDate: "1 January 2025",
 };
 
