@@ -74,12 +74,76 @@ function timeAgo(ts) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
+// Old tickets (created before the message thread existed) only have a
+// single `message` + optional `reply` field. New tickets always populate
+// `messages`. This normalizes either shape into one chronological list —
+// mirrors the same helper in AdminScreen.jsx.
+function ticketThread(t) {
+  if (t.messages && t.messages.length > 0) return t.messages;
+  const thread = [{ sender: "user", text: t.message, createdAt: t.createdAt }];
+  if (t.reply) thread.push({ sender: "admin", text: t.reply, createdAt: t.resolvedAt || t.updatedAt || t.createdAt });
+  return thread;
+}
+
+// Full conversation for one ticket — tapped open from the Support list.
+// Lets the user keep replying instead of the thread being a dead end
+// after the first message.
+function TicketThreadView({ ticket, onBack, onUpdated }) {
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+
+  function send() {
+    const text = draft.trim();
+    if (!text) return;
+    setSending(true);
+    fetch(`${API_URL}/api/tickets/${ticket._id}/messages`, {
+      method: "POST",
+      headers: authHdrs(),
+      body: JSON.stringify({ text }),
+    })
+      .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        if (!ok) return;
+        setDraft("");
+        onUpdated(d.ticket);
+      })
+      .finally(() => setSending(false));
+  }
+
+  return (
+    <div className="notif-thread">
+      <div className="notif-thread-header">
+        <button className="notif-thread-back" onClick={onBack}>← Back</button>
+        <span className="notif-thread-subject">{ticket.subject}</span>
+      </div>
+      <div className="notif-thread-messages">
+        {ticketThread(ticket).map((m, i) => (
+          <div key={i} className={`notif-thread-bubble ${m.sender === "admin" ? "admin" : "user"}`}>
+            <div>{m.text}</div>
+          </div>
+        ))}
+      </div>
+      <div className="notif-thread-input">
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+          placeholder="Reply…"
+          rows={2}
+        />
+        <button onClick={send} disabled={!draft.trim() || sending}>{sending ? "…" : "Send"}</button>
+      </div>
+    </div>
+  );
+}
+
 export default function NotificationBell() {
   const [notifications, setNotifications] = useState([]);
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("transactions");
   const [announcements, setAnnouncements] = useState([]);
   const [tickets, setTickets] = useState([]);
+  const [selectedTicket, setSelectedTicket] = useState(null);
   const [loadingRemote, setLoadingRemote] = useState(false);
   const [announcementsUnread, setAnnouncementsUnread] = useState(0);
   const panelRef = useRef(null);
@@ -237,7 +301,16 @@ export default function NotificationBell() {
           )}
 
           {tab === "support" && (
-            loadingRemote ? (
+            selectedTicket ? (
+              <TicketThreadView
+                ticket={selectedTicket}
+                onBack={() => setSelectedTicket(null)}
+                onUpdated={(updated) => {
+                  setSelectedTicket(updated);
+                  setTickets((ts) => ts.map((x) => (x._id === updated._id ? updated : x)));
+                }}
+              />
+            ) : loadingRemote ? (
               <div className="notif-empty"><div>Loading…</div></div>
             ) : tickets.length === 0 ? (
               <div className="notif-empty">
@@ -247,7 +320,7 @@ export default function NotificationBell() {
             ) : (
               <div className="notif-list">
                 {tickets.map((t) => (
-                  <div key={t._id} className="notif-item read">
+                  <div key={t._id} className="notif-item read" onClick={() => setSelectedTicket(t)} style={{ cursor: "pointer" }}>
                     <div className="notif-type-icon" style={{ background: t.status === "solved" ? "#16a34a" : "#d97706" }}>
                       {t.status === "solved" ? "✓" : "⏳"}
                     </div>
