@@ -253,7 +253,7 @@ export default function NotificationBell() {
                     </div>
                     <div className="notif-content">
                       <div className="notif-title">{t.subject}</div>
-                      <div className="notif-body">{t.status === "solved" ? "Resolved" : "Open — we'll get back to you soon"}</div>
+                      <div className="notif-body">{t.reply || (t.status === "solved" ? "Resolved" : "Open — we'll get back to you soon")}</div>
                       <div className="notif-time">{timeAgo(new Date(t.createdAt).getTime())}</div>
                     </div>
                   </div>
