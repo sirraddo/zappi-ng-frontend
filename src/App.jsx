@@ -734,7 +734,7 @@ setElecMinAmount(null)
 // tx.raw is only present on transactions made after this feature shipped — older
 // seed/demo entries simply won't show the button (see the History row rendering).
 const reportIssue=(tx)=>{
-const ref = "ZAP-" + String(tx.id).slice(-10).toUpperCase()
+const ref = "ZAP-" + String(tx.backendId || tx.id).slice(-10).toUpperCase()
 const msg = `Hi Zappi NG Support, I'd like to report an issue with a transaction.\n\nReference: ${ref}\nService: ${tx.label}\nAmount: ${tx.amount} (${tx.pi})\nDate: ${tx.ts ? new Date(tx.ts).toLocaleString() : tx.date}\n\nIssue: `
 const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
 const token = localStorage.getItem("zappi_token")
@@ -742,7 +742,7 @@ if (token) {
 fetch(`${apiUrl}/api/tickets`, {
 method: "POST",
 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-body: JSON.stringify({ subject: `Transaction issue — ${ref}`, message: `Service: ${tx.label}\nAmount: ${tx.amount} (${tx.pi})\nReference: ${ref}` }),
+body: JSON.stringify({ subject: `Transaction issue — ${ref}`, message: `Service: ${tx.label}\nAmount: ${tx.amount} (${tx.pi})\nReference: ${ref}${tx.backendId ? `\nExact transaction ID: ${tx.backendId}` : ""}` }),
 }).catch(() => {}) // fire-and-forget — WhatsApp opening should never be blocked by this
 }
 window.open(`https://wa.me/${CONFIG.whatsappNumber}?text=${encodeURIComponent(msg)}`, "_blank")
@@ -792,11 +792,11 @@ default: return { serviceID: tx.type, billType: tx.type, amount: tx.ngn, phone: 
 }
 
 // Deducts the balance and records the transaction so History/Home stay truthful.
-const finishPayment=(service, tx, piCost)=>{
+const finishPayment=(service, tx, piCost, backendTxId)=>{
 setIsPaying(false)
 updateBalance(-piCost)
 const newTx = {
-id: Date.now(), ts: Date.now(), status: "success",
+id: Date.now(), backendId: backendTxId || null, ts: Date.now(), status: "success",
 type: tx.type, label: tx.label, sub: tx.sub,
 amount: `₦${Math.round(Number(tx.ngn)).toLocaleString()}`,
 pi: `π${piCost.toFixed(2)}`,
@@ -842,8 +842,8 @@ business_occupation: insOccupation,
 piAmount: piCost,
 }
 const deliver = async (token, piPaymentId) => {
-await completeBillPayment(txnFields, { ...extras, piPaymentId }, token)
-finishPayment(service, tx, piCost)
+const completion = await completeBillPayment(txnFields, { ...extras, piPaymentId }, token)
+finishPayment(service, tx, piCost, completion?.txId)
 }
 createPayment(
 { amount: Number(piCost.toFixed(7)), memo: `Zappi NG — ${service}`, metadata: { ...txnFields, ...extras } },
