@@ -24,11 +24,33 @@ function dbg(msg) {
   const old = document.getElementById("pi-debug");
   if (old) old.remove();
 }
-async function piLogin(onSuccess) {
+// The Pi SDK script loads asynchronously (see usePiNetwork.js) — checking
+// window.Pi the instant the button is tapped raced against that load and
+// intermittently claimed "not in Pi Browser" even when genuinely inside
+// it, just because the script hadn't finished loading yet. This polls for
+// up to 6s before concluding it's truly absent.
+function waitForPiSdk(timeoutMs = 6000, intervalMs = 150) {
+  return new Promise((resolve) => {
+    if (typeof window.Pi !== "undefined") { resolve(true); return; }
+    const start = Date.now();
+    const t = setInterval(() => {
+      if (typeof window.Pi !== "undefined") {
+        clearInterval(t);
+        resolve(true);
+      } else if (Date.now() - start > timeoutMs) {
+        clearInterval(t);
+        resolve(false);
+      }
+    }, intervalMs);
+  });
+}
+
+async function piLogin(onSuccess, onMessage) {
   dbg("1: piLogin started");
 
-  if (typeof window.Pi === "undefined") {
-    alert("Pi login works inside the Pi Browser app. Open this site in Pi Browser to continue.");
+  const piAvailable = await waitForPiSdk();
+  if (!piAvailable) {
+    onMessage?.("Pi login works inside the Pi Browser app. Open this site in Pi Browser to continue.");
     return;
   }
   dbg("2: Pi SDK present");
@@ -55,10 +77,10 @@ async function piLogin(onSuccess) {
       localStorage.setItem("zappi_token", data.token);
       onSuccess?.(data);
     } else {
-      alert("Pi verification failed. Please try again.");
+      onMessage?.("Pi verification failed. Please try again.");
     }
   } catch (e) {
-    alert("PI ERROR: " + (e?.message || "unknown error"));
+    onMessage?.(e?.message || "Something went wrong signing in. Please try again.");
   }
 }
 
@@ -100,13 +122,29 @@ function PinPad({ onPress, onDelete }) {
   )
 }
 
+// -- AUTH MESSAGE MODAL --
+// Replaces raw alert() popups for Pi login errors — those render as an
+// unstyled native browser dialog with zero branding.
+function AuthMessageModal({ text, onClose }) {
+  if (!text) return null
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 1000 }} onClick={onClose}>
+      <div style={{ background: "white", borderRadius: 18, padding: 24, maxWidth: 340, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.35)" }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ fontSize: 15, color: "#1F2937", lineHeight: 1.5, marginBottom: 20 }}>{text}</div>
+        <button onClick={onClose} style={{ width: "100%", padding: 12, borderRadius: 10, border: "none", background: C.primary, color: "white", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Got it</button>
+      </div>
+    </div>
+  )
+}
+
 // -- SPLASH SCREEN --
 export function SplashScreen({ onContinue, onSuccess }) {
   const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState(null)
 
   async function handlePi() {
     setBusy(true)
-    await piLogin(onSuccess)
+    await piLogin(onSuccess, setMessage)
     setBusy(false)
   }
 
@@ -119,6 +157,7 @@ export function SplashScreen({ onContinue, onSuccess }) {
         {busy ? "Connecting…" : "⚡ Continue with Pi"}
       </button>
       <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 24, textAlign: "center" }}>Powered by Pi Network · Made for Nigerians 🇳🇬</p>
+      <AuthMessageModal text={message} onClose={() => setMessage(null)} />
     </div>
   )
 }
@@ -126,10 +165,11 @@ export function SplashScreen({ onContinue, onSuccess }) {
 // -- LOGIN --
 export function LoginScreen({ onSuccess }) {
   const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState(null)
 
   async function handlePi() {
     setBusy(true)
-    await piLogin(onSuccess)
+    await piLogin(onSuccess, setMessage)
     setBusy(false)
   }
 
@@ -142,6 +182,7 @@ export function LoginScreen({ onSuccess }) {
         {busy ? "Connecting…" : "⚡ Continue with Pi"}
       </button>
       <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 24, textAlign: "center" }}>Powered by Pi Network · Made for Nigerians 🇳🇬</p>
+      <AuthMessageModal text={message} onClose={() => setMessage(null)} />
     </div>
   )
 }
