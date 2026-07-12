@@ -70,6 +70,9 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
   const [userQuery, setUserQuery] = useState("");
   const [userResult, setUserResult] = useState(null);
   const [userError, setUserError] = useState("");
+  const [txRefQuery, setTxRefQuery] = useState("");
+  const [txRefResult, setTxRefResult] = useState(null);
+  const [txRefError, setTxRefError] = useState("");
   const [ticketFilter, setTicketFilter] = useState("");
   const [replyDrafts, setReplyDrafts] = useState({});
 
@@ -189,6 +192,21 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
       .then((r) => r.json())
       .then(() => loadFlags())
       .catch(() => showToast("Could not update flag", "danger"));
+  }
+
+  function lookupTransaction() {
+    if (!txRefQuery.trim()) return;
+    setLoading(true);
+    setTxRefError("");
+    setTxRefResult(null);
+    fetch(`${API_URL}/api/admin/transactions/lookup?ref=${encodeURIComponent(txRefQuery.trim())}`, { headers: authHdrs() })
+      .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        if (!ok) { setTxRefError(d.error || "Transaction not found"); return; }
+        setTxRefResult(d.transaction);
+      })
+      .catch(() => setTxRefError("Could not look up transaction"))
+      .finally(() => setLoading(false));
   }
 
   function lookupUser() {
@@ -634,6 +652,38 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
               style={{ padding: "0 18px", borderRadius: 8, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer" }}
             >Search</button>
           </div>
+
+          <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 13, color: "var(--text-secondary)" }}>Or look up a transaction directly</div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            <input
+              value={txRefQuery}
+              onChange={(e) => setTxRefQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && lookupTransaction()}
+              placeholder="Reference (e.g. ZAP-XXXXXXXXXX) or full ID"
+              style={{ flex: 1, padding: 10, borderRadius: 8, border: "1px solid var(--border)", boxSizing: "border-box", background: "var(--card-bg)", color: "var(--text-primary)" }}
+            />
+            <button
+              onClick={lookupTransaction}
+              style={{ padding: "0 18px", borderRadius: 8, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer" }}
+            >Find</button>
+          </div>
+          {txRefError && <div style={{ color: "#dc2626", marginBottom: 16 }}>{txRefError}</div>}
+          {txRefResult && (
+            <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{txRefResult.billType} — @{txRefResult.user?.piUsername || "unknown"}</div>
+                <span style={{
+                  fontSize: 11, padding: "2px 8px", borderRadius: 10,
+                  background: txRefResult.status === "success" ? "#DCFCE7" : txRefResult.status === "failed" ? "#FEE2E2" : "#FEF3C7",
+                  color: txRefResult.status === "success" ? "#166534" : txRefResult.status === "failed" ? "#991B1B" : "#92400E",
+                }}>{txRefResult.status}</span>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0" }}>
+                ₦{Number(txRefResult.amountNGN).toLocaleString()} · π{Number(txRefResult.amountPi).toFixed(4)} · {txRefResult.serviceID}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>{new Date(txRefResult.createdAt).toLocaleString()}</div>
+            </div>
+          )}
 
           {loading ? (
             <div>Loading…</div>
