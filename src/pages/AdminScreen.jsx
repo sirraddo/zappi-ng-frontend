@@ -70,6 +70,7 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
   const [userQuery, setUserQuery] = useState("");
   const [userResult, setUserResult] = useState(null);
   const [userError, setUserError] = useState("");
+  const [ticketFilter, setTicketFilter] = useState("");
 
   function loadAnnouncements() {
     setLoading(true);
@@ -134,6 +135,17 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
     else if (tab === "flags") loadFlags();
     else if (tab === "banners") loadBanners();
   }, [tab, txFilter]);
+
+  // Fetch tickets on mount (not lazily) so the open-count badge on the
+  // Support Tickets tab works without opening it first. Uses a separate
+  // flag, not the shared `loading` state, so it doesn't show a spurious
+  // loading indicator on whatever tab happens to be active on mount.
+  useEffect(() => {
+    fetch(`${API_URL}/api/tickets`, { headers: authHdrs() })
+      .then((r) => r.json())
+      .then((d) => setTickets(d.tickets || []))
+      .catch(() => {});
+  }, []);
 
   function createFlag() {
     const known = KNOWN_FLAGS.find((f) => f.key === newFlagKey);
@@ -314,7 +326,11 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
             color: tab === "tickets" ? "var(--primary)" : "var(--text-secondary)",
             fontWeight: 700, cursor: "pointer",
           }}
-        >Support Tickets</button>
+        >Support Tickets{tickets.filter((t) => t.status === "open").length > 0 && (
+            <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, background: "#dc2626", color: "white", borderRadius: 10, padding: "1px 6px" }}>
+              {tickets.filter((t) => t.status === "open").length}
+            </span>
+          )}</button>
         <button
           onClick={() => setTab("flags")}
           style={{
@@ -476,12 +492,27 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
       )}
 
       {tab === "tickets" && (
-        loading ? (
-          <div>Loading…</div>
-        ) : tickets.length === 0 ? (
-          <div style={{ color: "var(--text-secondary)" }}>No support tickets yet</div>
-        ) : (
-          tickets.map((t) => (
+        <>
+          <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto" }}>
+            {["", "open", "solved"].map((s) => (
+              <button
+                key={s || "all"}
+                onClick={() => setTicketFilter(s)}
+                style={{
+                  flexShrink: 0, padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)",
+                  background: ticketFilter === s ? "var(--primary)" : "var(--bg-secondary)",
+                  color: ticketFilter === s ? "white" : "var(--text-secondary)",
+                  fontSize: 12, fontWeight: 600, cursor: "pointer",
+                }}
+              >{s ? s[0].toUpperCase() + s.slice(1) : "All"}</button>
+            ))}
+          </div>
+          {loading ? (
+            <div>Loading…</div>
+          ) : tickets.filter((t) => !ticketFilter || t.status === ticketFilter).length === 0 ? (
+            <div style={{ color: "var(--text-secondary)" }}>No support tickets{ticketFilter ? ` (${ticketFilter})` : ""}</div>
+          ) : (
+            tickets.filter((t) => !ticketFilter || t.status === ticketFilter).map((t) => (
             <div key={t._id} style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 10 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>{t.subject}</div>
@@ -497,7 +528,8 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
               >{t.status === "solved" ? "Reopen" : "Mark Solved"}</button>
             </div>
           ))
-        )
+        )}
+        </>
       )}
 
       {tab === "flags" && (
