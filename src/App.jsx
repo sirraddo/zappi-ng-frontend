@@ -267,6 +267,7 @@ const BUNDLE_GROUP_ORDER = ["Night", "Social", "Daily", "Weekly", "Monthly", "Ot
 
 function VariationGrid({ serviceID, selected, onSelect, columns = 2, grouped = false }) {
 const [state, setState] = useState({ loading: true, items: [] })
+const [activeGroup, setActiveGroup] = useState(null)
 useEffect(() => {
 if (!serviceID) { setState({ loading: false, items: [] }); return }
 let cancelled = false
@@ -314,16 +315,26 @@ return (
 
 const groups = { Night: [], Social: [], Daily: [], Weekly: [], Monthly: [], Others: [] }
 state.items.forEach(v => { groups[categorizeBundle(v.name)].push(v) })
+const availableGroups = BUNDLE_GROUP_ORDER.filter(g => groups[g].length)
+// Falls back to the first available group whenever the previously active one
+// isn't present for this serviceID (e.g. switching network) — no separate
+// reset effect needed, this just recomputes correctly on every render.
+const currentGroup = availableGroups.includes(activeGroup) ? activeGroup : availableGroups[0]
 return (
-<div style={{ maxHeight: 420, overflowY: "auto", marginBottom: 16 }}>
-{BUNDLE_GROUP_ORDER.filter(g => groups[g].length).map(g => (
-<div key={g} style={{ marginBottom: 12 }}>
-<p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: 0.5, margin: "0 0 8px" }}>{g}</p>
-<div style={{ display: "grid", gridTemplateColumns: `repeat(${columns},1fr)`, gap: 8 }}>
-{groups[g].map(renderCard)}
-</div>
-</div>
+<div style={{ marginBottom: 16 }}>
+<div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 10 }}>
+{availableGroups.map(g => (
+<button key={g} onClick={() => setActiveGroup(g)} style={{
+flexShrink: 0, padding: "6px 14px", borderRadius: 20, border: "none",
+background: g === currentGroup ? C.primary : "var(--bg-secondary)",
+color: g === currentGroup ? "white" : "var(--text-secondary)",
+fontSize: 12, fontWeight: 700, cursor: "pointer",
+}}>{g}</button>
 ))}
+</div>
+<div style={{ display: "grid", gridTemplateColumns: `repeat(${columns},1fr)`, gap: 8, maxHeight: 340, overflowY: "auto" }}>
+{groups[currentGroup].map(renderCard)}
+</div>
 </div>
 )
 }
