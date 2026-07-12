@@ -401,6 +401,7 @@ export function ProfileScreen({ onBack, onLogout }) {
   // immediately, cached in zappi_user, and uploaded to the backend so it follows
   // the account across devices. On mount we hydrate from GET /api/user/me.
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [avatarMessage, setAvatarMessage] = useState(null)
   const authHdrs = () => {
     const token = localStorage.getItem("zappi_token")
     return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }
@@ -445,7 +446,7 @@ export function ProfileScreen({ onBack, onLogout }) {
         const res = await fetch(`${API_URL}/api/user/avatar`, { method: "POST", headers: authHdrs(), body: JSON.stringify({ avatarImage: dataUrl }) })
         if (!res.ok) throw new Error()
       } catch {
-        alert("Photo saved on this device, but syncing to your account failed — it will still show here.")
+        setAvatarMessage("Photo saved on this device, but syncing to your account failed — it will still show here.")
       } finally { setUploadingAvatar(false) }
     }
     img.onerror = () => URL.revokeObjectURL(url)
@@ -543,6 +544,7 @@ export function ProfileScreen({ onBack, onLogout }) {
           🚪 Sign Out
         </button>
       </div>
+      <AuthMessageModal text={avatarMessage} onClose={() => setAvatarMessage(null)} />
     </div>
   )
 }
