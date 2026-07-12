@@ -170,6 +170,7 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
   }
 
   function deleteFlag(key) {
+    if (!window.confirm("Delete this flag? This can't be undone.")) return;
     fetch(`${API_URL}/api/flags/${key}`, { method: "DELETE", headers: authHdrs() })
       .then((r) => r.json())
       .then(() => {
@@ -225,6 +226,14 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
       .catch(() => showToast("Could not create announcement", "danger"));
   }
 
+  function deleteAnnouncement(id) {
+    if (!window.confirm("Delete this announcement? This can't be undone.")) return;
+    fetch(`${API_URL}/api/announcements/${id}`, { method: "DELETE", headers: authHdrs() })
+      .then((r) => r.json())
+      .then(() => { loadAnnouncements(); showToast("Announcement deleted", "success"); })
+      .catch(() => showToast("Could not delete announcement", "danger"));
+  }
+
   function toggleAnnouncement(id, active) {
     fetch(`${API_URL}/api/announcements/${id}`, {
       method: "PATCH",
@@ -271,6 +280,14 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
         showToast("Banner published", "success");
       })
       .catch(() => showToast("Could not create banner", "danger"));
+  }
+
+  function deleteBanner(id) {
+    if (!window.confirm("Delete this banner? This can't be undone.")) return;
+    fetch(`${API_URL}/api/banners/${id}`, { method: "DELETE", headers: authHdrs() })
+      .then((r) => r.json())
+      .then(() => { loadBanners(); showToast("Banner deleted", "success"); })
+      .catch(() => showToast("Could not delete banner", "danger"));
   }
 
   function toggleBanner(id, active) {
@@ -482,10 +499,16 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
                   </span>
                 </div>
                 <div style={{ fontSize: 13, color: "var(--text-secondary)", margin: "6px 0" }}>{a.body}</div>
-                <button
-                  onClick={() => toggleAnnouncement(a._id, a.active)}
-                  style={{ fontSize: 12, background: "none", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}
-                >{a.active ? "Hide" : "Reactivate"}</button>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    onClick={() => toggleAnnouncement(a._id, a.active)}
+                    style={{ fontSize: 12, background: "none", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}
+                  >{a.active ? "Hide" : "Reactivate"}</button>
+                  <button
+                    onClick={() => deleteAnnouncement(a._id)}
+                    style={{ fontSize: 12, background: "none", color: "#dc2626", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}
+                  >Delete</button>
+                </div>
               </div>
             ))
           )}
@@ -701,10 +724,16 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
                 </div>
                 <div style={{ fontSize: 13, color: "var(--text-secondary)", margin: "6px 0" }}>{b.desc}</div>
                 {b.link && <div style={{ fontSize: 12, color: "var(--primary)", marginBottom: 6, wordBreak: "break-all" }}>{b.link}</div>}
-                <button
-                  onClick={() => toggleBanner(b._id, b.active)}
-                  style={{ fontSize: 12, background: "none", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}
-                >{b.active ? "Hide" : "Reactivate"}</button>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    onClick={() => toggleBanner(b._id, b.active)}
+                    style={{ fontSize: 12, background: "none", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}
+                  >{b.active ? "Hide" : "Reactivate"}</button>
+                  <button
+                    onClick={() => deleteBanner(b._id)}
+                    style={{ fontSize: 12, background: "none", color: "#dc2626", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}
+                  >Delete</button>
+                </div>
               </div>
             ))
           )}
