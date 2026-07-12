@@ -1435,7 +1435,7 @@ else showToast("Insurance is temporarily suspended by our payments provider — 
 {page==="history"&&(
 <div><Header title="Transactions"/>
 <div style={{padding:"12px 16px 6px",display:"flex",gap:8,overflowX:"auto"}}>
-{[{id:"all",label:"All"},{id:"airtime",label:"Airtime"},{id:"data",label:"Data"},{id:"electricity",label:"Electric"},{id:"cable",label:"Cable"},{id:"internet",label:"Internet"},{id:"send",label:"Sent"},{id:"receive",label:"Received"}].map(f=>(
+{[{id:"all",label:"All"},{id:"airtime",label:"Airtime"},{id:"data",label:"Data"},{id:"electricity",label:"Electric"},{id:"cable",label:"Cable"},{id:"internet",label:"Internet"},{id:"receive",label:"Received"}].map(f=>(
 <button key={f.id} onClick={()=>setTxFilter(f.id)} style={{padding:"6px 14px",borderRadius:20,border:"none",background:txFilter===f.id?C.primary:"var(--border)",color:txFilter===f.id?"white":"var(--text-secondary)",cursor:"pointer",fontSize:12,fontWeight:600,whiteSpace:"nowrap",flexShrink:0}}>{f.label}</button>
 ))}
 </div>
