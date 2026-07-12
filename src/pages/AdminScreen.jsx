@@ -49,8 +49,51 @@ function StatCard({ label, value }) {
   );
 }
 
-export default function AdminScreen({ onBack, showToast = () => {} }) {
+// Replaces window.confirm() for destructive actions — the native dialog
+// is unstyled, blocks the whole tab, and gives zero indication of which
+// app is asking. { open, message, danger, onConfirm, onCancel }
+function ConfirmModal({ state, onCancel }) {
+  if (!state) return null;
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 1000 }}
+      onClick={onCancel}
+    >
+      <div
+        style={{ background: "var(--card-bg)", color: "var(--text-primary)", borderRadius: 18, padding: 22, maxWidth: 340, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.35)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ fontSize: 15, lineHeight: 1.5, marginBottom: 20 }}>{state.message}</div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={onCancel}
+            style={{ flex: 1, padding: 12, borderRadius: 10, border: "1px solid var(--border)", background: "none", color: "var(--text-primary)", fontWeight: 700, fontSize: 14, cursor: "pointer" }}
+          >Cancel</button>
+          <button
+            onClick={state.onConfirm}
+            style={{ flex: 1, padding: 12, borderRadius: 10, border: "none", background: "#dc2626", color: "white", fontWeight: 700, fontSize: 14, cursor: "pointer" }}
+          >Delete</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Old tickets (created before the message thread existed) only have a
+// single `message` + optional `reply` field. New tickets always populate
+// `messages`. This normalizes either shape into one chronological list so
+// the thread UI below doesn't need to special-case old tickets.
+function ticketThread(t) {
+  if (t.messages && t.messages.length > 0) return t.messages;
+  const thread = [{ sender: "user", text: t.message, createdAt: t.createdAt }];
+  if (t.reply) thread.push({ sender: "admin", text: t.reply, createdAt: t.resolvedAt || t.updatedAt || t.createdAt });
+  return thread;
+}
+
+export default function AdminScreen({ onBack, showToast = () => {}, onTicketsChanged = () => {} }) {
   const [tab, setTab] = useState("stats");
+  const [confirmState, setConfirmState] = useState(null);
+  const [sendingReply, setSendingReply] = useState({});
   const [announcements, setAnnouncements] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -173,14 +216,19 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
   }
 
   function deleteFlag(key) {
-    if (!window.confirm("Delete this flag? This can't be undone.")) return;
-    fetch(`${API_URL}/api/flags/${key}`, { method: "DELETE", headers: authHdrs() })
-      .then((r) => r.json())
-      .then(() => {
-        loadFlags();
-        showToast("Flag deleted", "success");
-      })
-      .catch(() => showToast("Could not delete flag", "danger"));
+    setConfirmState({
+      message: "Delete this flag? This can't be undone.",
+      onConfirm: () => {
+        setConfirmState(null);
+        fetch(`${API_URL}/api/flags/${key}`, { method: "DELETE", headers: authHdrs() })
+          .then((r) => r.json())
+          .then(() => {
+            loadFlags();
+            showToast("Flag deleted", "success");
+          })
+          .catch(() => showToast("Could not delete flag", "danger"));
+      },
+    });
   }
 
   function toggleFlag(key, enabled) {
@@ -245,11 +293,16 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
   }
 
   function deleteAnnouncement(id) {
-    if (!window.confirm("Delete this announcement? This can't be undone.")) return;
-    fetch(`${API_URL}/api/announcements/${id}`, { method: "DELETE", headers: authHdrs() })
-      .then((r) => r.json())
-      .then(() => { loadAnnouncements(); showToast("Announcement deleted", "success"); })
-      .catch(() => showToast("Could not delete announcement", "danger"));
+    setConfirmState({
+      message: "Delete this announcement? This can't be undone.",
+      onConfirm: () => {
+        setConfirmState(null);
+        fetch(`${API_URL}/api/announcements/${id}`, { method: "DELETE", headers: authHdrs() })
+          .then((r) => r.json())
+          .then(() => { loadAnnouncements(); showToast("Announcement deleted", "success"); })
+          .catch(() => showToast("Could not delete announcement", "danger"));
+      },
+    });
   }
 
   function toggleAnnouncement(id, active) {
@@ -263,16 +316,42 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
       .catch(() => showToast("Could not update announcement", "danger"));
   }
 
-  function markTicketSolved(id, currentStatus) {
-    const newStatus = currentStatus === "solved" ? "open" : "solved";
+  // Sends a note to the user without touching ticket status — previously
+  // this was bundled into "Mark Solved", so there was no way to just say
+  // something back without also closing the conversation.
+  function sendTicketMessage(id) {
+    const text = (replyDrafts[id] || "").trim();
+    if (!text) return;
+    setSendingReply((s) => ({ ...s, [id]: true }));
+    fetch(`${API_URL}/api/tickets/${id}/messages`, {
+      method: "POST",
+      headers: authHdrs(),
+      body: JSON.stringify({ text }),
+    })
+      .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        if (!ok) { showToast(d.error || "Could not send message", "danger"); return; }
+        setReplyDrafts((rd) => ({ ...rd, [id]: "" }));
+        loadTickets();
+        onTicketsChanged();
+        showToast("Sent", "success");
+      })
+      .catch(() => showToast("Could not send message", "danger"))
+      .finally(() => setSendingReply((s) => ({ ...s, [id]: false })));
+  }
+
+  // Status only — Open <-> Solved. No longer sends whatever's in the
+  // reply box; use "Send" above to actually say something to the user.
+  function setTicketStatus(id, newStatus) {
     fetch(`${API_URL}/api/tickets/${id}`, {
       method: "PATCH",
       headers: authHdrs(),
-      body: JSON.stringify({ status: newStatus, reply: replyDrafts[id] || "" }),
+      body: JSON.stringify({ status: newStatus }),
     })
       .then((r) => r.json())
       .then(() => {
         loadTickets();
+        onTicketsChanged();
         showToast(newStatus === "solved" ? "Marked solved" : "Reopened", "success");
       })
       .catch(() => showToast("Could not update ticket", "danger"));
@@ -301,11 +380,16 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
   }
 
   function deleteBanner(id) {
-    if (!window.confirm("Delete this banner? This can't be undone.")) return;
-    fetch(`${API_URL}/api/banners/${id}`, { method: "DELETE", headers: authHdrs() })
-      .then((r) => r.json())
-      .then(() => { loadBanners(); showToast("Banner deleted", "success"); })
-      .catch(() => showToast("Could not delete banner", "danger"));
+    setConfirmState({
+      message: "Delete this banner? This can't be undone.",
+      onConfirm: () => {
+        setConfirmState(null);
+        fetch(`${API_URL}/api/banners/${id}`, { method: "DELETE", headers: authHdrs() })
+          .then((r) => r.json())
+          .then(() => { loadBanners(); showToast("Banner deleted", "success"); })
+          .catch(() => showToast("Could not delete banner", "danger"));
+      },
+    });
   }
 
   function toggleBanner(id, active) {
@@ -562,24 +646,50 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
                   {t.status === "solved" ? "Solved" : "Open"}
                 </span>
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0" }}>@{t.username}</div>
-              <div style={{ fontSize: 13, margin: "6px 0" }}>{t.message}</div>
-              {t.reply && (
-                <div style={{ fontSize: 12, background: "var(--card-bg)", borderRadius: 8, padding: 10, margin: "6px 0" }}>
-                  <span style={{ color: "var(--text-tertiary)", fontWeight: 700 }}>Your reply: </span>{t.reply}
-                </div>
-              )}
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0 10px" }}>@{t.username}</div>
+
+              <div style={{ maxHeight: 260, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
+                {ticketThread(t).map((m, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: m.sender === "admin" ? "flex-end" : "flex-start" }}>
+                    <div style={{
+                      maxWidth: "80%", fontSize: 13, lineHeight: 1.4, padding: "8px 12px", borderRadius: 12,
+                      background: m.sender === "admin" ? "var(--primary)" : "var(--card-bg)",
+                      color: m.sender === "admin" ? "white" : "var(--text-primary)",
+                      borderBottomRightRadius: m.sender === "admin" ? 3 : 12,
+                      borderBottomLeftRadius: m.sender === "admin" ? 12 : 3,
+                    }}>
+                      <div>{m.text}</div>
+                      {m.createdAt && (
+                        <div style={{ fontSize: 10, marginTop: 4, opacity: 0.7 }}>{new Date(m.createdAt).toLocaleString()}</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               <textarea
-                value={replyDrafts[t._id] ?? t.reply ?? ""}
+                value={replyDrafts[t._id] ?? ""}
                 onChange={(e) => setReplyDrafts({ ...replyDrafts, [t._id]: e.target.value })}
-                placeholder="Note visible to the user (optional)"
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendTicketMessage(t._id); } }}
+                placeholder="Reply to this user…"
                 rows={2}
-                style={{ width: "100%", padding: 8, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 6, boxSizing: "border-box", background: "var(--card-bg)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: 12 }}
+                style={{ width: "100%", padding: 8, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 8, boxSizing: "border-box", background: "var(--card-bg)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: 12 }}
               />
-              <button
-                onClick={() => markTicketSolved(t._id, t.status)}
-                style={{ fontSize: 12, background: "none", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}
-              >{t.status === "solved" ? "Reopen" : "Mark Solved"}</button>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  onClick={() => sendTicketMessage(t._id)}
+                  disabled={!(replyDrafts[t._id] || "").trim() || sendingReply[t._id]}
+                  style={{
+                    fontSize: 12, fontWeight: 700, padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer",
+                    background: "var(--primary)", color: "white",
+                    opacity: !(replyDrafts[t._id] || "").trim() || sendingReply[t._id] ? 0.5 : 1,
+                  }}
+                >{sendingReply[t._id] ? "Sending…" : "Send"}</button>
+                <button
+                  onClick={() => setTicketStatus(t._id, t.status === "solved" ? "open" : "solved")}
+                  style={{ fontSize: 12, background: "none", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
+                >{t.status === "solved" ? "Reopen" : "Mark Solved"}</button>
+              </div>
             </div>
           ))
         )}
@@ -789,6 +899,8 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
           )}
         </>
       )}
+
+      <ConfirmModal state={confirmState} onCancel={() => setConfirmState(null)} />
     </div>
   );
 }
