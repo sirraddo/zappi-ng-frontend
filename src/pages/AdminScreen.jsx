@@ -71,6 +71,7 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
   const [userResult, setUserResult] = useState(null);
   const [userError, setUserError] = useState("");
   const [ticketFilter, setTicketFilter] = useState("");
+  const [replyDrafts, setReplyDrafts] = useState({});
 
   function loadAnnouncements() {
     setLoading(true);
@@ -240,7 +241,7 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
     fetch(`${API_URL}/api/tickets/${id}`, {
       method: "PATCH",
       headers: authHdrs(),
-      body: JSON.stringify({ status: newStatus }),
+      body: JSON.stringify({ status: newStatus, reply: replyDrafts[id] || "" }),
     })
       .then((r) => r.json())
       .then(() => {
@@ -522,6 +523,18 @@ export default function AdminScreen({ onBack, showToast = () => {} }) {
               </div>
               <div style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0" }}>@{t.username}</div>
               <div style={{ fontSize: 13, margin: "6px 0" }}>{t.message}</div>
+              {t.reply && (
+                <div style={{ fontSize: 12, background: "var(--card-bg)", borderRadius: 8, padding: 10, margin: "6px 0" }}>
+                  <span style={{ color: "var(--text-tertiary)", fontWeight: 700 }}>Your reply: </span>{t.reply}
+                </div>
+              )}
+              <textarea
+                value={replyDrafts[t._id] ?? t.reply ?? ""}
+                onChange={(e) => setReplyDrafts({ ...replyDrafts, [t._id]: e.target.value })}
+                placeholder="Note visible to the user (optional)"
+                rows={2}
+                style={{ width: "100%", padding: 8, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 6, boxSizing: "border-box", background: "var(--card-bg)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: 12 }}
+              />
               <button
                 onClick={() => markTicketSolved(t._id, t.status)}
                 style={{ fontSize: 12, background: "none", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}
