@@ -550,8 +550,12 @@ fetch(`${apiUrl}/api/flags`, { headers: token ? { Authorization: `Bearer ${token
 }, [])
 // Open-ticket count, shown as a badge on the Admin tile — only fetched
 // for the admin account, since regular users would just get a 403.
+// Exposed as a plain function (not just a useEffect body) so it can be
+// re-run after admin actions inside AdminScreen and again when the admin
+// backs out of the screen — previously this only ever ran once on mount,
+// so the badge stayed stuck showing a stale count until a full re-login.
 const [openTicketCount, setOpenTicketCount] = useState(0)
-useEffect(() => {
+const loadOpenTicketCount = () => {
 if (!isAdminUser()) return
 const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
 const token = localStorage.getItem("zappi_token")
@@ -559,7 +563,8 @@ fetch(`${apiUrl}/api/tickets`, { headers: token ? { Authorization: `Bearer ${tok
 .then(r => r.ok ? r.json() : { tickets: [] })
 .then(d => setOpenTicketCount((d.tickets || []).filter(t => t.status === "open").length))
 .catch(() => setOpenTicketCount(0))
-}, [])
+}
+useEffect(() => { loadOpenTicketCount() }, [])
 const [toastType, setToastType] = useState("success")
 // Persists across navigation (unlike a toast) — the Pi wallet ceremony plus
 // our backend's VTPass round-trip can take up to ~30s with zero feedback
@@ -572,7 +577,7 @@ const [isPaying, setIsPaying] = useState(false)
 const [bonusClaimed, setBonusClaimed] = useState(() => localStorage.getItem("zappi_bonus_date") === new Date().toDateString())
 const [txnPinModal, setTxnPinModal] = useState(null) // {label, onSuccess}
 const [receiptTx, setReceiptTx] = useState(null)
-const txToReceipt = (tx) => ({ status: tx.status || "success", type: tx.type, amount: Number(String(tx.pi).replace(/[^0-9.]/g,"")) || 0, nairaAmount: Number(String(tx.amount).replace(/[^0-9.]/g,"")) || 0, provider: tx.label, recipient: tx.sub, reference: "ZAP-" + String(tx.id).slice(-10).toUpperCase(), date: tx.ts ? new Date(tx.ts) : new Date() })
+const txToReceipt = (tx) => ({ status: tx.status || "success", type: tx.type, amount: Number(String(tx.pi).replace(/[^0-9.]/g,"")) || 0, nairaAmount: Number(String(tx.amount).replace(/[^0-9.]/g,"")) || 0, provider: tx.label, recipient: tx.sub, reference: "ZAP-" + String(tx.backendId || tx.id).slice(-10).toUpperCase(), date: tx.ts ? new Date(tx.ts) : new Date() })
 
 // ── MOCK LEDGER (until /api/payments lands) ─────────────────────────────────
 // Balance and transactions live in state + localStorage so every payment,
@@ -908,7 +913,7 @@ const [legalPage, setLegalPage] = useState(null)
 if (legalPage === "privacy") return <PrivacyPolicy onBack={() => setLegalPage(null)} />
 if (legalPage === "terms") return <TermsOfService onBack={() => setLegalPage(null)} />
 if (legalPage === "support") return <SupportPage onBack={() => setLegalPage(null)} />
-if (legalPage === "admin") return <AdminScreen onBack={() => setLegalPage(null)} showToast={showToast} />
+if (legalPage === "admin") return <AdminScreen onBack={() => { setLegalPage(null); loadOpenTicketCount(); }} showToast={showToast} onTicketsChanged={loadOpenTicketCount} />
 
 const filteredTx = txFilter==="all"?transactions:transactions.filter(t=>t.type===txFilter)
 
