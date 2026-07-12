@@ -31,16 +31,6 @@ success: "#22C55E", danger: "#EF4444", bg: "var(--bg-secondary)",
 const REFERRAL_CODE = "ZAPPI50" // TODO: per-user code from backend (backlog)
 const REFERRAL_URL = `https://zappi-ng-frontend.vercel.app/?ref=${REFERRAL_CODE}`
 
-// Seed data shown to brand-new users only; real activity is persisted in zappi_txs
-const TRANSACTIONS = [
-{ id:1, type:"airtime", label:"MTN Airtime", sub:"08012345678", amount:"₦500", pi:"π0.83", date:"Today 10:30am", color:"#EFF6FF", icon:"📱", status:"success" },
-{ id:2, type:"electricity", label:"IKEDC Electricity", sub:"Meter: 12345678", amount:"₦5,000", pi:"π8.33", date:"Yesterday", color:"#FFF7ED", icon:"⚡", status:"success" },
-{ id:3, type:"send", label:"Sent to @adaeze", sub:"Pioneer transfer", amount:"₦3,000", pi:"π5.00", date:"2 days ago", color:"#F0FDF4", icon:"💸", status:"success" },
-{ id:4, type:"cable", label:"DStv Compact", sub:"Smart card: 456789", amount:"₦9,000", pi:"π15.00", date:"3 days ago", color:"#ECFDF5", icon:"📺", status:"success" },
-{ id:5, type:"receive", label:"Received from @tunde", sub:"Pioneer transfer", amount:"₦6,000", pi:"π10.00", date:"4 days ago", color:"#ECFDF5", icon:"💰", status:"success" },
-{ id:6, type:"data", label:"Airtel 2GB Data", sub:"08091157430", amount:"₦600", pi:"π1.00", date:"5 days ago", color:"#ECFDF5", icon:"📶", status:"failed" },
-]
-
 // Render a stored timestamp as friendly relative time. Seed rows keep their string date.
 function relativeTime(ts){
 if(!ts) return ""
@@ -80,7 +70,6 @@ if (prefixes.includes(prefix)) return net
 }
 return null
 }
-const BETTING_SITES=[{id:"bet9ja",label:"Bet9ja",icon:"🎯"},{id:"sportybet",label:"Sportybet",icon:"⚽"},{id:"1xbet",label:"1xBet",icon:"🏆"},{id:"betway",label:"Betway",icon:"🎲"},{id:"nairabet",label:"NairaBet",icon:"🇳🇬"},{id:"betking",label:"BetKing",icon:"👑"},{id:"msport",label:"MSport",icon:"🥅"}]
 const HOTELS=[{id:"transcorp",label:"Transcorp Hilton",city:"Abuja",price:60000,rating:"⭐⭐⭐⭐⭐"},{id:"eko",label:"Eko Hotel",city:"Lagos",price:45000,rating:"⭐⭐⭐⭐⭐"},{id:"sheraton",label:"Sheraton Lagos",city:"Lagos",price:55000,rating:"⭐⭐⭐⭐⭐"},{id:"radisson",label:"Radisson Blu",city:"Lagos",price:40000,rating:"⭐⭐⭐⭐"}]
 const TRANSPORT=[{id:"uber",label:"Uber Ride",icon:"🚗",desc:"Book a ride"},{id:"brt",label:"BRT Pass",icon:"🚌",desc:"Bus rapid transit"},{id:"toll",label:"Toll Payment",icon:"🛣️",desc:"Highway tolls"},{id:"ferry",label:"Ferry Ticket",icon:"⛵",desc:"Water transport"},{id:"flight",label:"Flight Booking",icon:"✈️",desc:"Domestic flights"}]
 // VTPass has no ipNX product in its entire catalog (checked both the "data" and
@@ -471,9 +460,9 @@ return (
 )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────────────────
 export default function App() {
-const { piAuth, piUser, isSandbox, createPayment, isReady } = usePi()
+const { piAuth, piUser, createPayment, isReady } = usePi()
 const { theme, toggleTheme } = useTheme()
 const [liveRate, setLiveRate] = useState(() => {
 const cached = Number(localStorage.getItem("zappi_rate"))
@@ -573,36 +562,36 @@ const [toastType, setToastType] = useState("success")
 // app. The 45s safety timeout is a bounded worst-case fallback in case a
 // failure path doesn't explicitly clear it — never gets permanently stuck.
 const [isPaying, setIsPaying] = useState(false)
-// Daily bonus persists per calendar day instead of resetting every reload
-const [bonusClaimed, setBonusClaimed] = useState(() => localStorage.getItem("zappi_bonus_date") === new Date().toDateString())
 const [txnPinModal, setTxnPinModal] = useState(null) // {label, onSuccess}
 const [receiptTx, setReceiptTx] = useState(null)
 const txToReceipt = (tx) => ({ status: tx.status || "success", type: tx.type, amount: Number(String(tx.pi).replace(/[^0-9.]/g,"")) || 0, nairaAmount: Number(String(tx.amount).replace(/[^0-9.]/g,"")) || 0, provider: tx.label, recipient: tx.sub, reference: "ZAP-" + String(tx.backendId || tx.id).slice(-10).toUpperCase(), date: tx.ts ? new Date(tx.ts) : new Date() })
 
-// ── MOCK LEDGER (until /api/payments lands) ─────────────────────────────────
-// Balance and transactions live in state + localStorage so every payment,
-// transfer, and bonus is actually reflected in the UI.
-const [balance, setBalance] = useState(() => {
-const saved = Number(localStorage.getItem("zappi_balance"))
-return Number.isFinite(saved) && saved > 0 ? saved : 142.5
-})
+// ── TRANSACTION LEDGER ───────────────────────────────────────────────────────────
+// Real history only — no fabricated starting balance or seed data. Zappi
+// never holds custody of Pi (each payment pulls straight from the user's
+// own wallet via the SDK, per-transaction), so there's nothing legitimate
+// a client-side "Pi balance" figure could ever represent. A brand-new user
+// correctly starts with an empty list rather than fake demo transactions.
 const [transactions, setTransactions] = useState(() => {
 try {
 const saved = JSON.parse(localStorage.getItem("zappi_txs"))
-if (Array.isArray(saved) && saved.length) return saved
+if (Array.isArray(saved)) return saved
 } catch {}
-return TRANSACTIONS
-})
-const updateBalance = (delta) => setBalance(b => {
-const nb = Math.round((b + delta) * 10000) / 10000
-localStorage.setItem("zappi_balance", String(nb))
-return nb
+return []
 })
 const addTransaction = (tx) => setTransactions(prev => {
 const next = [{ id: Date.now(), ts: Date.now(), status: "success", ...tx }, ...prev]
 localStorage.setItem("zappi_txs", JSON.stringify(next))
 return next
 })
+// Real lifetime activity derived from actual transaction history — shown
+// on the home screen in place of the old fabricated "Pi Balance" figure.
+const txStats = (() => {
+const num = v => Number(String(v ?? "").replace(/[^0-9.]/g, "")) || 0
+const paid = transactions.filter(t => t.status === "success" && t.type !== "receive")
+const piSent = paid.reduce((a, t) => a + num(t.pi), 0)
+return { count: transactions.length, piSent }
+})()
 
 const [network,setNetwork]=useState("")
 const [phone,setPhone]=useState("")
@@ -633,8 +622,6 @@ const [recipient,setRecipient]=useState("")
 const [piAmount,setPiAmount]=useState("")
 const [note,setNote]=useState("")
 const [txFilter,setTxFilter]=useState("all")
-const [bettingSite,setBettingSite]=useState(null)
-const [bettingId,setBettingId]=useState("")
 const [hotel,setHotel]=useState(null)
 const [transport,setTransport]=useState(null)
 const [internetProvider,setInternetProvider]=useState(null)
@@ -700,16 +687,9 @@ if(meter.length<6) return showToast("Enter a valid account number","danger")
 if(!bundle) return showToast("Select a plan","danger")
 return true
 }
-if(type==="betting"){
-if(!bettingSite) return showToast("Select a betting site","danger")
-if(bettingId.length<4) return showToast("Enter a valid betting user ID","danger")
-if(!amount||Number(amount)<100) return showToast("Minimum funding is ₦100","danger")
-return true
-}
 if(type==="send"){
 if(recipient.length<3) return showToast("Enter a valid Pioneer username","danger")
 if(!piAmount||Number(piAmount)<=0) return showToast("Enter a valid Pi amount","danger")
-if(Number(piAmount)>balance) return showToast("Insufficient Pi balance","danger")
 return true
 }
 if(type==="hotel"){
@@ -728,7 +708,7 @@ return true
 const resetInputs=()=>{
 setAmount(""); setPhone(""); setNetwork(""); setBundle(null)
 setDisco(""); setMeter(""); setRecipient(""); setPiAmount(""); setNote("")
-setBettingSite(null); setBettingId(""); setHotel(null); setTransport(null); setInternetProvider(null)
+setHotel(null); setTransport(null); setInternetProvider(null)
 setInsFullName(""); setInsAddress(""); setInsDob(""); setInsNextKinName(""); setInsNextKinPhone(""); setInsOccupation("")
 setSmileEmail(""); setSmileAccounts([]); setSmileAccount(null)
 setElecMinAmount(null)
@@ -796,10 +776,9 @@ default: return { serviceID: tx.type, billType: tx.type, amount: tx.ngn, phone: 
 }
 }
 
-// Deducts the balance and records the transaction so History/Home stay truthful.
+// Records the transaction so History/Home stay truthful.
 const finishPayment=(service, tx, piCost, backendTxId)=>{
 setIsPaying(false)
-updateBalance(-piCost)
 const newTx = {
 id: Date.now(), backendId: backendTxId || null, ts: Date.now(), status: "success",
 type: tx.type, label: tx.label, sub: tx.sub,
@@ -871,7 +850,6 @@ catch (e2) { showToast(e2.message || "Bill delivery failed — please contact su
 // handlePay(service, tx): tx = { type, label, sub, ngn, pi?, icon?, color? }
 const handlePay=(service, tx)=>{
 const piCost = tx.pi != null ? Number(tx.pi) : Number(tx.ngn) / liveRate
-if (piCost > balance) return showToast("Insufficient Pi balance","danger")
 const txnFields = buildTxnFields(tx)
 requireTxnConfirmation(`Confirm ${service}`, txnFields, (confirmationToken)=>{
 setTxnPinModal(null)
@@ -883,14 +861,6 @@ runRealPayment(service, tx, txnFields, piCost, confirmationToken)
 finishPayment(service, tx, piCost)
 }
 })
-}
-
-const claimDailyBonus = () => {
-localStorage.setItem("zappi_bonus_date", new Date().toDateString())
-setBonusClaimed(true)
-updateBalance(0.05)
-addTransaction({ type:"receive", label:"Daily Bonus", sub:"Daily reward", amount:`₦${Math.round(0.05*liveRate).toLocaleString()}`, pi:"π0.05", color:"#ECFDF5", icon:"🎁" })
-showToast("🎉 Daily bonus claimed! +π0.05","success")
 }
 
 const copyReferral = async () => {
@@ -917,7 +887,7 @@ if (legalPage === "admin") return <AdminScreen onBack={() => { setLegalPage(null
 
 const filteredTx = txFilter==="all"?transactions:transactions.filter(t=>t.type===txFilter)
 
-// ── AUTH SCREENS ────────────────────────────────────────────────────────────
+// ── AUTH SCREENS ────────────────────────────────────────────────────────────────────────
 if (!isLoggedIn) {
 if (authScreen === "splash") return <SplashScreen onContinue={setAuthScreen} onSuccess={()=>{setIsLoggedIn(true);setTxnPinReady(hasServerPin())}} />
 if (authScreen === "login") return <LoginScreen onSuccess={()=>{setIsLoggedIn(true);setTxnPinReady(hasServerPin())}} />
@@ -935,7 +905,7 @@ if (showProfile) return (
 </div>
 )
 
-// ── MAIN APP ────────────────────────────────────────────────────────────────
+// ── MAIN APP ──────────────────────────────────────────────────────────────────────────────
 return (
 <div style={{maxWidth:430,margin:"0 auto",fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",minHeight:"100vh",background:C.bg,display:"flex",flexDirection:"column",position:"relative"}}>
 
@@ -967,30 +937,23 @@ return (
 </div>
 </div>
 <div style={{background:"rgba(255,255,255,0.15)",borderRadius:18,padding:18,backdropFilter:"blur(10px)"}}>
-<p style={{color:"rgba(255,255,255,0.75)",fontSize:12,margin:0}}>Pi Balance</p>
-<p style={{color:"white",fontSize:34,fontWeight:800,margin:"4px 0 2px",letterSpacing:"-1px"}}>π {balance.toFixed(2)}</p>
-<p style={{color:"rgba(255,255,255,0.65)",fontSize:12,margin:0}}>≈ ₦{Math.round(balance * liveRate).toLocaleString()} · Rate: ₦{liveRate}/π</p>
+<p style={{color:"rgba(255,255,255,0.75)",fontSize:12,margin:0}}>Your Zappi Activity</p>
+<div style={{display:"flex",gap:20,margin:"6px 0 2px"}}>
+<div>
+<p style={{color:"white",fontSize:24,fontWeight:800,margin:0,letterSpacing:"-0.5px"}}>π{txStats.piSent>=100?Math.round(txStats.piSent).toLocaleString():txStats.piSent.toFixed(2)}</p>
+<p style={{color:"rgba(255,255,255,0.65)",fontSize:11,margin:0}}>Pi Sent</p>
+</div>
+<div>
+<p style={{color:"white",fontSize:24,fontWeight:800,margin:0,letterSpacing:"-0.5px"}}>{txStats.count}</p>
+<p style={{color:"rgba(255,255,255,0.65)",fontSize:11,margin:0}}>Transactions</p>
+</div>
+</div>
 <div style={{marginTop:10}}><PiRateTicker rate={liveRate} live={rateLive} /></div>
 <p style={{color:"rgba(255,255,255,0.45)",fontSize:9,margin:"6px 0 0",lineHeight:1.3}}>Zappi NG's own rate for pricing our services, calculated from live market data — not an official Pi Network value</p>
-{isSandbox&&(
-<button onClick={()=>{updateBalance(50);showToast("Added π50 test balance","success")}} style={{marginTop:10,width:"100%",background:"rgba(255,255,255,0.2)",border:"1px dashed rgba(255,255,255,0.5)",borderRadius:10,padding:"8px 10px",color:"white",fontSize:11,fontWeight:700,cursor:"pointer"}}>
-🧪 Add π50 test balance (sandbox only)
-</button>
-)}
 </div>
 </div>
 
-{!bonusClaimed&&(
-<div style={{margin:"0 16px",marginTop:-16,background:"linear-gradient(135deg,#F59E0B,#EF4444)",borderRadius:14,padding:14,display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 4px 12px rgba(245,158,11,0.3)"}}>
-<div>
-<p style={{color:"white",fontWeight:700,fontSize:14,margin:0}}>🎁 Daily Bonus Available!</p>
-<p style={{color:"rgba(255,255,255,0.85)",fontSize:12,margin:"2px 0 0"}}>Claim your π0.05 daily reward</p>
-</div>
-<button onClick={claimDailyBonus} style={{background:"var(--card-bg)",border:"none",borderRadius:10,padding:"8px 14px",fontWeight:700,fontSize:13,color:"#F59E0B",cursor:"pointer"}}>Claim</button>
-</div>
-)}
-
-<div style={{display:"flex",gap:10,padding:"16px 16px 0",marginTop:bonusClaimed?"-12px":8}}>
+<div style={{display:"flex",gap:10,padding:"16px 16px 0",marginTop:8}}>
 {[{label:"History",icon:"🕐",action:()=>navTo("history")},{label:"Profile",icon:"👤",action:()=>setShowProfile(true)}].map(a=>(
 <button key={a.label} onClick={a.action} style={{flex:1,background:"var(--card-bg)",border:"none",borderRadius:12,padding:"12px 4px",cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.07)",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
 <span style={{fontSize:20}}>{a.icon}</span>
@@ -1309,39 +1272,6 @@ else showToast("Insurance is temporarily suspended by our payments provider — 
 <FL>Next of kin — full name</FL><Inp value={insNextKinName} onChange={e=>setInsNextKinName(e.target.value)} placeholder="Full name"/>
 <FL>Next of kin — phone number</FL><Inp value={insNextKinPhone} onChange={e=>setInsNextKinPhone(e.target.value)} placeholder="08012345678"/>
 <Btn label={bundle?`Pay ${bundle.label} — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a plan"} disabled={!phone||!bundle||!insFullName||!insAddress||!insDob||!insOccupation||!insNextKinName||!insNextKinPhone} onClick={()=>handlePay("Insurance",{type:"insurance",label:bundle.label,sub:`${insFullName} · Phone: ${phone}`,ngn:bundle.price,icon:"🛡️",color:"#F0FDFA",raw:{page:"bills",subPage:"insurance",phone,bundleCode:bundle.code,bundleLabel:bundle.label,bundlePrice:bundle.price,insFullName,insAddress,insDob,insNextKinName,insNextKinPhone,insOccupation}})}/>
-</div></div>
-)}
-
-{/* DISABLED — hidden, not deleted, for two independent reasons:
-   (1) Pi's App Studio Community Guidelines explicitly prohibit "offering or
-       facilitating gambling, betting, or lottery-related services involving Pi
-       tokens, either directly or indirectly" — funding a betting wallet with Pi
-       is exactly that, and would put Mainnet approval (and the whole app) at risk.
-   (2) VTPass cannot deliver betting top-ups anyway: its service catalog has no
-       betting category at all (checked against BOTH live and sandbox
-       /api/service-categories; even "other-services" contains no betting sites).
-       With REAL_PAYMENTS on, this screen would take a user's Pi and then fail
-       delivery — the same "looks real but isn't" trap Send Pi had.
-   Entry point removed from the Pay Bills grid above; Buy Again on old betting
-   transactions now shows a toast (see buyAgain). Re-enable only if Pi policy
-   permits it AND a provider that actually supports betting top-ups is integrated. */}
-{false&&page==="bills"&&subPage==="betting"&&(
-<div><Header title="Betting Wallet" onBack={()=>setSubPage(null)}/>
-<div style={{padding:16}}>
-<FL>Select betting site</FL>
-<div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8,marginBottom:16}}>{BETTING_SITES.map(b=><button key={b.id} onClick={()=>setBettingSite(b)} style={{padding:14,borderRadius:12,border:`2px solid ${bettingSite?.id===b.id?C.primary:"var(--border)"}`,background:bettingSite?.id===b.id?C.light:"white",cursor:"pointer",textAlign:"center"}}>
-{/* VTPass has no betting category (its service-categories list is airtime, data,
-    tv-subscription, electricity-bill, education, other-services, insurance — and
-    other-services contains no betting sites either), so there are no VTPass-hosted
-    logos to fetch here. Emoji icons are intentional, not a fallback. */}
-<span style={{fontSize:22}}>{b.icon}</span><p style={{margin:"6px 0 0",fontSize:13,fontWeight:700}}>{b.label}</p>
-</button>)}</div>
-{bettingSite&&<><FL>Betting ID</FL><Inp value={bettingId} onChange={e=>setBettingId(e.target.value)} placeholder={`${bettingSite.label} user ID`}/>
-<FL>Amount (₦)</FL>
-<div style={{display:"flex",gap:8,marginBottom:8}}>{[500,1000,2000,5000].map(a=><button key={a} onClick={()=>setAmount(String(a))} style={{flex:1,padding:10,borderRadius:10,border:`2px solid ${amount==a?C.primary:"var(--border)"}`,background:amount==a?C.light:"white",cursor:"pointer",fontSize:12,fontWeight:600}}>₦{a>=1000?a/1000+"k":a}</button>)}</div>
-<Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Or enter amount" type="number"/>
-<PiSummary amount={amount} bg="#F0FDF4" color="#15803D" rate={liveRate}/>
-<Btn label={`Fund ${bettingSite.label} — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!bettingId||!amount} onClick={()=>validate("betting")&&handlePay(`${bettingSite.label} betting`,{type:"betting",label:`${bettingSite.label} Funding`,sub:`ID: ${bettingId}`,ngn:Number(amount),icon:"🎯",color:"#F0FDF4",raw:{page:"bills",subPage:"betting",siteId:bettingSite.id,bettingId,amount}})}/></>}
 </div></div>
 )}
 
