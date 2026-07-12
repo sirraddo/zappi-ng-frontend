@@ -222,3 +222,106 @@
 [data-theme="dark"] .notif-item:hover {
   background: #1f1f30;
 }
+
+/* Ticket conversation thread (tapped open from the Support list) — lets
+   the user keep replying instead of the thread being a dead end after
+   the first message. */
+.notif-thread {
+  display: flex;
+  flex-direction: column;
+}
+
+.notif-thread-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0 10px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  margin-bottom: 10px;
+}
+
+.notif-thread-back {
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary, #CC4E00);
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.notif-thread-subject {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary, #111827);
+}
+
+.notif-thread-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+
+.notif-thread-bubble {
+  max-width: 82%;
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--bg-secondary, #f3f4f6);
+  color: var(--text-primary, #111827);
+  align-self: flex-start;
+  border-bottom-left-radius: 3px;
+}
+
+.notif-thread-bubble.admin {
+  background: var(--primary, #CC4E00);
+  color: white;
+  align-self: flex-end;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 3px;
+}
+
+.notif-thread-input {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.notif-thread-input textarea {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border, #e5e7eb);
+  background: var(--card-bg, #fff);
+  color: var(--text-primary, #111827);
+  font-family: inherit;
+  font-size: 12px;
+  resize: none;
+}
+
+.notif-thread-input button {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  background: var(--primary, #CC4E00);
+  color: white;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.notif-thread-input button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Dark mode */
+[data-theme="dark"] .notif-thread-bubble {
+  background: #262638;
+  color: #f3f4f6;
+}
