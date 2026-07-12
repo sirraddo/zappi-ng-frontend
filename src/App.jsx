@@ -178,12 +178,13 @@ function FL({ children }) {
 return <p style={{fontSize:12,fontWeight:700,color:"var(--text-secondary)",margin:"0 0 6px",textTransform:"uppercase",letterSpacing:"0.5px"}}>{children}</p>
 }
 
-function SCard({ icon, label, desc, bg, onClick }) {
+function SCard({ icon, label, desc, bg, onClick, badge }) {
 return (
 <button onClick={onClick} style={{width:"100%",background:"var(--card-bg)",border:"none",borderRadius:14,padding:14,marginBottom:10,display:"flex",alignItems:"center",gap:14,cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.06)",textAlign:"left"}}
 onMouseDown={e=>e.currentTarget.style.transform="scale(0.98)"} onMouseUp={e=>e.currentTarget.style.transform="scale(1)"}>
 <div style={{width:46,height:46,borderRadius:13,background:bg||C.light,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{icon}</div>
 <div style={{flex:1}}><p style={{margin:0,fontSize:14,fontWeight:700,color:"var(--text-primary)"}}>{label}</p>{desc&&<p style={{margin:"2px 0 0",fontSize:12,color:"var(--text-tertiary)"}}>{desc}</p>}</div>
+{badge > 0 && <span style={{background:"#dc2626",color:"white",fontSize:11,fontWeight:700,borderRadius:10,padding:"2px 7px",marginRight:2}}>{badge}</span>}
 <span style={{color:"var(--text-tertiary)",fontSize:20}}>›</span>
 </button>
 )
@@ -546,6 +547,18 @@ fetch(`${apiUrl}/api/flags`, { headers: token ? { Authorization: `Bearer ${token
 .then(r => r.ok ? r.json() : { flags: {} })
 .then(d => setFlags(d.flags || {}))
 .catch(() => setFlags({}))
+}, [])
+// Open-ticket count, shown as a badge on the Admin tile — only fetched
+// for the admin account, since regular users would just get a 403.
+const [openTicketCount, setOpenTicketCount] = useState(0)
+useEffect(() => {
+if (!isAdminUser()) return
+const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const token = localStorage.getItem("zappi_token")
+fetch(`${apiUrl}/api/tickets`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+.then(r => r.ok ? r.json() : { tickets: [] })
+.then(d => setOpenTicketCount((d.tickets || []).filter(t => t.status === "open").length))
+.catch(() => setOpenTicketCount(0))
 }, [])
 const [toastType, setToastType] = useState("success")
 // Persists across navigation (unlike a toast) — the Pi wallet ceremony plus
@@ -1377,7 +1390,7 @@ else showToast("Insurance is temporarily suspended by our payments provider — 
 <SCard icon="👤" label="My Profile" desc="Manage your account" bg="#F0F0FF" onClick={()=>setShowProfile(true)}/>
 <SCard icon="💬" label="Help & Support" desc="FAQ, WhatsApp, contact us" bg="#F0FDF4" onClick={()=>setLegalPage("support")}/>
 <SCard icon="🌙" label="Dark Mode" desc={theme==="dark"?"Switch to light mode":"Switch to dark mode"} bg="#F0F0FF" onClick={toggleTheme}/>
-{isAdminUser() && <SCard icon="🛠️" label="Admin" desc="Announcements & support tickets" bg="#F0F0FF" onClick={()=>setLegalPage("admin")}/>}
+{isAdminUser() && <SCard icon="🛠️" label="Admin" desc="Announcements & support tickets" bg="#F0F0FF" badge={openTicketCount} onClick={()=>setLegalPage("admin")}/>}
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Legal</p>
 <SCard icon="📄" label="Privacy Policy" desc="How we handle your data" bg="#F9FAFB" onClick={()=>setLegalPage("privacy")}/>
 <SCard icon="📋" label="Terms of Service" desc="Rules for using Zappi NG" bg="#F9FAFB" onClick={()=>setLegalPage("terms")}/>
