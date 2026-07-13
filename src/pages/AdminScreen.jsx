@@ -118,6 +118,10 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
   const [txRefError, setTxRefError] = useState("");
   const [ticketFilter, setTicketFilter] = useState("");
   const [replyDrafts, setReplyDrafts] = useState({});
+  const [vtCategories, setVtCategories] = useState({ airtime: true, data: true, electricity: true, cable: true, education: true, insurance: true });
+  const [vtResults, setVtResults] = useState(null);
+  const [vtMode, setVtMode] = useState(null);
+  const [vtRunning, setVtRunning] = useState(false);
 
   function loadAnnouncements() {
     setLoading(true);
@@ -403,6 +407,30 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
       .catch(() => showToast("Could not update banner", "danger"));
   }
 
+  // Runs the admin-only VTPass sandbox test batch (routes/vtpassTest.js)
+  // for whichever categories are checked — generates real, verifiable
+  // request IDs for VTPass's live-access application form. Never touches
+  // Pi payments or the Transaction collection.
+  function runVtpassTest() {
+    const categories = Object.entries(vtCategories).filter(([, on]) => on).map(([k]) => k);
+    if (!categories.length) { showToast("Select at least one category", "danger"); return; }
+    setVtRunning(true);
+    setVtResults(null);
+    fetch(`${API_URL}/api/admin/vtpass-test`, {
+      method: "POST",
+      headers: authHdrs(),
+      body: JSON.stringify({ categories }),
+    })
+      .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        if (!ok) { showToast(d.error || "Test batch failed", "danger"); return; }
+        setVtResults(d.results || []);
+        setVtMode(d.mode || null);
+      })
+      .catch(() => showToast("Could not run test batch", "danger"))
+      .finally(() => setVtRunning(false));
+  }
+
   return (
     <div style={{ padding: 16 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
@@ -478,6 +506,15 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
             fontWeight: 700, cursor: "pointer",
           }}
         >Banners</button>
+        <button
+          onClick={() => setTab("vtpasstest")}
+          style={{
+            flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "none",
+            background: tab === "vtpasstest" ? "var(--primary-light)" : "var(--bg-secondary)",
+            color: tab === "vtpasstest" ? "var(--primary)" : "var(--text-secondary)",
+            fontWeight: 700, cursor: "pointer",
+          }}
+        >VTPass Test</button>
       </div>
 
       {tab === "stats" && (
@@ -905,6 +942,81 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
                 </div>
               </div>
             ))
+          )}
+        </>
+      )}
+
+      {tab === "vtpasstest" && (
+        <>
+          <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 14 }}>Run VTPass sandbox test batch</div>
+            <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px", lineHeight: 1.4 }}>
+              Uses VTPass's own documented sandbox test values (test phone numbers, meter numbers, smartcard numbers) to generate real, verifiable request IDs — exactly what VTPass's live-access application form asks for as proof of successful integration. Never touches Pi payments or your transaction history.
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+              {Object.keys(vtCategories).map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setVtCategories((c) => ({ ...c, [cat]: !c[cat] }))}
+                  style={{
+                    padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)",
+                    background: vtCategories[cat] ? "var(--primary)" : "var(--card-bg)",
+                    color: vtCategories[cat] ? "white" : "var(--text-secondary)",
+                    fontSize: 12, fontWeight: 600, cursor: "pointer", textTransform: "capitalize",
+                  }}
+                >{cat}</button>
+              ))}
+            </div>
+            <button
+              onClick={runVtpassTest}
+              disabled={vtRunning}
+              style={{
+                width: "100%", padding: 12, borderRadius: 10, border: "none",
+                background: vtRunning ? "#9CA3AF" : "var(--primary)", color: "white", fontWeight: 700,
+                cursor: vtRunning ? "default" : "pointer",
+              }}
+            >{vtRunning ? "Running… this can take a minute" : "Run Test Batch"}</button>
+          </div>
+
+          {vtResults && (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                  Mode: <strong>{vtMode}</strong> · {vtResults.filter((r) => r.status === "delivered").length}/{vtResults.length} delivered
+                </div>
+                <button
+                  onClick={() => {
+                    const text = vtResults.filter((r) => r.status === "delivered").map((r) => `${r.serviceID}: ${r.requestId}`).join("\n");
+                    navigator.clipboard.writeText(text).then(() => showToast("Copied all", "success")).catch(() => showToast("Couldn't copy", "danger"));
+                  }}
+                  style={{ fontSize: 12, fontWeight: 700, color: "var(--primary)", background: "none", border: "none", cursor: "pointer" }}
+                >Copy All</button>
+              </div>
+              {vtResults.map((r, i) => (
+                <div key={i} style={{ background: "var(--bg-secondary)", borderRadius: 10, padding: 12, marginBottom: 8 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontWeight: 700, fontSize: 13 }}>{r.serviceID}</span>
+                    <span style={{
+                      fontSize: 11, padding: "2px 8px", borderRadius: 10,
+                      background: r.status === "delivered" ? "#DCFCE7" : r.status === "skipped" ? "#F3F4F6" : "#FEE2E2",
+                      color: r.status === "delivered" ? "#166534" : r.status === "skipped" ? "#6B7280" : "#991B1B",
+                    }}>{r.status}</span>
+                  </div>
+                  {r.product && <div style={{ fontSize: 11, color: "var(--text-tertiary)", margin: "2px 0" }}>{r.product}</div>}
+                  {r.requestId && r.status === "delivered" && (
+                    <div style={{ fontSize: 11, fontFamily: "monospace", display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                      <span>{r.requestId}</span>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(r.requestId).then(() => showToast("Copied", "success")).catch(() => showToast("Couldn't copy", "danger"))}
+                        style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: 0 }}
+                      >Copy</button>
+                    </div>
+                  )}
+                  {r.error && <div style={{ fontSize: 11, color: "#DC2626", marginTop: 4 }}>{r.error}</div>}
+                  {r.skipped && <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 4 }}>{r.skipped}</div>}
+                </div>
+              ))}
+            </>
           )}
         </>
       )}
