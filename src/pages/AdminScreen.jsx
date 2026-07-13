@@ -1003,17 +1003,23 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
                     }}>{r.status}</span>
                   </div>
                   {r.product && <div style={{ fontSize: 11, color: "var(--text-tertiary)", margin: "2px 0" }}>{r.product}</div>}
-                  {r.requestId && r.status === "delivered" && (
+                  {r.requestId && (
                     <div style={{ fontSize: 11, fontFamily: "monospace", display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
                       <span>{r.requestId}</span>
                       <button
                         onClick={() => navigator.clipboard.writeText(r.requestId).then(() => showToast("Copied", "success")).catch(() => showToast("Couldn't copy", "danger"))}
                         style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: 0 }}
                       >Copy</button>
+                      {r.status !== "delivered" && <span style={{ color: "var(--text-tertiary)" }}>(check VTPass dashboard before using)</span>}
                     </div>
                   )}
                   {r.error && <div style={{ fontSize: 11, color: "#DC2626", marginTop: 4 }}>{r.error}</div>}
                   {r.skipped && <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 4 }}>{r.skipped}</div>}
+                  {r.status !== "delivered" && r.status !== "skipped" && r.raw && (
+                    <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 4, fontFamily: "monospace", wordBreak: "break-all" }}>
+                      {JSON.stringify(r.raw).slice(0, 300)}
+                    </div>
+                  )}
                 </div>
               ))}
             </>
