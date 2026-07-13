@@ -118,7 +118,7 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
   const [txRefError, setTxRefError] = useState("");
   const [ticketFilter, setTicketFilter] = useState("");
   const [replyDrafts, setReplyDrafts] = useState({});
-  const [vtCategories, setVtCategories] = useState({ airtime: true, data: true, electricity: true, cable: true, education: true, insurance: true });
+  const [vtCategories, setVtCategories] = useState({ airtime: true, data: true, electricity: true, cable: true, education: true, internet: true, insurance: true });
   const [vtResults, setVtResults] = useState(null);
   const [vtMode, setVtMode] = useState(null);
   const [vtRunning, setVtRunning] = useState(false);
