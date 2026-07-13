@@ -557,6 +557,15 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
                 <div style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0" }}>
                   ₦{Number(t.amountNGN).toLocaleString()} · π{Number(t.amountPi).toFixed(4)} · {t.serviceID}
                 </div>
+                {t.status === "success" && t.requestId && (
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace", display: "flex", alignItems: "center", gap: 8, margin: "0 0 4px" }}>
+                    <span>Request ID: {t.requestId}</span>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(t.requestId).then(() => showToast("Copied", "success")).catch(() => showToast("Couldn't copy", "danger"))}
+                      style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: 0 }}
+                    >Copy</button>
+                  </div>
+                )}
                 <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>{new Date(t.createdAt).toLocaleString()}</div>
               </div>
             ))
