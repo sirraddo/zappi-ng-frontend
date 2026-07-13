@@ -1016,8 +1016,8 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
                   {r.error && <div style={{ fontSize: 11, color: "#DC2626", marginTop: 4 }}>{r.error}</div>}
                   {r.skipped && <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 4 }}>{r.skipped}</div>}
                   {r.status !== "delivered" && r.status !== "skipped" && r.raw && (
-                    <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 4, fontFamily: "monospace", wordBreak: "break-all" }}>
-                      {JSON.stringify(r.raw).slice(0, 300)}
+                    <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 4, fontFamily: "monospace", whiteSpace: "pre-wrap", wordBreak: "break-word", background: "var(--card-bg)", padding: 8, borderRadius: 6 }}>
+                      {JSON.stringify(r.raw, null, 2)}
                     </div>
                   )}
                 </div>
