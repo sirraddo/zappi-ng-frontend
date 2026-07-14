@@ -91,7 +91,7 @@ function ticketThread(t) {
 }
 
 export default function AdminScreen({ onBack, showToast = () => {}, onTicketsChanged = () => {} }) {
-  const [tab, setTab] = useState("stats");
+  const [tab, setTab] = useState(null);
   const [confirmState, setConfirmState] = useState(null);
   const [sendingReply, setSendingReply] = useState({});
   const [announcements, setAnnouncements] = useState([]);
@@ -438,84 +438,43 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
         <h2 style={{ margin: 0, fontSize: 18 }}>Admin</h2>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto" }}>
+      {!tab ? (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {[
+            { key: "stats", icon: "📊", label: "Stats" },
+            { key: "transactions", icon: "💳", label: "Transactions" },
+            { key: "announcements", icon: "📢", label: "Announcements" },
+            { key: "tickets", icon: "🎫", label: "Support Tickets", badge: tickets.filter((t) => t.status === "open").length },
+            { key: "flags", icon: "🚩", label: "Flags" },
+            { key: "users", icon: "👤", label: "Users" },
+            { key: "banners", icon: "🖼️", label: "Banners" },
+            { key: "vtpasstest", icon: "🧪", label: "VTPass Test" },
+          ].map((m) => (
+            <button
+              key={m.key}
+              onClick={() => setTab(m.key)}
+              style={{
+                position: "relative", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8,
+                background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 14, padding: 16,
+                cursor: "pointer", textAlign: "left",
+              }}
+            >
+              <span style={{ fontSize: 24 }}>{m.icon}</span>
+              <span style={{ fontWeight: 700, fontSize: 13, color: "var(--text-primary)" }}>{m.label}</span>
+              {m.badge > 0 && (
+                <span style={{ position: "absolute", top: 10, right: 10, fontSize: 10, fontWeight: 700, background: "#dc2626", color: "white", borderRadius: 10, padding: "1px 6px" }}>
+                  {m.badge}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      ) : (
         <button
-          onClick={() => setTab("stats")}
-          style={{
-            flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "none",
-            background: tab === "stats" ? "var(--primary-light)" : "var(--bg-secondary)",
-            color: tab === "stats" ? "var(--primary)" : "var(--text-secondary)",
-            fontWeight: 700, cursor: "pointer",
-          }}
-        >Stats</button>
-        <button
-          onClick={() => setTab("transactions")}
-          style={{
-            flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "none",
-            background: tab === "transactions" ? "var(--primary-light)" : "var(--bg-secondary)",
-            color: tab === "transactions" ? "var(--primary)" : "var(--text-secondary)",
-            fontWeight: 700, cursor: "pointer",
-          }}
-        >Transactions</button>
-        <button
-          onClick={() => setTab("announcements")}
-          style={{
-            flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "none",
-            background: tab === "announcements" ? "var(--primary-light)" : "var(--bg-secondary)",
-            color: tab === "announcements" ? "var(--primary)" : "var(--text-secondary)",
-            fontWeight: 700, cursor: "pointer",
-          }}
-        >Announcements</button>
-        <button
-          onClick={() => setTab("tickets")}
-          style={{
-            flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "none",
-            background: tab === "tickets" ? "var(--primary-light)" : "var(--bg-secondary)",
-            color: tab === "tickets" ? "var(--primary)" : "var(--text-secondary)",
-            fontWeight: 700, cursor: "pointer",
-          }}
-        >Support Tickets{tickets.filter((t) => t.status === "open").length > 0 && (
-            <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, background: "#dc2626", color: "white", borderRadius: 10, padding: "1px 6px" }}>
-              {tickets.filter((t) => t.status === "open").length}
-            </span>
-          )}</button>
-        <button
-          onClick={() => setTab("flags")}
-          style={{
-            flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "none",
-            background: tab === "flags" ? "var(--primary-light)" : "var(--bg-secondary)",
-            color: tab === "flags" ? "var(--primary)" : "var(--text-secondary)",
-            fontWeight: 700, cursor: "pointer",
-          }}
-        >Flags</button>
-        <button
-          onClick={() => setTab("users")}
-          style={{
-            flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "none",
-            background: tab === "users" ? "var(--primary-light)" : "var(--bg-secondary)",
-            color: tab === "users" ? "var(--primary)" : "var(--text-secondary)",
-            fontWeight: 700, cursor: "pointer",
-          }}
-        >Users</button>
-        <button
-          onClick={() => setTab("banners")}
-          style={{
-            flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "none",
-            background: tab === "banners" ? "var(--primary-light)" : "var(--bg-secondary)",
-            color: tab === "banners" ? "var(--primary)" : "var(--text-secondary)",
-            fontWeight: 700, cursor: "pointer",
-          }}
-        >Banners</button>
-        <button
-          onClick={() => setTab("vtpasstest")}
-          style={{
-            flexShrink: 0, padding: "8px 14px", borderRadius: 10, border: "none",
-            background: tab === "vtpasstest" ? "var(--primary-light)" : "var(--bg-secondary)",
-            color: tab === "vtpasstest" ? "var(--primary)" : "var(--text-secondary)",
-            fontWeight: 700, cursor: "pointer",
-          }}
-        >VTPass Test</button>
-      </div>
+          onClick={() => setTab(null)}
+          style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "var(--primary)", fontWeight: 700, fontSize: 14, cursor: "pointer", padding: 0, marginBottom: 16 }}
+        >← Back to menu</button>
+      )}
 
       {tab === "stats" && (
         loading ? (
