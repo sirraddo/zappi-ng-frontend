@@ -952,7 +952,7 @@ return (
 <div style={{display:"flex",gap:20,margin:"6px 0 2px"}}>
 <div>
 <p style={{color:"white",fontSize:24,fontWeight:800,margin:0,letterSpacing:"-0.5px"}}>π{txStats.piSent>=100?Math.round(txStats.piSent).toLocaleString():txStats.piSent.toFixed(2)}</p>
-<p style={{color:"rgba(255,255,255,0.65)",fontSize:11,margin:0}}>Pi Sent</p>
+<p style={{color:"rgba(255,255,255,0.65)",fontSize:11,margin:0}}>Pi Spent</p>
 </div>
 <div>
 <p style={{color:"white",fontSize:24,fontWeight:800,margin:0,letterSpacing:"-0.5px"}}>{txStats.count}</p>
