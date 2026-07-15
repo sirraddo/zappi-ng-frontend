@@ -122,6 +122,8 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
   const [vtResults, setVtResults] = useState(null);
   const [vtMode, setVtMode] = useState(null);
   const [vtRunning, setVtRunning] = useState(false);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [pendingTx, setPendingTx] = useState([]);
 
   function loadAnnouncements() {
     setLoading(true);
@@ -178,6 +180,31 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
       .finally(() => setLoading(false));
   }
 
+  function loadAuditLog() {
+    setLoading(true);
+    fetch(`${API_URL}/api/admin/audit-log`, { headers: authHdrs() })
+      .then((r) => r.json())
+      .then((d) => setAuditLogs(d.logs || []))
+      .catch(() => showToast("Could not load audit log", "danger"))
+      .finally(() => setLoading(false));
+  }
+
+  // Transactions VTPass has accepted (charged the wallet) but not yet
+  // confirmed as "delivered" — see models/Transaction.js status enum.
+  // Oldest first: the longer something's sat pending, the more likely
+  // it's genuinely stuck rather than just mid-flight.
+  function loadPendingTx() {
+    setLoading(true);
+    fetch(`${API_URL}/api/admin/transactions/recent?status=pending`, { headers: authHdrs() })
+      .then((r) => r.json())
+      .then((d) => {
+        const sorted = [...(d.transactions || [])].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        setPendingTx(sorted);
+      })
+      .catch(() => showToast("Could not load pending transactions", "danger"))
+      .finally(() => setLoading(false));
+  }
+
   useEffect(() => {
     if (tab === "stats") loadStats();
     else if (tab === "transactions") loadTransactions();
@@ -185,6 +212,8 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
     else if (tab === "tickets") loadTickets();
     else if (tab === "flags") loadFlags();
     else if (tab === "banners") loadBanners();
+    else if (tab === "auditlog") loadAuditLog();
+    else if (tab === "pending") loadPendingTx();
   }, [tab, txFilter]);
 
   // Fetch tickets on mount (not lazily) so the open-count badge on the
@@ -449,6 +478,8 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
             { key: "users", icon: "👤", label: "Users" },
             { key: "banners", icon: "🖼️", label: "Banners" },
             { key: "vtpasstest", icon: "🧪", label: "VTPass Test" },
+            { key: "auditlog", icon: "📜", label: "Audit Log" },
+            { key: "pending", icon: "⏳", label: "Pending Txns", badge: pendingTx.length },
           ].map((m) => (
             <button
               key={m.key}
@@ -982,6 +1013,59 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
                 </div>
               ))}
             </>
+          )}
+        </>
+      )}
+
+      {tab === "auditlog" && (
+        <>
+          {loading ? (
+            <div>Loading…</div>
+          ) : auditLogs.length === 0 ? (
+            <div style={{ color: "var(--text-secondary)" }}>No admin actions recorded yet</div>
+          ) : (
+            auditLogs.map((log) => (
+              <div key={log._id} style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <span style={{ fontWeight: 700, fontSize: 13 }}>{log.action}</span>
+                  <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>{new Date(log.createdAt).toLocaleString()}</span>
+                </div>
+                {log.target && <div style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0" }}>{log.target}</div>}
+                <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>by @{log.admin}</div>
+                {log.details && Object.keys(log.details).length > 0 && (
+                  <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 4, fontFamily: "monospace" }}>
+                    {JSON.stringify(log.details)}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </>
+      )}
+
+      {tab === "pending" && (
+        <>
+          <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px", lineHeight: 1.4 }}>
+            Transactions VTPass has accepted (wallet charged) but hasn't confirmed as delivered yet. Sorted oldest first — anything sitting here a while is worth checking directly with VTPass.
+          </p>
+          {loading ? (
+            <div>Loading…</div>
+          ) : pendingTx.length === 0 ? (
+            <div style={{ color: "var(--text-secondary)" }}>Nothing pending — all clear</div>
+          ) : (
+            pendingTx.map((t) => (
+              <div key={t._id} style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{t.billType} — @{t.user?.piUsername || "unknown"}</div>
+                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: "#FEF3C7", color: "#92400E" }}>pending</span>
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0" }}>
+                  ₦{Number(t.amountNGN).toLocaleString()} · π{Number(t.amountPi).toFixed(4)} · {t.serviceID}
+                </div>
+                {t.requestId && <div style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace" }}>Request ID: {t.requestId}</div>}
+                <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>{new Date(t.createdAt).toLocaleString()}</div>
+              </div>
+            ))
           )}
         </>
       )}
