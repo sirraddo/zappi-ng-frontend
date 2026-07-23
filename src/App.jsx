@@ -890,7 +890,15 @@ catch { showToast("Sharing isn't supported on this device","danger") }
 
 const navTo=(p,sub=null)=>{ setPage(p); setSubPage(sub) }
 
-const [legalPage, setLegalPage] = useState(null)
+const [legalPage, setLegalPage] = useState(() => {
+// Lets external links (e.g. Pi Developer Portal's Privacy Policy / Terms of
+// Service URL fields) deep-link straight into these screens instead of just
+// loading the home screen. Real working URLs:
+//   https://zappi-ng-frontend.vercel.app/?legal=privacy
+//   https://zappi-ng-frontend.vercel.app/?legal=terms
+const p = new URLSearchParams(window.location.search).get("legal")
+return p === "privacy" || p === "terms" ? p : null
+})
 if (legalPage === "privacy") return <PrivacyPolicy onBack={() => setLegalPage(null)} />
 if (legalPage === "terms") return <TermsOfService onBack={() => setLegalPage(null)} />
 if (legalPage === "support") return <SupportPage onBack={() => setLegalPage(null)} />
