@@ -29,7 +29,7 @@ export const CONFIG = {
   whatsappNumber: "2349011653172",
   supportEmail: "zappingsupport@gmail.com",
   appVersion: "1.0.0",
-  buildDate: "January 2025",
+  buildDate: "November 2026",
 };
 
 const FAQS = [
@@ -188,9 +188,9 @@ export default function SupportPage({ onBack }) {
           <div className="about-tagline">Pay bills with Pi · Nigeria</div>
           <div className="about-version">Version {CONFIG.appVersion} · {CONFIG.buildDate}</div>
           <div className="about-links">
-            <a href="/privacy" className="about-link">Privacy Policy</a>
+            <a href="/privacy-policy.html" className="about-link">Privacy Policy</a>
             <span className="about-dot">·</span>
-            <a href="/terms" className="about-link">Terms of Service</a>
+            <a href="/terms.html" className="about-link">Terms of Service</a>
           </div>
           <div className="about-sandbox-note">
             {import.meta.env.VITE_PI_SANDBOX === "true" ? (

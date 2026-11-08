@@ -60,7 +60,7 @@ async function piLogin(onSuccess, onMessage) {
     dbg("3: init called, authenticating…");
 
     const auth = await Promise.race([
-      window.Pi.authenticate(["username", "payments", "wallet_address"], (payment) => {
+      window.Pi.authenticate(["username", "payments"], (payment) => {
         console.log("incomplete payment", payment);
       }),
       new Promise((_, rej) => setTimeout(() => rej(new Error("Pi.authenticate timed out (30s)")), 30000)),
@@ -152,7 +152,7 @@ export function SplashScreen({ onContinue, onSuccess }) {
     <div style={{ minHeight: "100vh", background: `linear-gradient(160deg,${C.primary} 0%,#FF7A33 60%,#FFCBA3 100%)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ width: 90, height: 90, borderRadius: 28, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 44, marginBottom: 20, backdropFilter: "blur(10px)", border: "2px solid rgba(255,255,255,0.3)", fontWeight:800 }}>Z</div>
       <h1 style={{ color: "white", fontSize: 36, fontWeight: 900, margin: "0 0 8px", letterSpacing: "-1px" }}>Zappi NG</h1>
-      <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 15, margin: "0 0 60px", textAlign: "center", lineHeight: 1.5 }}>Pay bills. Send Pi. Live better.</p>
+      <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 15, margin: "0 0 60px", textAlign: "center", lineHeight: 1.5 }}>Pay your bills with Pi.</p>
       <button onClick={handlePi} disabled={busy} style={{ width: "100%", maxWidth: 320, background: "rgba(255,255,255,1)", border: "none", borderRadius: 16, padding: 16, fontSize: 16, fontWeight: 800, color: C.primary, cursor: busy ? "default" : "pointer", boxShadow: "0 8px 24px rgba(0,0,0,0.2)", marginBottom: 16, opacity: busy ? 0.8 : 1 }}>
         {busy ? "Connecting…" : "⚡ Continue with Pi"}
       </button>

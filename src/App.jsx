@@ -865,10 +865,15 @@ const txnFields = buildTxnFields(tx)
 requireTxnConfirmation(`Confirm ${service}`, txnFields, (confirmationToken)=>{
 setTxnPinModal(null)
 const vtpassEligible = ["airtime","data","electricity","cable","internet","education","insurance","showmax"].includes(tx.type) && !!txnFields.serviceID
-if (REAL_PAYMENTS && vtpassEligible && isReady && window.Pi) {
-runRealPayment(service, tx, txnFields, piCost, confirmationToken)
+if (REAL_PAYMENTS) {
+// Live mode: never fall back to the simulated ledger — a user who is not
+// inside the Pi Browser must not be shown a fake "payment successful".
+if (!vtpassEligible) showToast("This service isn't available for payment yet.","danger")
+else if (!isReady || !window.Pi) showToast("Open Zappi NG inside the Pi Browser to pay with Pi.","danger")
+else runRealPayment(service, tx, txnFields, piCost, confirmationToken)
 } else {
-// Mock ledger (simulated delivery) — confirmation is still server-verified.
+// Demo mode (VITE_REAL_PAYMENTS is not "true"): simulated ledger — no Pi moves.
+// A banner at the top of the screen says so.
 finishPayment(service, tx, piCost)
 }
 })
@@ -935,6 +940,7 @@ return (
 {receiptTx&&<TransactionReceipt receipt={txToReceipt(receiptTx)} onDone={()=>setReceiptTx(null)}/>}
 
 <div style={{flex:1,overflowY:"auto"}}>
+{!REAL_PAYMENTS&&<div style={{background:"#FEE2E2",color:"#991B1B",padding:"8px 16px",fontSize:12,fontWeight:700,textAlign:"center"}}>Demo mode — payments are simulated, no real Pi is spent</div>}
 {isPaying&&<div style={{background:"#FEF3C7",color:"#92400E",padding:"10px 16px",fontSize:13,fontWeight:600,textAlign:"center"}}>⏳ Processing your last payment — this can take up to 30 seconds…</div>}
 
 {page==="home"&&!subPage&&(
@@ -997,8 +1003,8 @@ return (
 <div style={{padding:"8px 16px 0"}}>
 <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:4}}>
 {(banners || [
-{title:"Instant bill payments",desc:"Airtime, data, electricity & more — paid with Pi"},
-{title:"Live market rate",desc:"Our Pi/NGN rate updates in real time, not fixed"},
+{title:"Bill payments with Pi",desc:"Airtime, data, electricity & more — paid with Pi"},
+{title:"Clear pricing",desc:"Bills are priced in Naira — you see the Pi amount before you confirm"},
 {title:"Secure by design",desc:"Every payment needs your transaction PIN"},
 ]).map((b,i)=>({...b,icon:["⚡","📊","🔒"][i%3],bg:["linear-gradient(135deg,#CC4E00,#FF7A33)","linear-gradient(135deg,#059669,#10B981)","linear-gradient(135deg,#EA580C,#F59E0B)"][i%3]})).map((promo,i)=>(
 <div key={promo.title+i} onClick={()=>{if(promo.link) window.open(promo.link,"_blank")}} style={{minWidth:220,background:promo.bg,borderRadius:14,padding:16,flexShrink:0,cursor:promo.link?"pointer":"default"}}>
