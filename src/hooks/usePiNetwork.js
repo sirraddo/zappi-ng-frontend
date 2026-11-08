@@ -11,6 +11,13 @@ import { useState, useEffect, useCallback } from "react";
 
 const PI_SDK_URL = "https://sdk.minepi.com/pi-sdk.js";
 
+// Payment approval/completion are signed-in only: the server checks the payment
+// really belongs to this user before it approves or completes it.
+const authHeaders = () => ({
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${localStorage.getItem("zappi_token") || ""}`,
+});
+
 export function usePiNetwork() {
   const [isReady, setIsReady] = useState(false);
   const [isSandbox, setIsSandbox] = useState(false);
@@ -124,7 +131,7 @@ export function usePiNetwork() {
           try {
             const res = await fetch(`${import.meta.env.VITE_API_URL}/api/pi/approve`, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: authHeaders(),
               body: JSON.stringify({ paymentId }),
             });
             if (!res.ok) {
@@ -144,7 +151,7 @@ export function usePiNetwork() {
               `${import.meta.env.VITE_API_URL}/api/pi/complete`,
               {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders(),
                 body: JSON.stringify({ paymentId, txid }),
                 }
             );
