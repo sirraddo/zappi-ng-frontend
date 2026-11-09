@@ -189,7 +189,7 @@ onMouseDown={e=>e.currentTarget.style.transform="scale(0.98)"} onMouseUp={e=>e.c
 const _logoCatalogCache = {}
 function fetchLogoCatalog(category) {
 if (_logoCatalogCache[category]) return _logoCatalogCache[category]
-const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com"
 const token = localStorage.getItem("zappi_token")
 const promise = fetch(`${apiUrl}/api/payments/services?category=${category}`, {
 headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -217,7 +217,7 @@ const _variationCache = {}
 function fetchVariations(serviceID) {
 if (!serviceID) return Promise.resolve([])
 if (_variationCache[serviceID]) return _variationCache[serviceID]
-const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com"
 const token = localStorage.getItem("zappi_token")
 const promise = fetch(`${apiUrl}/api/payments/variations?serviceID=${serviceID}`, {
 headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -354,7 +354,7 @@ if (!serviceID || !billersCode || billersCode.length < minLength) { setState({ s
 let cancelled = false
 setState({ status: "loading", name: "" })
 const timer = setTimeout(() => {
-const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com"
 const token = localStorage.getItem("zappi_token")
 fetch(`${apiUrl}/api/payments/verify`, {
 method: "POST",
@@ -384,7 +384,7 @@ if (!email || email.length < minLength || !email.includes("@")) { setState({ sta
 let cancelled = false
 setState({ status: "loading" })
 const timer = setTimeout(() => {
-const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com"
 const token = localStorage.getItem("zappi_token")
 fetch(`${apiUrl}/api/payments/verify-smile-email`, {
 method: "POST",
@@ -483,7 +483,7 @@ const [rateLive, setRateLive] = useState(false)
 
 useEffect(() => {
 let cancelled = false
-const API = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const API = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com"
 const fetchRate = async (attempt = 0) => {
 try {
 const r = await fetch(`${API}/api/pi-rate`)
@@ -528,7 +528,7 @@ const [toast, setToast] = useState(null)
 // the hardcoded fallback below so the strip is never empty/broken.
 const [banners, setBanners] = useState(null)
 useEffect(() => {
-const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com"
 const token = localStorage.getItem("zappi_token")
 fetch(`${apiUrl}/api/banners`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
 .then(r => r.ok ? r.json() : { banners: [] })
@@ -541,7 +541,7 @@ fetch(`${apiUrl}/api/banners`, { headers: token ? { Authorization: `Bearer ${tok
 // known-safe state) until we actually hear back.
 const [flags, setFlags] = useState({})
 useEffect(() => {
-const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com"
 const token = localStorage.getItem("zappi_token")
 fetch(`${apiUrl}/api/flags`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
 .then(r => r.ok ? r.json() : { flags: {} })
@@ -557,7 +557,7 @@ fetch(`${apiUrl}/api/flags`, { headers: token ? { Authorization: `Bearer ${token
 const [openTicketCount, setOpenTicketCount] = useState(0)
 const loadOpenTicketCount = () => {
 if (!isAdminUser()) return
-const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com"
 const token = localStorage.getItem("zappi_token")
 fetch(`${apiUrl}/api/tickets`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
 .then(r => r.ok ? r.json() : { tickets: [] })
@@ -732,7 +732,7 @@ setElecMinAmount(null)
 const reportIssue=(tx)=>{
 const ref = "ZAP-" + String(tx.backendId || tx.id).slice(-10).toUpperCase()
 const msg = `Hi Zappi NG Support, I'd like to report an issue with a transaction.\n\nReference: ${ref}\nService: ${tx.label}\nAmount: ${tx.amount} (${tx.pi})\nDate: ${tx.ts ? new Date(tx.ts).toLocaleString() : tx.date}\n\nIssue: `
-const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com"
 const token = localStorage.getItem("zappi_token")
 if (token) {
 fetch(`${apiUrl}/api/tickets`, {

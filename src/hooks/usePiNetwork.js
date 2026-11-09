@@ -11,6 +11,8 @@ import { useState, useEffect, useCallback } from "react";
 
 const PI_SDK_URL = "https://sdk.minepi.com/pi-sdk.js";
 
+const API_URL = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com";
+
 // Payment approval/completion are signed-in only: the server checks the payment
 // really belongs to this user before it approves or completes it.
 const authHeaders = () => ({
@@ -69,7 +71,7 @@ export function usePiNetwork() {
         // Incomplete payment handler — complete any pending payments
         try {
           await fetch(
-            `${import.meta.env.VITE_API_URL}/api/pi/incomplete-payment`,
+            `${API_URL}/api/pi/incomplete-payment`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -83,7 +85,7 @@ export function usePiNetwork() {
         .then(async (authResult) => {
           // Verify token with your backend
           const res = await fetch(
-            `${import.meta.env.VITE_API_URL}/api/pi/verify`,
+            `${API_URL}/api/pi/verify`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -129,7 +131,7 @@ export function usePiNetwork() {
           // surfaced: the wallet just sat on "Preparing for a payment..."
           // until Pi's own 60s timeout fired, with zero indication why.
           try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/pi/approve`, {
+            const res = await fetch(`${API_URL}/api/pi/approve`, {
               method: "POST",
               headers: authHeaders(),
               body: JSON.stringify({ paymentId }),
@@ -148,7 +150,7 @@ export function usePiNetwork() {
         onReadyForServerCompletion: async (paymentId, txid) => {
           try {
             const res = await fetch(
-              `${import.meta.env.VITE_API_URL}/api/pi/complete`,
+              `${API_URL}/api/pi/complete`,
               {
                 method: "POST",
                 headers: authHeaders(),

@@ -14,7 +14,7 @@
  * "x-confirmation-token" header.
  */
 
-const API_URL = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const API_URL = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com"
 
 // Real Pi -> VTPass payments are gated behind an env flag until the flow has
 // been exercised end-to-end inside Pi Browser (sandbox). Everything else in

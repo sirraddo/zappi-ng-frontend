@@ -26,7 +26,7 @@ import { useState, useEffect, useRef } from "react";
 import "./NotificationBell.css";
 
 const STORAGE_KEY = "zappi_notifications";
-const API_URL = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com";
+const API_URL = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com";
 
 export function addNotification({ title, body, type = "info", txRef = null }) {
   const all = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
