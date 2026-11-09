@@ -29,9 +29,6 @@ primary: "#CC4E00", light: "var(--primary-light)",
 success: "#22C55E", danger: "#EF4444", bg: "var(--bg-secondary)",
 }
 
-const REFERRAL_CODE = "ZAPPI50" // TODO: per-user code from backend (backlog)
-const REFERRAL_URL = `https://zappi-ng-frontend.vercel.app/?ref=${REFERRAL_CODE}`
-
 // Render a stored timestamp as friendly relative time. Seed rows keep their string date.
 function relativeTime(ts){
 if(!ts) return ""
@@ -44,12 +41,6 @@ if(d<7) return `${d} days ago`
 return new Date(ts).toLocaleDateString("en-NG",{day:"numeric",month:"short"})
 }
 
-const BENEFICIARIES = [
-{ name:"Adaeze", initials:"AD", username:"adaeze" },
-{ name:"Tunde", initials:"TU", username:"tunde" },
-{ name:"Kike", initials:"KI", username:"kike" },
-{ name:"Emeka", initials:"EM", username:"emeka" },
-]
 
 const DISCOS=["IKEDC (Lagos)","EKEDC (Lagos)","IBEDC (Ibadan)","AEDC (Abuja)","PHED (Port Harcourt)","EEDC (Enugu)","KEDCO (Kano)","BEDC (Benin)","JED (Jos)","KAEDC (Kaduna)","YEDC (Yola)","ABEDC (Aba)"]
 
@@ -71,8 +62,6 @@ if (prefixes.includes(prefix)) return net
 }
 return null
 }
-const HOTELS=[{id:"transcorp",label:"Transcorp Hilton",city:"Abuja",price:60000,rating:"⭐⭐⭐⭐⭐"},{id:"eko",label:"Eko Hotel",city:"Lagos",price:45000,rating:"⭐⭐⭐⭐⭐"},{id:"sheraton",label:"Sheraton Lagos",city:"Lagos",price:55000,rating:"⭐⭐⭐⭐⭐"},{id:"radisson",label:"Radisson Blu",city:"Lagos",price:40000,rating:"⭐⭐⭐⭐"}]
-const TRANSPORT=[{id:"uber",label:"Uber Ride",icon:"🚗",desc:"Book a ride"},{id:"brt",label:"BRT Pass",icon:"🚌",desc:"Bus rapid transit"},{id:"toll",label:"Toll Payment",icon:"🛣️",desc:"Highway tolls"},{id:"ferry",label:"Ferry Ticket",icon:"⛵",desc:"Water transport"},{id:"flight",label:"Flight Booking",icon:"✈️",desc:"Domestic flights"}]
 // VTPass has no ipNX product in its entire catalog (checked both the "data" and
 // "other-services" categories), so it was never deliverable — removed, same
 // reasoning as Betting. Smile and Spectranet are real, VTPass-backed services.
@@ -634,8 +623,6 @@ const [recipient,setRecipient]=useState("")
 const [piAmount,setPiAmount]=useState("")
 const [note,setNote]=useState("")
 const [txFilter,setTxFilter]=useState("all")
-const [hotel,setHotel]=useState(null)
-const [transport,setTransport]=useState(null)
 const [internetProvider,setInternetProvider]=useState(null)
 
 // Auto-detect the mobile network from the phone number (airtime/data screens only —
@@ -704,23 +691,13 @@ if(recipient.length<3) return showToast("Enter a valid Pioneer username","danger
 if(!piAmount||Number(piAmount)<=0) return showToast("Enter a valid Pi amount","danger")
 return true
 }
-if(type==="hotel"){
-if(!hotel) return showToast("Select a hotel","danger")
-if(!amount||Number(amount)<1) return showToast("Enter number of nights","danger")
-return true
-}
-if(type==="transport"){
-if(!transport) return showToast("Select a transport service","danger")
-if(!amount||Number(amount)<100) return showToast("Enter a valid amount","danger")
-return true
-}
 return true
 }
 
 const resetInputs=()=>{
 setAmount(""); setPhone(""); setNetwork(""); setBundle(null)
 setDisco(""); setMeter(""); setRecipient(""); setPiAmount(""); setNote("")
-setHotel(null); setTransport(null); setInternetProvider(null)
+setInternetProvider(null)
 setInsFullName(""); setInsAddress(""); setInsDob(""); setInsNextKinName(""); setInsNextKinPhone(""); setInsOccupation("")
 setSmileEmail(""); setSmileAccounts([]); setSmileAccount(null)
 setElecMinAmount(null)
@@ -759,8 +736,6 @@ case "electricity": setDisco(r.disco); setMeter(r.meter); setMeterType(r.meterTy
 case "cable": setNetwork(r.network); setMeter(r.meter); setBundle(r.bundleCode ? { code: r.bundleCode, label: r.bundleLabel, price: r.bundlePrice } : null); break
 case "internet": setInternetProvider(INTERNET_PROVIDERS.find(p=>p.id===r.providerId) || null); setMeter(r.meter); setBundle(r.bundleCode ? { code: r.bundleCode, label: r.bundleLabel, price: r.bundlePrice } : null); break
 case "betting": showToast("Betting top-ups are no longer available","danger"); return
-case "hotel": setHotel(HOTELS.find(h=>h.id===r.hotelId) || null); setAmount(r.amount); break
-case "transport": setTransport(TRANSPORT.find(t=>t.id===r.transportId) || null); setAmount(r.amount); break
 case "education": setEduProduct(r.eduProduct); setPhone(r.phone); setMeter(r.meter); setBundle(r.bundleCode ? { code: r.bundleCode, label: r.bundleLabel, price: r.bundlePrice } : null); break
 case "showmax": setPhone(r.phone); setBundle(r.bundleCode ? { code: r.bundleCode, label: r.bundleLabel, price: r.bundlePrice } : null); break
 case "insurance": showToast("Insurance is temporarily suspended by our payments provider — check back soon","danger"); return
@@ -880,19 +855,6 @@ finishPayment(service, tx, piCost)
 })
 }
 
-const copyReferral = async () => {
-try { await navigator.clipboard.writeText(REFERRAL_CODE); showToast("Referral code copied!","success") }
-catch { showToast("Couldn't copy — long-press the code to copy","danger") }
-}
-const shareReferral = async () => {
-const shareData = { title:"Zappi NG", text:`Pay bills with Pi on Zappi NG! Use my code ${REFERRAL_CODE}`, url:REFERRAL_URL }
-if (navigator.share) {
-try { await navigator.share(shareData); showToast("Thanks for sharing! 🎉","success") } catch {} // user closed the share sheet — not an error
-} else {
-try { await navigator.clipboard.writeText(`${shareData.text} ${REFERRAL_URL}`); showToast("Link copied — paste to share!","success") }
-catch { showToast("Sharing isn't supported on this device","danger") }
-}
-}
 
 const navTo=(p,sub=null)=>{ setPage(p); setSubPage(sub) }
 
@@ -1050,48 +1012,6 @@ return (
 </div>
 )}
 
-{/* DISABLED — unreachable from any nav entry point as of this change. REFERRAL_CODE is a
-   single hardcoded string ("ZAPPI50") shared by every user, with no backend tracking of
-   who referred whom, no way to detect a qualifying signup, and no payout mechanism at all
-   — the "Earn π0.50 per referral" claim could not come true for anyone as written. The
-   "Your referral stats" numbers below are also hardcoded fake data, not real activity.
-   Left in place, not deleted, so a real implementation has a UI to build from: needs a
-   per-user code issued by the backend, a way to attribute a signup to that code, some
-   qualifying action (e.g. the referred user's first completed payment) before a reward
-   is earned, and a real payout via the A2U mechanism in zappi-ng-backend#8 (same
-   recipient-must-have-logged-in constraint as Send Pi applies here too).
-   Re-enable by restoring the "Refer & Earn" entry points once that's built. */}
-{false&&page==="home"&&subPage==="refer"&&(
-<div>
-<Header title="Refer & Earn" onBack={()=>setSubPage(null)}/>
-<div style={{padding:16}}>
-<div style={{background:`linear-gradient(135deg,${C.primary},#FF7A33)`,borderRadius:16,padding:20,textAlign:"center",marginBottom:16}}>
-<p style={{color:"white",fontSize:30,margin:0}}>🎯</p>
-<p style={{color:"white",fontWeight:700,fontSize:18,margin:"8px 0 4px"}}>Refer & Earn Pi</p>
-<p style={{color:"rgba(255,255,255,0.8)",fontSize:13,margin:0}}>Earn π0.50 for every Pioneer who makes their first payment</p>
-</div>
-<div style={{background:"var(--card-bg)",borderRadius:14,padding:16,marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
-<p style={{fontSize:12,color:"var(--text-secondary)",margin:"0 0 6px",fontWeight:600}}>Your referral code</p>
-<div style={{display:"flex",gap:8,alignItems:"center"}}>
-<div style={{flex:1,background:C.light,borderRadius:10,padding:"12px 14px",fontWeight:700,fontSize:16,color:C.primary,letterSpacing:"2px"}}>{REFERRAL_CODE}</div>
-<button onClick={copyReferral} style={{background:C.primary,border:"none",borderRadius:10,padding:"12px 16px",color:"white",fontWeight:600,cursor:"pointer"}}>Copy</button>
-</div>
-</div>
-<div style={{background:"var(--card-bg)",borderRadius:14,padding:16,boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
-<p style={{fontSize:13,fontWeight:700,margin:"0 0 12px"}}>Your referral stats</p>
-<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-{[{label:"Referred",value:"7"},{label:"Active",value:"5"},{label:"Earned",value:"π2.50"}].map(s=>(
-<div key={s.label} style={{background:C.bg,borderRadius:10,padding:12,textAlign:"center"}}>
-<p style={{margin:0,fontSize:20,fontWeight:800,color:C.primary}}>{s.value}</p>
-<p style={{margin:"4px 0 0",fontSize:11,color:"var(--text-secondary)"}}>{s.label}</p>
-</div>
-))}
-</div>
-</div>
-<Btn label="Share Referral Link" onClick={shareReferral}/>
-</div>
-</div>
-)}
 
 {page==="bills"&&!subPage&&(
 <div>
@@ -1107,10 +1027,9 @@ return (
     fields all verified against VTPass's own docs). This is entirely on
     VTPass's side, not something fixable in our code — left hidden rather
     than deleted so it's trivial to re-enable if VTPass un-suspends it. */}
-<SCard icon="🛡️" label="Insurance" desc={flags.insurance_enabled ? "Personal Accident cover" : "Personal Accident cover (Temporarily unavailable)"} bg="#F0FDFA" onClick={()=>{
-if (flags.insurance_enabled) { setPage("bills"); setSubPage("insurance") }
-else showToast("Insurance is temporarily suspended by our payments provider — check back soon","danger")
-}}/>
+{flags.insurance_enabled&&<SCard icon="🛡️" label="Insurance" desc="Personal Accident cover" bg="#F0FDFA" onClick={()=>{
+setPage("bills"); setSubPage("insurance")
+}}/>}
 </div>
 </div>
 )}
@@ -1301,52 +1220,12 @@ else showToast("Insurance is temporarily suspended by our payments provider — 
 </div></div>
 )}
 
-{/* DISABLED — unreachable from any nav entry point as of this change. This entire
-   "Send Pi" flow only ever calls handlePay(), which for type:"send" always falls into
-   the mock ledger (see handlePay: vtpassEligible only covers airtime/data/electricity/
-   cable) — no real Pi ever moves and the @username typed here was never validated or
-   used anywhere. Left in place, not deleted, because a REAL version is buildable:
-   sender pays the app via U2A, app forwards via A2U to the recipient's stored piUid —
-   but that only works for recipients who have themselves logged into Zappi NG at least
-   once (A2U needs their app-specific uid; there is no way to pay an unknown username).
-   Re-enable by restoring the "send" tab/quick-action entries once that relay is built. */}
-{false&&page==="send"&&(
-<div><Header title="Send Pi"/>
-<div style={{padding:16}}>
-<FL>Recent pioneers</FL>
-<div style={{display:"flex",gap:12,marginBottom:20,overflowX:"auto",paddingBottom:4}}>
-{BENEFICIARIES.map(b=><button key={b.name} onClick={()=>setRecipient(b.username)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,flexShrink:0}}>
-<div style={{width:46,height:46,borderRadius:"50%",background:recipient===b.username?C.primary:C.light,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:recipient===b.username?"white":C.primary,border:`2px solid ${recipient===b.username?C.primary:"transparent"}`}}>{b.initials}</div>
-<span style={{fontSize:11,color:"var(--text-secondary)"}}>{b.name}</span>
-</button>)}
-</div>
-<FL>Recipient username</FL>
-<div style={{display:"flex",alignItems:"center",border:"1.5px solid #E5E7EB",borderRadius:10,padding:"0 12px",marginBottom:16,background:"var(--card-bg)"}}>
-<span style={{color:C.primary,fontWeight:700,fontSize:18}}>@</span>
-<input value={recipient} onChange={e=>setRecipient(e.target.value.toLowerCase())} placeholder="pioneer_username" style={{flex:1,padding:13,border:"none",outline:"none",fontSize:14,background:"transparent",fontFamily:"inherit"}}/>
-</div>
-<FL>Amount (π)</FL>
-<div style={{display:"flex",gap:8,marginBottom:8}}>{[1,5,10,20].map(a=><button key={a} onClick={()=>setPiAmount(String(a))} style={{flex:1,padding:10,borderRadius:10,border:`2px solid ${piAmount==a?C.primary:"var(--border)"}`,background:piAmount==a?C.light:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>π{a}</button>)}</div>
-<Inp value={piAmount} onChange={e=>setPiAmount(e.target.value)} placeholder="0.00" type="number"/>
-{piAmount>0&&<div style={{background:C.light,borderRadius:10,padding:14,marginBottom:12,display:"flex",justifyContent:"space-between"}}><span style={{color:C.primary,fontSize:13}}>NGN equivalent</span><span style={{color:C.primary,fontSize:14,fontWeight:700}}>₦{(Number(piAmount)*liveRate).toLocaleString()}</span></div>}
-<FL>Note (optional)</FL><Inp value={note} onChange={e=>setNote(e.target.value)} placeholder="What's this for?"/>
-<Btn label={`Send π${piAmount||"0"} to @${recipient||"..."}`} disabled={!recipient||!piAmount} onClick={()=>validate("send")&&handlePay("Pi Transfer",{type:"send",label:`Sent to @${recipient}`,sub:note||"Pioneer transfer",ngn:Number(piAmount)*liveRate,pi:Number(piAmount),icon:"💸",color:"#F0FDF4"})}/>
-</div></div>
-)}
 
 {page==="more"&&!subPage&&(
 <div><Header title="More Services"/>
 <div style={{padding:16}}>
-<p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"0 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Travel & Lifestyle</p>
-{/* Coming Soon, same treatment as Pi Savings below — not wired to any real
-    backend or VTPass product (VTPass has no hotel/travel category at all), so
-    the deeper screens are intentionally left unreachable rather than letting
-    someone "pay" for a booking that's actually just the local mock ledger. */}
-<SCard icon="🏨" label="Hotels" desc="Book hotels across Nigeria (Coming soon)" bg="#FEF9C3" onClick={()=>showToast("Hotel booking launching soon!","success")}/>
-<SCard icon="✈️" label="Travel & Transport" desc="Flights, rides, tolls & more (Coming soon)" bg="#DBEAFE" onClick={()=>showToast("Travel & Transport launching soon!","success")}/>
-<p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Finance & Rewards</p>
-<SCard icon="📊" label="Pi Market Rate" desc="Our own live rate — not an official Pi price" bg="#FFF7ED" onClick={()=>showToast(`Current rate: ₦${liveRate}/π`,"success")}/>
-<SCard icon="💰" label="Pi Savings" desc="Save Pi and earn interest (Coming soon)" bg="#FFFBEB" onClick={()=>showToast("Pi Savings launching soon!","success")}/>
+<p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Rates</p>
+<SCard icon="📊" label="Zappi NG Pi Rate" desc="Our own pricing rate — not an official Pi price" bg="#FFF7ED" onClick={()=>showToast(`Current rate: ₦${liveRate}/π`,"success")}/>
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Account</p>
 <SCard icon="👤" label="My Profile" desc="Manage your account" bg="#F0F0FF" onClick={()=>setShowProfile(true)}/>
 <SCard icon="💬" label="Help & Support" desc="FAQ, WhatsApp, contact us" bg="#F0FDF4" onClick={()=>setLegalPage("support")}/>
@@ -1358,35 +1237,7 @@ else showToast("Insurance is temporarily suspended by our payments provider — 
 </div></div>
 )}
 
-{page==="more"&&subPage==="hotel"&&(
-<div><Header title="Book a Hotel" onBack={()=>setSubPage(null)}/>
-<div style={{padding:16}}>
-<FL>Popular hotels</FL>
-{HOTELS.map(h=><button key={h.id} onClick={()=>setHotel(h)} style={{width:"100%",background:"var(--card-bg)",border:`2px solid ${hotel?.id===h.id?C.primary:"var(--border)"}`,borderRadius:14,padding:14,marginBottom:10,display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
-<span style={{fontSize:30}}>🏨</span>
-<div style={{flex:1}}><p style={{margin:0,fontSize:14,fontWeight:700}}>{h.label}</p><p style={{margin:"2px 0",fontSize:12,color:"var(--text-tertiary)"}}>{h.city} · {h.rating}</p><p style={{margin:0,fontSize:13,fontWeight:700,color:C.primary}}>₦{h.price.toLocaleString()}/night</p></div>
-{hotel?.id===h.id&&<span style={{color:C.primary,fontSize:20}}>✓</span>}
-</button>)}
-{hotel&&<><FL>Number of nights</FL><Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="e.g. 2" type="number"/>
-{amount>0&&<PiSummary amount={hotel.price*Number(amount)} bg="#FEF9C3" color="#854D0E" rate={liveRate}/>}
-<Btn label={`Book — π ${amount?(hotel.price*amount/liveRate).toFixed(4):"0"}`} disabled={!amount} onClick={()=>validate("hotel")&&handlePay("Hotel booking",{type:"hotel",label:hotel.label,sub:`${amount} night${Number(amount)>1?"s":""} · ${hotel.city}`,ngn:hotel.price*Number(amount),icon:"🏨",color:"#FEF9C3",raw:{page:"more",subPage:"hotel",hotelId:hotel.id,amount}})}/></>}
-</div></div>
-)}
 
-{page==="more"&&subPage==="transport"&&(
-<div><Header title="Travel & Transport" onBack={()=>setSubPage(null)}/>
-<div style={{padding:16}}>
-<FL>Select service</FL>
-{TRANSPORT.map(t=><button key={t.id} onClick={()=>setTransport(t)} style={{width:"100%",background:"var(--card-bg)",border:`2px solid ${transport?.id===t.id?C.primary:"var(--border)"}`,borderRadius:12,padding:14,marginBottom:8,display:"flex",alignItems:"center",gap:12,cursor:"pointer",textAlign:"left"}}>
-<span style={{fontSize:26}}>{t.icon}</span>
-<div style={{flex:1}}><p style={{margin:0,fontSize:14,fontWeight:700}}>{t.label}</p><p style={{margin:"2px 0 0",fontSize:12,color:"var(--text-tertiary)"}}>{t.desc}</p></div>
-{transport?.id===t.id&&<span style={{color:C.primary,fontSize:18}}>✓</span>}
-</button>)}
-{transport&&<><FL>Amount (₦)</FL><Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Enter amount" type="number"/>
-<PiSummary amount={amount} bg="#DBEAFE" color="#1D4ED8" rate={liveRate}/>
-<Btn label={`Pay for ${transport.label} — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!amount} onClick={()=>validate("transport")&&handlePay(transport.label,{type:"transport",label:transport.label,sub:transport.desc,ngn:Number(amount),icon:transport.icon,color:"#DBEAFE",raw:{page:"more",subPage:"transport",transportId:transport.id,amount}})}/></>}
-</div></div>
-)}
 
 {page==="history"&&(
 <div><Header title="Transactions"/>

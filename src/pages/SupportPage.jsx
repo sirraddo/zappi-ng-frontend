@@ -6,7 +6,6 @@
  * Add to your router: <Route path="/support" element={<SupportPage />} />
  * Or render as a tab inside your More/Settings screen.
  *
- * TODO: update WHATSAPP_NUMBER, SUPPORT_EMAIL, APP_VERSION
  */
 
 import { useState } from "react";
