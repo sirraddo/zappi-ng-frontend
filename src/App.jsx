@@ -642,7 +642,7 @@ setPhoneDetected(null)
 
 const user = JSON.parse(localStorage.getItem("zappi_user")||"{}")
 
-const showToast=(msg,type="success")=>{ setToast(msg); setToastType(type); setTimeout(()=>setToast(null),3500) }
+const showToast=(msg,type="success",ms=3500)=>{ setToast(msg); setToastType(type); setTimeout(()=>setToast(null),ms) }
 
 // Opens the PIN confirmation modal; onConfirmed receives a single-use confirmation
 // token bound to txnFields (required by /api/payments/complete). Setup is
@@ -812,6 +812,7 @@ business_occupation: insOccupation,
 } : {}),
 piAmount: piCost,
 }
+const deliveryFailMsg = (svc, err) => `Your Pi was received but ${svc} was not delivered${err?.message ? " ("+err.message+")" : ""}. Please don't pay again — open Help & Support and we'll fix it.`
 const deliver = async (token, piPaymentId) => {
 const completion = await completeBillPayment(txnFields, { ...extras, piPaymentId }, token)
 finishPayment(service, tx, piCost, completion?.txId)
@@ -825,9 +826,9 @@ if (e.status === 401) {
 requireTxnConfirmation(`Confirm ${service} delivery`, txnFields, async (fresh) => {
 setTxnPinModal(null)
 try { await deliver(fresh, paymentId) }
-catch (e2) { showToast(e2.message || "Bill delivery failed — please contact support","danger") }
+catch (e2) { showToast(deliveryFailMsg(service, e2),"danger",9000) }
 })
-} else showToast(e.message || "Bill delivery failed — please contact support","danger")
+} else showToast(deliveryFailMsg(service, e),"danger",9000)
 }
 },
 (err)=>showToast(err?.message || "Pi payment failed","danger")
