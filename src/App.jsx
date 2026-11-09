@@ -1,3 +1,4 @@
+import { displayName } from "./utils/displayName.js"
 import { useState, useEffect, useCallback } from "react"
 import { usePi } from "./context/PiContext.jsx"
 import { useTheme } from "./context/ThemeContext.jsx"
@@ -949,7 +950,7 @@ return (
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
 <div>
 <p style={{color:"rgba(255,255,255,0.8)",fontSize:12,margin:0}}>Good day, Pioneer 👋</p>
-<p style={{color:"white",fontSize:17,fontWeight:700,margin:"2px 0 0"}}>{user.fullName||"Zappi User"}</p>
+<p style={{color:"white",fontSize:17,fontWeight:700,margin:"2px 0 0"}}>{displayName(user)}</p>
 </div>
 <div style={{display:"flex",gap:10,alignItems:"center"}}>
 <button onClick={()=>setShowHowTo(true)} style={{width:38,height:38,borderRadius:"50%",background:"rgba(255,255,255,0.25)",border:"2px solid rgba(255,255,255,0.4)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:800,color:"white",cursor:"pointer"}}>?</button>
@@ -957,7 +958,7 @@ return (
 <button onClick={()=>setShowProfile(true)} style={{width:38,height:38,borderRadius:"50%",background:"rgba(255,255,255,0.25)",border:"2px solid rgba(255,255,255,0.4)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:800,color:"white",cursor:"pointer",overflow:"hidden"}}>
 {user.avatarImage
 ? <img src={user.avatarImage} alt="" style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:"50%"}}/>
-: (user.fullName||"Zappi User").trim().charAt(0).toUpperCase()}
+: displayName(user).charAt(0).toUpperCase()}
 </button>
 </div>
 </div>

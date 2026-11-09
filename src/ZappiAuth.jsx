@@ -1,3 +1,4 @@
+import { displayName } from "./utils/displayName.js"
 import { useState, useEffect } from "react"
 import {
   verifyTxnPin, setTxnPin, hasServerPin,
@@ -484,7 +485,7 @@ export function ProfileScreen({ onBack, onLogout }) {
           <span style={{ position: "absolute", bottom: -2, right: -2, width: 24, height: 24, borderRadius: "50%", background: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, boxShadow: "0 1px 4px rgba(0,0,0,0.25)" }}>📷</span>
           <input type="file" accept="image/*" onChange={pickAvatar} style={{ display: "none" }} />
         </label>
-        <h2 style={{ color: "white", margin: "0 0 4px", fontSize: 20, fontWeight: 800 }}>{user.fullName || "User"}</h2>
+        <h2 style={{ color: "white", margin: "0 0 4px", fontSize: 20, fontWeight: 800 }}>{displayName(user, "User")}</h2>
         <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, margin: 0 }}>{user.email}</p>
       </div>
 
