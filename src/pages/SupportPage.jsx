@@ -27,7 +27,7 @@ function logTicket(subject, message) {
 
 export const CONFIG = {
   whatsappNumber: "2349011653172",
-  supportEmail: "zappingsupport@gmail.com",
+  supportEmail: "sirraddogloballimited@gmail.com",
   appVersion: "1.0.0",
   buildDate: "November 2026",
 };
