@@ -571,6 +571,23 @@ fetch(`${apiUrl}/api/flags`, { headers: token ? { Authorization: `Bearer ${token
 .then(d => setFlags(d.flags || {}))
 .catch(() => setFlags({}))
 }, [])
+// Service notices from the admin ("MTN data is down"), refreshed every 2 minutes while signed in.
+const [notices, setNotices] = useState([])
+useEffect(() => {
+if (!isLoggedIn) return
+let off = false
+const load = () => {
+const token = localStorage.getItem("zappi_token")
+fetch(`${API_BASE}/api/notices`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+.then(r => r.ok ? r.json() : { notices: [] })
+.then(d => { if (!off) setNotices(d.notices || []) })
+.catch(() => {})
+}
+load()
+const id = setInterval(load, 120000)
+return () => { off = true; clearInterval(id) }
+}, [isLoggedIn])
+const blockingNoticeFor = (billType, serviceID) => notices.find(n => n.blocking && (n.key === billType || n.key === `${billType}:${serviceID}`))
 // Open-ticket count, shown as a badge on the Admin tile — only fetched
 // for the admin account, since regular users would just get a 403.
 // Exposed as a plain function (not just a useEffect body) so it can be
@@ -944,6 +961,8 @@ const handlePay=(service, tx)=>{
 if (REAL_PAYMENTS && !rateLive) { showToast("The live Pi rate isn't confirmed yet — please wait a few seconds and try again.","danger",6000); return }
 const piCost = tx.pi != null ? Number(tx.pi) : Number(tx.ngn) / liveRate
 const txnFields = buildTxnFields(tx)
+const blocked = blockingNoticeFor(txnFields.billType, txnFields.serviceID)
+if (blocked) { showToast(blocked.message, "danger", 8000); return }
 requireTxnConfirmation(`Confirm ${service}`, txnFields, (confirmationToken)=>{
 setTxnPinModal(null)
 const vtpassEligible = ["airtime","data","electricity","cable","internet","education","insurance","showmax"].includes(tx.type) && !!txnFields.serviceID
@@ -1013,6 +1032,15 @@ return (
 {!REAL_PAYMENTS&&<div style={{background:"#FEE2E2",color:"#991B1B",padding:"8px 16px",fontSize:12,fontWeight:700,textAlign:"center"}}>Demo mode — payments are simulated, no real Pi is spent</div>}
 {isPaying&&<div style={{background:"#FEF3C7",color:"#92400E",padding:"10px 16px",fontSize:13,fontWeight:600,textAlign:"center"}}>⏳ Processing your last payment — this can take up to 30 seconds…</div>}
 
+{notices.length>0&&(
+<div style={{padding:"8px 16px 0"}}>
+{notices.map(n=>(
+<div key={n.key} style={{background:n.blocking?"#FEE2E2":"#FEF3C7",color:n.blocking?"#991B1B":"#92400E",borderRadius:12,padding:"10px 14px",fontSize:12,fontWeight:600,marginBottom:6,lineHeight:1.4}}>
+{n.blocking?"⛔":"ℹ️"} {n.label?`${n.label}: `:""}{n.message}
+</div>
+))}
+</div>
+)}
 {page==="home"&&!subPage&&(
 <div>
 <div style={{background:`linear-gradient(135deg,${C.primary} 0%,#FF7A33 100%)`,padding:"calc(env(safe-area-inset-top, 0px) + 52px) 16px 40px"}}>

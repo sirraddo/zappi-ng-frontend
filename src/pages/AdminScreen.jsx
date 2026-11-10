@@ -170,6 +170,10 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
   const [ledger, setLedger] = useState({ refunds: [], needs: [] });
   const [money, setMoney] = useState(null);
   const [golive, setGolive] = useState(null);
+  const [noticeList, setNoticeList] = useState([]);
+  const [nKey, setNKey] = useState("data:mtn-data");
+  const [nMsg, setNMsg] = useState("");
+  const [nBlock, setNBlock] = useState(true);
   const [customers, setCustomers] = useState({ total: 0, customers: [] });
   const [custQ, setCustQ] = useState("");
 
@@ -242,6 +246,26 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
       fetch(`${API_URL}/api/admin/transactions/recent?needsRefund=1`, { headers: authHdrs() }).then((r) => r.json()),
     ]).then(([a, b]) => setLedger({ refunds: a.transactions || [], needs: b.transactions || [] }))
       .catch(() => showToast("Could not load the ledger", "danger")).finally(() => setLoading(false));
+  }
+  const NOTICE_SERVICES = [
+    ["airtime", "All airtime"], ["airtime:mtn", "MTN airtime"], ["airtime:airtel", "Airtel airtime"], ["airtime:glo", "Glo airtime"], ["airtime:etisalat", "9mobile airtime"],
+    ["data", "All data"], ["data:mtn-data", "MTN data"], ["data:airtel-data", "Airtel data"], ["data:glo-data", "Glo data"], ["data:etisalat-data", "9mobile data"],
+    ["electricity", "Electricity"], ["cable", "Cable TV"], ["internet", "Internet"], ["education", "Exam fees"], ["showmax", "Showmax"], ["insurance", "Insurance"],
+  ];
+  const noticeName = (k) => (NOTICE_SERVICES.find(([v]) => v === k) || [k, k])[1];
+  function loadNotices() {
+    setLoading(true);
+    fetch(`${API_URL}/api/notices/all`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setNoticeList(d.notices || []))
+      .catch(() => showToast("Could not load notices", "danger")).finally(() => setLoading(false));
+  }
+  function saveNotice(body) {
+    return fetch(`${API_URL}/api/notices`, { method: "POST", headers: authHdrs(), body: JSON.stringify(body) })
+      .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); showToast("Saved", "success"); loadNotices(); })
+      .catch((e) => showToast(e.message, "danger"));
+  }
+  function deleteNotice(key) {
+    fetch(`${API_URL}/api/notices/${encodeURIComponent(key)}`, { method: "DELETE", headers: authHdrs() })
+      .then(() => { showToast("Removed", "success"); loadNotices(); }).catch(() => showToast("Could not remove", "danger"));
   }
   function loadGolive() {
     setLoading(true);
@@ -316,6 +340,7 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
     else if (tab === "ledger") loadLedger();
     else if (tab === "money") loadMoney();
     else if (tab === "golive") loadGolive();
+    else if (tab === "notices") loadNotices();
     else if (tab === "customers") loadCustomers();
   }, [tab, txFilter]);
 
@@ -580,6 +605,7 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
             { key: "money", icon: "💰", label: "Money check" },
             { key: "customers", icon: "👥", label: "Customers" },
             { key: "announcements", icon: "📢", label: "Announcements" },
+            { key: "notices", icon: "🚧", label: "Service notices" },
             { key: "tickets", icon: "🎫", label: "Support Tickets", badge: tickets.filter((t) => t.status === "open").length },
             { key: "flags", icon: "🚩", label: "Flags" },
             { key: "users", icon: "👤", label: "Users" },
@@ -1166,6 +1192,39 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
               : ledger.refunds.map((t) => <OrderCard key={t._id} t={t} busy={busyId === t._id} onRecheck={recheckOrder} onRefund={refundOrder} onRetryRefund={retryRefund} showToast={showToast} />)}
           </>
         )
+      )}
+
+      {tab === "notices" && (
+        <>
+          <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px", lineHeight: 1.4 }}>
+            Tell customers when a service has a problem. A blocking notice stops purchases of that service (customers see your message instead of paying for something that will fail). Customers see changes within about 2 minutes.
+          </p>
+          <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 14 }}>
+            <select value={nKey} onChange={(e) => setNKey(e.target.value)} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", marginBottom: 8 }}>
+              {NOTICE_SERVICES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+            <input value={nMsg} onChange={(e) => setNMsg(e.target.value.slice(0, 240))} placeholder="e.g. MTN data is down at the provider. Back soon."
+              style={{ width: "100%", boxSizing: "border-box", padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", marginBottom: 8 }} />
+            <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, marginBottom: 10 }}>
+              <input type="checkbox" checked={nBlock} onChange={(e) => setNBlock(e.target.checked)} /> Block purchases while this is on
+            </label>
+            <button onClick={() => { if (!nMsg.trim()) return showToast("Write a message first", "danger"); saveNotice({ key: nKey, label: noticeName(nKey), message: nMsg, blocking: nBlock, active: true }).then(() => setNMsg("")); }}
+              style={{ width: "100%", padding: 12, borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer" }}>Publish notice</button>
+          </div>
+          {loading ? <div>Loading…</div> : noticeList.length === 0 ? <div style={{ color: "var(--text-secondary)" }}>No notices — everything is running normally</div> : noticeList.map((n) => (
+            <div key={n.key} style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 10, opacity: n.active ? 1 : 0.6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <b style={{ fontSize: 14 }}>{noticeName(n.key)}</b>
+                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: n.blocking ? "#FEE2E2" : "#FEF3C7", color: n.blocking ? "#991B1B" : "#92400E" }}>{n.blocking ? "blocks purchases" : "notice only"}</span>
+              </div>
+              <div style={{ fontSize: 13, color: "var(--text-secondary)", margin: "6px 0 10px" }}>{n.message}</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => saveNotice({ ...n, active: !n.active })} style={{ flex: 1, padding: 8, borderRadius: 8, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>{n.active ? "Switch off" : "Switch on"}</button>
+                <button onClick={() => deleteNotice(n.key)} style={{ flex: 1, padding: 8, borderRadius: 8, border: "1px solid var(--border)", background: "var(--card-bg)", color: "#dc2626", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Remove</button>
+              </div>
+            </div>
+          ))}
+        </>
       )}
 
       {tab === "golive" && (
