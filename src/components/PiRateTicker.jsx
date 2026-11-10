@@ -19,15 +19,14 @@ export default function PiRateTicker({ rate, live, fetchedAt, refreshMs = 60000 
     return () => clearInterval(t);
   }, [fetchedAt]);
   const left = fetchedAt ? Math.max(0, Math.ceil((fetchedAt + refreshMs - now) / 1000)) : null;
-  if (!rate) return <div className="rate-ticker loading">Fetching Pi rate…</div>;
+  if (!rate) return <div className="rate-ticker loading">Loading service rate…</div>;
 
   return (
     <div className="rate-ticker">
-      <span className="rate-pi-logo">π</span>
-      <span className="rate-equals">1 Pi</span>
-      <span className="rate-separator">=</span>
+      <span className="rate-equals">Zappi NG service rate</span>
+      <span className="rate-separator">·</span>
       <span className="rate-naira">
-        ₦{Number(rate).toLocaleString("en-NG", { maximumFractionDigits: 0 })}
+        ₦{Number(rate).toLocaleString("en-NG", { maximumFractionDigits: 0 })} per π
       </span>
       {!live && <span className="rate-badge">Indicative</span>}
       {live && left !== null && (

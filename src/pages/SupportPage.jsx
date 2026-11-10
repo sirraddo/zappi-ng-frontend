@@ -42,8 +42,8 @@ const FAQS = [
     a: "Your electricity token is displayed immediately on the payment success screen. You can copy it there. It is also saved in your Transaction History — tap the transaction to view it again.",
   },
   {
-    q: "How much is 1 Pi worth in Naira?",
-    a: "The Pi/NGN rate shown on the Zappi NG home screen is an indicative rate. Pi has not yet launched on open exchanges. The rate we use is based on the best available market data.",
+    q: "How do you price things in Pi?",
+    a: "Every service has a naira price. We convert it to Pi at the Zappi NG service rate shown in the app, locked when you pay. It is our own pricing rate for our services, not a Pi price, market value or exchange rate, and you always pay only in Pi.",
   },
   {
     q: "Can I use Zappi NG without a Pi Network account?",

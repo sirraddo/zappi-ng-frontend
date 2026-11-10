@@ -143,10 +143,13 @@ function PiSummary({ amount, bg="#EFF6FF", color="#2563EB", rate=2150 }) {
 const pi=(Number(amount)/rate).toFixed(4)
 if(!amount||amount<=0)return null
 return (
+<>
 <div style={{background:bg,borderRadius:10,padding:14,marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
 <div><p style={{margin:0,fontSize:11,color,opacity:0.8}}>You pay</p><p style={{margin:"2px 0 0",fontSize:16,fontWeight:700,color}}>π {pi}</p></div>
-<div style={{textAlign:"right"}}><p style={{margin:0,fontSize:11,color,opacity:0.8}}>NGN</p><p style={{margin:"2px 0 0",fontSize:14,fontWeight:600,color}}>₦{Number(amount).toLocaleString()}</p></div>
+<div style={{textAlign:"right"}}><p style={{margin:0,fontSize:11,color,opacity:0.8}}>Service price</p><p style={{margin:"2px 0 0",fontSize:14,fontWeight:600,color}}>₦{Number(amount).toLocaleString()}</p></div>
 </div>
+<p style={{margin:"-6px 0 12px",fontSize:10,color:"var(--text-tertiary)"}}>Priced at Zappi NG's own service rate, not a Pi market price. You pay only in Pi.</p>
+</>
 )
 }
 
@@ -1196,7 +1199,7 @@ return (
 </div>
 </div>
 <div style={{marginTop:10}}><PiRateTicker rate={liveRate} live={rateLive} fetchedAt={rateFetchedAt} /></div>
-<p style={{color:"rgba(255,255,255,0.45)",fontSize:9,margin:"6px 0 0",lineHeight:1.3}}>Zappi NG's own rate for pricing our services, calculated from live market data — not an official Pi Network value</p>
+<p style={{color:"rgba(255,255,255,0.45)",fontSize:9,margin:"6px 0 0",lineHeight:1.3}}>Zappi NG's own rate for pricing our services. It is not a Pi price, market value or exchange rate.</p>
 </div>
 </div>
 
@@ -1507,7 +1510,7 @@ onPick={({network:n,phone:ph,bundle:b})=>{setNetwork(n);setBundle(b);if(ph)setPh
 <div><Header title="More Services"/>
 <div style={{padding:16}}>
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>{t("Rates")}</p>
-<SCard icon="📊" label="Zappi NG Pi Rate" desc="Our own pricing rate — not an official Pi price" bg="#FFF7ED" onClick={()=>showToast(`Current rate: ₦${liveRate}/π`,"success")}/>
+<SCard icon="📊" label="Zappi NG service rate" desc="Our own pricing rate — not a Pi price or market value" bg="#FFF7ED" onClick={()=>showToast(`Current rate: ₦${liveRate}/π`,"success")}/>
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>{t("Account")}</p>
 <SCard icon="👤" label={t("My Profile")} desc="Manage your account" bg="#F0F0FF" onClick={()=>setShowProfile(true)}/>
 <SCard icon="✨" label="Ask Zappi" desc="AI help with orders, rates and refunds" bg="#FFF7ED" onClick={()=>setAskOpen(true)}/>
