@@ -7,9 +7,18 @@
  * Usage: <PiRateTicker rate={liveRate} live={rateLive} />
  */
 
+import { useEffect, useState } from "react";
 import "./PiRateTicker.css";
 
-export default function PiRateTicker({ rate, live }) {
+// `fetchedAt` = when the app last got the rate; the app re-fetches every `refreshMs`.
+export default function PiRateTicker({ rate, live, fetchedAt, refreshMs = 60000 }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!fetchedAt) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [fetchedAt]);
+  const left = fetchedAt ? Math.max(0, Math.ceil((fetchedAt + refreshMs - now) / 1000)) : null;
   if (!rate) return <div className="rate-ticker loading">Fetching Pi rate…</div>;
 
   return (
@@ -21,6 +30,11 @@ export default function PiRateTicker({ rate, live }) {
         ₦{Number(rate).toLocaleString("en-NG", { maximumFractionDigits: 0 })}
       </span>
       {!live && <span className="rate-badge">Indicative</span>}
+      {live && left !== null && (
+        <span style={{ marginLeft: 8, fontSize: 10, opacity: 0.7 }}>
+          🔒 locked at checkout · refreshes in {left}s
+        </span>
+      )}
     </div>
   );
 }

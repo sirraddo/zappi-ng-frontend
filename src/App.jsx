@@ -258,6 +258,7 @@ const BUNDLE_GROUP_ORDER = ["Night", "Social", "Daily", "Weekly", "Monthly", "Ot
 function VariationGrid({ serviceID, selected, onSelect, columns = 2, grouped = false }) {
 const [state, setState] = useState({ loading: true, items: [] })
 const [activeGroup, setActiveGroup] = useState(null)
+const [query, setQuery] = useState("")
 useEffect(() => {
 if (!serviceID) { setState({ loading: false, items: [] }); return }
 let cancelled = false
@@ -310,8 +311,25 @@ const availableGroups = BUNDLE_GROUP_ORDER.filter(g => groups[g].length)
 // isn't present for this serviceID (e.g. switching network) — no separate
 // reset effect needed, this just recomputes correctly on every render.
 const currentGroup = availableGroups.includes(activeGroup) ? activeGroup : availableGroups[0]
+const q = query.trim().toLowerCase()
+let recentCodes = []
+try { recentCodes = JSON.parse(localStorage.getItem("zappi_recent_bundles") || "[]") } catch {}
+const recentItems = recentCodes.map(c => state.items.find(v => v.variation_code === c)).filter(Boolean).slice(0, 4)
+const matches = q ? state.items.filter(v => v.name.toLowerCase().includes(q) || String(Number(v.variation_amount)).includes(q.replace(/[₦,]/g, ""))) : null
 return (
 <div style={{ marginBottom: 16 }}>
+<input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search plans, e.g. 2GB, 1000, weekly" inputMode="search"
+style={{ width: "100%", boxSizing: "border-box", padding: "10px 14px", borderRadius: 12, border: "1.5px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontSize: 13, marginBottom: 10 }} />
+{!q && recentItems.length > 0 && (
+<div style={{ marginBottom: 10 }}>
+<p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)" }}>⭐ RECENTLY BOUGHT</p>
+<div style={{ display: "grid", gridTemplateColumns: `repeat(${columns},1fr)`, gap: 8 }}>{recentItems.map(renderCard)}</div>
+</div>
+)}
+{matches ? (
+matches.length ? <div style={{ display: "grid", gridTemplateColumns: `repeat(${columns},1fr)`, gap: 8, maxHeight: 340, overflowY: "auto" }}>{matches.map(renderCard)}</div>
+: <p style={{ fontSize: 12, color: "var(--text-tertiary)" }}>No plan matches "{query}".</p>
+) : <>
 <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 10 }}>
 {availableGroups.map(g => (
 <button key={g} onClick={() => setActiveGroup(g)} style={{
@@ -325,6 +343,7 @@ fontSize: 12, fontWeight: 700, cursor: "pointer",
 <div style={{ display: "grid", gridTemplateColumns: `repeat(${columns},1fr)`, gap: 8, maxHeight: 340, overflowY: "auto" }}>
 {groups[currentGroup].map(renderCard)}
 </div>
+</>}
 </div>
 )
 }
@@ -478,6 +497,7 @@ const cached = Number(localStorage.getItem("zappi_rate"))
 return cached > 0 ? cached : 2150
 })
 const [rateLive, setRateLive] = useState(false)
+const [rateFetchedAt, setRateFetchedAt] = useState(null)
 
 useEffect(() => {
 let cancelled = false
@@ -488,6 +508,7 @@ const r = await fetch(`${API}/api/pi-rate`)
 const d = await r.json()
 if (!cancelled && d && d.ngnPerPi > 0) {
 setLiveRate(d.ngnPerPi)
+setRateFetchedAt(Date.now())
 setRateLive((d.source === "live" || d.source === "live-cached") && !d.stale)
 localStorage.setItem("zappi_rate", String(d.ngnPerPi))
 }
@@ -607,6 +628,18 @@ const next = [{ id: Date.now(), ts: Date.now(), status: "success", ...tx }, ...p
 localStorage.setItem("zappi_txs", JSON.stringify(next))
 return next
 })
+// Most frequent successful airtime purchase (same network + number + amount, bought 2+ times).
+const usualAirtime = (() => {
+const counts = {}
+for (const t of transactions) {
+if (t.type !== "airtime" || t.status !== "success" || !t.raw?.phone) continue
+const k = `${t.raw.network}|${t.raw.phone}|${t.raw.amount}`
+counts[k] = counts[k] || { n: 0, tx: t }
+counts[k].n++
+}
+const best = Object.values(counts).sort((a, b) => b.n - a.n)[0]
+return best && best.n >= 2 ? best.tx : null
+})()
 const [checkingId, setCheckingId] = useState(null)
 const patchTransaction = (matchFn, patch) => setTransactions(prev => {
 const next = prev.map(t => matchFn(t) ? { ...t, ...patch } : t)
@@ -818,6 +851,12 @@ color: tx.color || "#EFF6FF", icon: tx.icon || "💳",
 raw: tx.raw || null,
 }
 addTransaction(newTx)
+if (status !== "failed" && tx.type === "data" && tx.raw?.bundleCode) {
+try {
+const prev = JSON.parse(localStorage.getItem("zappi_recent_bundles") || "[]")
+localStorage.setItem("zappi_recent_bundles", JSON.stringify([tx.raw.bundleCode, ...prev.filter(c => c !== tx.raw.bundleCode)].slice(0, 6)))
+} catch {}
+}
 if (status === "pending") {
 addNotification({ title: "Order processing", body: `${service} — ${newTx.amount}. Tap Check status in History if it is slow.`, type: "info", txRef: newTx.id })
 setReceiptTx(newTx)
@@ -994,7 +1033,7 @@ return (
 <p style={{color:"rgba(255,255,255,0.65)",fontSize:11,margin:0}}>Transactions</p>
 </div>
 </div>
-<div style={{marginTop:10}}><PiRateTicker rate={liveRate} live={rateLive} /></div>
+<div style={{marginTop:10}}><PiRateTicker rate={liveRate} live={rateLive} fetchedAt={rateFetchedAt} /></div>
 <p style={{color:"rgba(255,255,255,0.45)",fontSize:9,margin:"6px 0 0",lineHeight:1.3}}>Zappi NG's own rate for pricing our services, calculated from live market data — not an official Pi Network value</p>
 </div>
 </div>
@@ -1021,6 +1060,18 @@ return (
 </div>
 </div>
 
+{usualAirtime&&(
+<div style={{padding:"0 16px 8px"}}>
+<button onClick={()=>buyAgain(usualAirtime)} style={{width:"100%",display:"flex",alignItems:"center",gap:12,background:"var(--card-bg)",border:`1.5px solid ${C.primary}`,borderRadius:14,padding:"12px 14px",cursor:"pointer",textAlign:"left"}}>
+<span style={{fontSize:22}}>🔁</span>
+<span style={{flex:1}}>
+<span style={{display:"block",fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>Your usual: {usualAirtime.amount} {usualAirtime.raw.network} airtime</span>
+<span style={{display:"block",fontSize:11,color:"var(--text-tertiary)"}}>for {usualAirtime.raw.phone} · tap to fill it in, you still confirm with your PIN</span>
+</span>
+<span style={{fontSize:12,fontWeight:700,color:C.primary}}>Repeat</span>
+</button>
+</div>
+)}
 <div style={{padding:"8px 16px 0"}}>
 <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:4}}>
 {(banners || [
