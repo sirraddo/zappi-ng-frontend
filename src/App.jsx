@@ -462,6 +462,14 @@ return (
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────
+const API_BASE = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com"
+const STATUS_BADGE = {
+  success: { bg:"#DCFCE7", fg:"#166534", short:"✓", long:"✓ Success" },
+  pending: { bg:"#FEF3C7", fg:"#92400E", short:"⏳", long:"⏳ Processing" },
+  failed:  { bg:"#FEE2E2", fg:"#991B1B", short:"✗", long:"✗ Failed" },
+}
+const badgeFor = (st) => STATUS_BADGE[st] || STATUS_BADGE.failed
+
 export default function App() {
 const { piAuth, piUser, createPayment, isReady } = usePi()
 const { theme, toggleTheme } = useTheme()
@@ -599,6 +607,27 @@ const next = [{ id: Date.now(), ts: Date.now(), status: "success", ...tx }, ...p
 localStorage.setItem("zappi_txs", JSON.stringify(next))
 return next
 })
+const [checkingId, setCheckingId] = useState(null)
+const patchTransaction = (matchFn, patch) => setTransactions(prev => {
+const next = prev.map(t => matchFn(t) ? { ...t, ...patch } : t)
+localStorage.setItem("zappi_txs", JSON.stringify(next))
+return next
+})
+// Re-checks a processing order with the provider (via our server) and updates it.
+const checkStatus = async (tx) => {
+if (!tx.requestId) return
+setCheckingId(tx.id)
+try {
+const r = await fetch(`${API_BASE}/api/payments/status`, { method:"POST", headers:{ "Content-Type":"application/json", Authorization:`Bearer ${localStorage.getItem("zappi_token")||""}` }, body: JSON.stringify({ requestId: tx.requestId }) })
+const d = await r.json().catch(()=>({}))
+if (!r.ok) { showToast(d.error || "Could not check right now — try again shortly.","danger"); return }
+if (d.tooSoon) { showToast("Just checked — please wait a few seconds and try again.","info"); return }
+if (d.status === "success") { patchTransaction(t=>t.id===tx.id,{status:"success"}); showToast("Delivered! Your order went through. 🎉","success") }
+else if (d.status === "failed") { patchTransaction(t=>t.id===tx.id,{status:"failed", refund:d.refund||null}); showToast(d.refund==="processing" ? "This order failed. Your Pi is being refunded automatically." : "This order failed. Open Help & Support and we will sort it out.","danger",8000) }
+else showToast("Still processing. We will keep trying — check again in a minute.","info")
+} catch { showToast("Network problem — please try again.","danger") }
+finally { setCheckingId(null) }
+}
 // Real lifetime activity derived from actual transaction history — shown
 // on the home screen in place of the old fabricated "Pi Balance" figure.
 const txStats = (() => {
@@ -778,10 +807,10 @@ default: return { serviceID: tx.type, billType: tx.type, amount: tx.ngn, phone: 
 }
 
 // Records the transaction so History/Home stay truthful.
-const finishPayment=(service, tx, piCost, backendTxId, requestId)=>{
+const finishPayment=(service, tx, piCost, backendTxId, requestId, status="success")=>{
 setIsPaying(false)
 const newTx = {
-id: Date.now(), backendId: backendTxId || null, requestId: requestId || null, ts: Date.now(), status: "success",
+id: Date.now(), backendId: backendTxId || null, requestId: requestId || null, ts: Date.now(), status,
 type: tx.type, label: tx.label, sub: tx.sub,
 amount: `₦${Math.round(Number(tx.ngn)).toLocaleString()}`,
 pi: `π${piCost.toFixed(2)}`,
@@ -789,9 +818,15 @@ color: tx.color || "#EFF6FF", icon: tx.icon || "💳",
 raw: tx.raw || null,
 }
 addTransaction(newTx)
+if (status === "pending") {
+addNotification({ title: "Order processing", body: `${service} — ${newTx.amount}. Tap Check status in History if it is slow.`, type: "info", txRef: newTx.id })
+setReceiptTx(newTx)
+showToast(`${service} is processing — we'll confirm it shortly. You can tap "Check status" in History.`,"info",7000)
+} else {
 addNotification({ title: "Payment successful", body: `${service} — ${newTx.amount} paid with ${newTx.pi}`, type: "success", txRef: newTx.id })
 setReceiptTx(newTx)
 showToast(`${service} payment successful! 🎉`,"success")
+}
 setSubPage(null)
 resetInputs()
 }
@@ -826,10 +861,17 @@ business_occupation: insOccupation,
 } : {}),
 piAmount: piCost,
 }
-const deliveryFailMsg = (svc, err) => `Your Pi was received but ${svc} was not delivered${err?.message ? " ("+err.message+")" : ""}.${err?.data?.requestId ? " Ref: "+err.data.requestId+"." : ""} Please don't pay again — open Help & Support and we'll fix it.`
+const deliveryFailMsg = (svc, err) => `Your Pi was received but ${svc} was not delivered${err?.message ? " ("+err.message+")" : ""}.${err?.data?.requestId ? " Ref: "+err.data.requestId+"." : ""} ${err?.data?.refund === "processing" ? "Your Pi is being refunded automatically." : "Please don't pay again — open Help & Support and we'll fix it."}`
+const recordFailure = (svc, err) => {
+setIsPaying(false)
+if (!err?.data?.requestId) return
+addTransaction({ id: Date.now(), backendId: err.data.txId || null, requestId: err.data.requestId, ts: Date.now(), status: "failed",
+type: tx.type, label: tx.label, sub: tx.sub, amount: `₦${Math.round(Number(tx.ngn)).toLocaleString()}`, pi: `π${piCost.toFixed(2)}`,
+color: tx.color || "#EFF6FF", icon: tx.icon || "💳", raw: null, refund: err.data.refund || null })
+}
 const deliver = async (token, piPaymentId) => {
 const completion = await completeBillPayment(txnFields, { ...extras, piPaymentId }, token)
-finishPayment(service, tx, piCost, completion?.txId, completion?.requestId)
+finishPayment(service, tx, piCost, completion?.txId, completion?.requestId, completion?.status === "pending" ? "pending" : "success")
 }
 createPayment(
 { amount: Number(piCost.toFixed(7)), memo: `Zappi NG — ${service}`, metadata: { ...txnFields, ...extras } },
@@ -840,9 +882,9 @@ if (e.status === 401) {
 requireTxnConfirmation(`Confirm ${service} delivery`, txnFields, async (fresh) => {
 setTxnPinModal(null)
 try { await deliver(fresh, paymentId) }
-catch (e2) { showToast(deliveryFailMsg(service, e2),"danger",9000) }
+catch (e2) { recordFailure(service, e2); showToast(deliveryFailMsg(service, e2),"danger",9000) }
 })
-} else showToast(deliveryFailMsg(service, e),"danger",9000)
+} else { recordFailure(service, e); showToast(deliveryFailMsg(service, e),"danger",9000) }
 }
 },
 (err)=>showToast(err?.message || "Pi payment failed","danger")
@@ -912,7 +954,7 @@ if (showProfile) return (
 return (
 <div style={{maxWidth:430,margin:"0 auto",fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",minHeight:"100vh",background:C.bg,display:"flex",flexDirection:"column",position:"relative"}}>
 
-{toast&&<div style={{position:"fixed",top:20,left:16,right:16,maxWidth:400,margin:"0 auto",background:toastType==="success"?C.success:C.danger,color:"white",padding:"12px 24px",borderRadius:24,fontSize:13,fontWeight:600,zIndex:9999,boxShadow:"0 4px 20px rgba(0,0,0,0.2)",whiteSpace:"normal"}}>{toast}</div>}
+{toast&&<div style={{position:"fixed",top:20,left:16,right:16,maxWidth:400,margin:"0 auto",background:toastType==="success"?C.success:toastType==="info"?"#475569":C.danger,color:"white",padding:"12px 24px",borderRadius:24,fontSize:13,fontWeight:600,zIndex:9999,boxShadow:"0 4px 20px rgba(0,0,0,0.2)",whiteSpace:"normal"}}>{toast}</div>}
 
 {txnPinModal&&<TxnPinModal label={txnPinModal.label} txnFields={txnPinModal.txnFields} onSuccess={txnPinModal.onConfirmed} onCancel={()=>setTxnPinModal(null)}/>}
 {showHowTo&&<HowToModal onClose={()=>setShowHowTo(false)}/>}
@@ -1020,7 +1062,7 @@ return (
 </div>
 <div style={{textAlign:"right"}}>
 <p style={{margin:0,fontSize:13,fontWeight:700,color:tx.type==="receive"?"#22C55E":"var(--text-primary)"}}>{tx.type==="receive"?"+":"-"}{tx.pi}</p>
-<span style={{background:tx.status==="success"?"#DCFCE7":"#FEE2E2",color:tx.status==="success"?"#166534":"#991B1B",fontSize:10,padding:"2px 8px",borderRadius:10,fontWeight:600}}>{tx.status==="success"?"✓":"✗"}</span>
+<span style={{background:badgeFor(tx.status).bg,color:badgeFor(tx.status).fg,fontSize:10,padding:"2px 8px",borderRadius:10,fontWeight:600}}>{badgeFor(tx.status).short}</span>
 </div>
 </div>
 ))}
@@ -1276,11 +1318,18 @@ setPage("bills"); setSubPage("insurance")
 <div style={{textAlign:"right"}}>
 <p style={{margin:0,fontSize:13,fontWeight:700,color:tx.type==="receive"?"#22C55E":"var(--text-primary)"}}>{tx.type==="receive"?"+":"-"}{tx.pi}</p>
 <p style={{margin:"2px 0",fontSize:11,color:"var(--text-tertiary)"}}>{tx.amount}</p>
-<span style={{background:tx.status==="success"?"#DCFCE7":"#FEE2E2",color:tx.status==="success"?"#166534":"#991B1B",fontSize:10,padding:"2px 8px",borderRadius:10,fontWeight:700}}>{tx.status==="success"?"✓ Success":"✗ Failed"}</span>
+<span style={{background:badgeFor(tx.status).bg,color:badgeFor(tx.status).fg,fontSize:10,padding:"2px 8px",borderRadius:10,fontWeight:700}}>{badgeFor(tx.status).long}</span>
+{tx.refund==="processing"&&<p style={{margin:"3px 0 0",fontSize:10,color:"#92400E"}}>Refund in progress</p>}
+{tx.refund==="success"&&<p style={{margin:"3px 0 0",fontSize:10,color:"#166534"}}>Pi refunded</p>}
 </div>
 </div>
 {tx.type!=="receive"&&(
 <div style={{display:"flex",borderTop:"1px solid var(--border)"}}>
+{tx.status==="pending"&&tx.requestId&&(
+<button onClick={()=>checkStatus(tx)} disabled={checkingId===tx.id} style={{flex:1,background:"none",border:"none",borderRight:"1px solid var(--border)",padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"center",gap:6,cursor:"pointer",color:C.primary,fontSize:12,fontWeight:700}}>
+{checkingId===tx.id?"Checking…":"🔄 Check status"}
+</button>
+)}
 {tx.raw&&tx.status==="success"&&(
 <button onClick={()=>buyAgain(tx)} style={{flex:1,background:"none",border:"none",borderRight:"1px solid var(--border)",padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"center",gap:6,cursor:"pointer",color:C.primary,fontSize:12,fontWeight:700}}>
 🔁 Buy Again
