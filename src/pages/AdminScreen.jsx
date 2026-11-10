@@ -316,17 +316,19 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
       .then((r) => { if (!r.ok) throw new Error(); setNoteDrafts((n) => ({ ...n, [id]: "" })); loadTickets(); showToast("Note saved", "success"); }).catch(() => showToast("Could not save the note", "danger"));
   }
   function setTicketMeta(id, patch) { fetch(`${API_URL}/api/admin/tickets/${id}/meta`, { method: "POST", headers: authHdrs(), body: JSON.stringify(patch) }).then(() => loadTickets()).catch(() => {}); }
+  const [vtBal, setVtBal] = useState(undefined);
   const [canned, setCanned] = useState([]);
   const [ticketCtx, setTicketCtx] = useState({});
   function loadCanned() { fetch(`${API_URL}/api/admin/canned-replies`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setCanned(d.replies || [])).catch(() => {}); }
   function loadTicketCtx(id) { fetch(`${API_URL}/api/admin/tickets/${id}/context`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setTicketCtx((c) => ({ ...c, [id]: d }))).catch(() => showToast("Could not load orders", "danger")); }
   function loadSettings() {
     loadCanned();
+    fetch(`${API_URL}/api/admin/vt-balance`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setVtBal(d.balance)).catch(() => setVtBal(null));
     setLoading(true);
     fetch(`${API_URL}/api/admin/settings`, { headers: authHdrs() }).then((r) => r.json()).then((d) => {
       setSt(d);
       setSf({ maintOn: !!d.maintenance?.on, maintMsg: d.maintenance?.message || "", min: String(d.limits.minNGN || 0), max: String(d.limits.maxNGN || 0), cap: String(d.limits.dailyCapNGN || 0),
-        low: String(d.lowBalanceNGN), prc: String(d.postResetCapNGN ?? 5000), cb: String(d.cashbackPct ?? 0), rr: String(d.referralRewardNGN ?? 0), fb: d.fallbackRate ? String(d.fallbackRate) : "", usd: d.usdNgnRate ? String(d.usdNgnRate) : "",
+        low: String(d.lowBalanceNGN), pause: String(d.pauseBelowNGN ?? 0), prc: String(d.postResetCapNGN ?? 5000), cb: String(d.cashbackPct ?? 0), rr: String(d.referralRewardNGN ?? 0), fb: d.fallbackRate ? String(d.fallbackRate) : "", usd: d.usdNgnRate ? String(d.usdNgnRate) : "",
         wa: d.support.whatsapp || "", email: d.support.email || "", hours: d.support.hours || "", staff: (d.staff || []).join(", "), cg: "" });
     }).catch(() => showToast("Could not load settings", "danger")).finally(() => setLoading(false));
   }
@@ -813,7 +815,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
           <>
             {summary && (
               <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 14 }}>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>📋 Today at a glance</div>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>📋 Today at a glance{summary.vtBalance != null ? ` · VTPass ₦${Number(summary.vtBalance).toLocaleString()}` : ""}</div>
                 {summary.alerts.length === 0 && <div style={{ fontSize: 13, color: "#166534", marginBottom: 6 }}>🟢 No alerts. Everything looks normal.</div>}
                 {summary.alerts.map((a, i) => <div key={i} style={{ fontSize: 13, margin: "4px 0", color: a.level === "red" ? "#991B1B" : "#92400E" }}>{a.level === "red" ? "🔴" : "🟡"} {a.text}</div>)}
                 <div style={{ fontSize: 13, margin: "8px 0 2px" }}>Today: <b>{summary.today.delivered}</b> delivered · <b>{summary.today.failed}</b> failed · <b>{summary.today.pending}</b> processing · ₦{Number(summary.today.salesNGN).toLocaleString()} sold · earned ₦{summary.today.earnedNGN.toLocaleString()}</div>
@@ -1466,10 +1468,16 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
               </div>
 
               <div style={card}>
-                <div style={h}>🔔 Low VTPass balance warning</div>
-                <div style={note}>Money check and Go-live check turn red when your VTPass wallet drops below this.</div>
+                <div style={h}>🔔 VTPass wallet balance</div>
+                <div style={{ fontSize: 22, fontWeight: 800, margin: "4px 0" }}>{vtBal === undefined ? "…" : vtBal === null ? "Not available" : `₦${Number(vtBal).toLocaleString()}`}</div>
+                <button onClick={() => { setVtBal(undefined); fetch(`${API_URL}/api/admin/vt-balance?fresh=1`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setVtBal(d.balance)).catch(() => setVtBal(null)); }} style={{ ...custBtn, marginBottom: 10 }}>↻ Refresh balance</button>
+                <label style={lbl}>Warn me when it drops below (₦)</label>
+                <div style={note}>Shows a warning on Overview, Money check and Go-live check.</div>
                 <input style={inp} inputMode="numeric" value={sf.low} onChange={digits("low")} />
-                {save(() => saveSettings({ lowBalanceNGN: Number(sf.low) }, "Saved"))}
+                <label style={lbl}>Pause new orders when the wallet would fall below (₦)</label>
+                <div style={note}>Protects customers: Zappi stops taking Pi for an order VTPass cannot fulfil, and they are not charged. 0 turns this off. Try a small number such as 1000.</div>
+                <input style={inp} inputMode="numeric" value={sf.pause} onChange={digits("pause")} />
+                {save(() => saveSettings({ lowBalanceNGN: Number(sf.low), pauseBelowNGN: Number(sf.pause) }, "Saved"))}
               </div>
 
               <div style={card}>
