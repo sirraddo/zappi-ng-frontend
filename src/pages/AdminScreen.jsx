@@ -292,6 +292,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
   function loadCanned() { fetch(`${API_URL}/api/admin/canned-replies`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setCanned(d.replies || [])).catch(() => {}); }
   function loadTicketCtx(id) { fetch(`${API_URL}/api/admin/tickets/${id}/context`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setTicketCtx((c) => ({ ...c, [id]: d }))).catch(() => showToast("Could not load orders", "danger")); }
   function loadSettings() {
+    loadCanned();
     setLoading(true);
     fetch(`${API_URL}/api/admin/settings`, { headers: authHdrs() }).then((r) => r.json()).then((d) => {
       setSt(d);
@@ -1377,6 +1378,20 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 </div>
                 <label style={lbl}>Daily spend cap per customer (₦)</label><input style={inp} inputMode="numeric" value={sf.cap} onChange={digits("cap")} />
                 {save(() => saveSettings({ limits: { minNGN: Number(sf.min), maxNGN: Number(sf.max), dailyCapNGN: Number(sf.cap) } }, "Limits saved"))}
+              </div>
+
+              <div style={card}>
+                <div style={h}>💬 Quick replies for support</div>
+                <div style={note}>Ready-made answers that you and your staff can tap inside a ticket. Edit the wording, add or remove.</div>
+                {canned.map((c, i) => (
+                  <div key={i} style={{ marginBottom: 10 }}>
+                    <input style={inp} value={c.title} placeholder="Title" onChange={(e) => setCanned(canned.map((x, j) => j === i ? { ...x, title: e.target.value } : x))} />
+                    <textarea style={{ ...inp, marginTop: 6, minHeight: 60, fontFamily: "inherit" }} value={c.text} placeholder="Message" onChange={(e) => setCanned(canned.map((x, j) => j === i ? { ...x, text: e.target.value } : x))} />
+                    <button onClick={() => setCanned(canned.filter((_, j) => j !== i))} style={{ ...custBtn, color: "#dc2626", marginTop: 4 }}>Remove</button>
+                  </div>
+                ))}
+                <button onClick={() => setCanned([...canned, { title: "", text: "" }])} style={{ ...custBtn, marginBottom: 8 }}>+ Add reply</button>
+                {save(() => fetch(`${API_URL}/api/admin/canned-replies`, { method: "POST", headers: authHdrs(), body: JSON.stringify({ replies: canned }) }).then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); showToast("Quick replies saved", "success"); loadCanned(); }).catch((e) => showToast(e.message, "danger")))}
               </div>
 
               <div style={card}>
