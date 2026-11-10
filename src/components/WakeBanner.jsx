@@ -5,6 +5,7 @@
  * shown until the server responds, instead of the app just looking broken.
  */
 import { useEffect, useState } from "react"
+import { t } from "../i18n.js"
 
 const API = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com"
 
@@ -33,7 +34,7 @@ export default function WakeBanner({ text = "Waking up the server… this can ta
   return (
     <div role="status" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 9999, background: "#FEF3C7", color: "#92400E", fontSize: 12, fontWeight: 600, padding: "8px 16px", textAlign: "center", display: "flex", gap: 8, justifyContent: "center", alignItems: "center" }}>
       <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #92400E", borderTopColor: "transparent", borderRadius: "50%", animation: "zspin 0.9s linear infinite" }} />
-      {text}
+      {t(text)}
       <style>{"@keyframes zspin{to{transform:rotate(360deg)}}"}</style>
     </div>
   )

@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react"
 import { usePi } from "./context/PiContext.jsx"
 import { useTheme } from "./context/ThemeContext.jsx"
 import NotificationBell, { addNotification } from "./components/NotificationBell.jsx"
+import { t, setLang, getLang, LANGUAGES } from "./i18n.js"
 import PiRateTicker from "./components/PiRateTicker.jsx"
 import TransactionReceipt from "./components/TransactionReceipt.jsx"
 import { PrivacyPolicy, TermsOfService } from "./pages/LegalPages.jsx"
@@ -111,11 +112,11 @@ function NavBar({ page, setPage }) {
 const tabs=[{id:"home",icon:"🏠",label:"Home"},{id:"bills",icon:"📋",label:"Bills"},{id:"more",icon:"⚡",label:"More"},{id:"history",icon:"🕐",label:"History"}]
 return (
 <div style={{position:"sticky",bottom:0,background:"var(--nav-bg)",borderTop:"1px solid var(--border)",display:"flex",padding:"8px 0 max(28px, calc(env(safe-area-inset-bottom, 0px) + 20px))",zIndex:100}}>
-{tabs.map(t=>(
-<button key={t.id} onClick={()=>setPage(t.id)} style={{flex:1,background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-<span style={{fontSize:20}}>{t.icon}</span>
-<span style={{fontSize:10,color:page===t.id?C.primary:"var(--text-tertiary)",fontWeight:page===t.id?700:400}}>{t.label}</span>
-{page===t.id&&<div style={{width:4,height:4,borderRadius:2,background:C.primary,marginTop:1}}/>}
+{tabs.map(tb=>(
+<button key={tb.id} onClick={()=>setPage(tb.id)} style={{flex:1,background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+<span style={{fontSize:20}}>{tb.icon}</span>
+<span style={{fontSize:10,color:page===tb.id?C.primary:"var(--text-tertiary)",fontWeight:page===tb.id?700:400}}>{t(tb.label)}</span>
+{page===tb.id&&<div style={{width:4,height:4,borderRadius:2,background:C.primary,marginTop:1}}/>}
 </button>
 ))}
 </div>
@@ -318,11 +319,11 @@ const recentItems = recentCodes.map(c => state.items.find(v => v.variation_code 
 const matches = q ? state.items.filter(v => v.name.toLowerCase().includes(q) || String(Number(v.variation_amount)).includes(q.replace(/[₦,]/g, ""))) : null
 return (
 <div style={{ marginBottom: 16 }}>
-<input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search plans, e.g. 2GB, 1000, weekly" inputMode="search"
+<input value={query} onChange={e => setQuery(e.target.value)} placeholder={t("Search plans, e.g. 2GB, 1000, weekly")} inputMode="search"
 style={{ width: "100%", boxSizing: "border-box", padding: "10px 14px", borderRadius: 12, border: "1.5px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontSize: 13, marginBottom: 10 }} />
 {!q && recentItems.length > 0 && (
 <div style={{ marginBottom: 10 }}>
-<p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)" }}>⭐ RECENTLY BOUGHT</p>
+<p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)" }}>⭐ {t("RECENTLY BOUGHT")}</p>
 <div style={{ display: "grid", gridTemplateColumns: `repeat(${columns},1fr)`, gap: 8 }}>{recentItems.map(renderCard)}</div>
 </div>
 )}
@@ -640,6 +641,7 @@ counts[k].n++
 const best = Object.values(counts).sort((a, b) => b.n - a.n)[0]
 return best && best.n >= 2 ? best.tx : null
 })()
+const [, setLangTick] = useState(0) // re-render after a language change
 const [checkingId, setCheckingId] = useState(null)
 const patchTransaction = (matchFn, patch) => setTransactions(prev => {
 const next = prev.map(t => matchFn(t) ? { ...t, ...patch } : t)
@@ -1008,7 +1010,7 @@ return (
 <div style={{background:`linear-gradient(135deg,${C.primary} 0%,#FF7A33 100%)`,padding:"calc(env(safe-area-inset-top, 0px) + 52px) 16px 40px"}}>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
 <div>
-<p style={{color:"rgba(255,255,255,0.8)",fontSize:12,margin:0}}>Good day, Pioneer 👋</p>
+<p style={{color:"rgba(255,255,255,0.8)",fontSize:12,margin:0}}>{t("Good day, Pioneer 👋")}</p>
 <p style={{color:"white",fontSize:17,fontWeight:700,margin:"2px 0 0"}}>{displayName(user)}</p>
 </div>
 <div style={{display:"flex",gap:10,alignItems:"center"}}>
@@ -1053,7 +1055,7 @@ return (
 {[{label:"Buy Airtime",icon:"📱",bg:"#EFF6FF",color:"#2563EB",sub:"airtime"},{label:"Buy Data",icon:"📶",bg:"#ECFDF5",color:"#059669",sub:"data"},{label:"Electricity",icon:"⚡",bg:"#FFF7ED",color:"#EA580C",sub:"electricity"},{label:"Cable TV",icon:"📺",bg:"#FDF2F8",color:"#A21CAF",sub:"cable"}].map(item=>(
 <button key={item.label} onClick={()=>{setPage("bills");setSubPage(item.sub)}} style={{background:"var(--card-bg)",border:"none",borderRadius:14,padding:16,textAlign:"left",cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}} onMouseDown={e=>e.currentTarget.style.transform="scale(0.97)"} onMouseUp={e=>e.currentTarget.style.transform="scale(1)"}>
 <div style={{width:42,height:42,borderRadius:12,background:item.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,marginBottom:8}}>{item.icon}</div>
-<p style={{margin:0,fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>{item.label}</p>
+<p style={{margin:0,fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>{t(item.label)}</p>
 <p style={{margin:"2px 0 0",fontSize:11,color:item.color,fontWeight:500}}>Pay with Pi</p>
 </button>
 ))}
@@ -1065,10 +1067,10 @@ return (
 <button onClick={()=>buyAgain(usualAirtime)} style={{width:"100%",display:"flex",alignItems:"center",gap:12,background:"var(--card-bg)",border:`1.5px solid ${C.primary}`,borderRadius:14,padding:"12px 14px",cursor:"pointer",textAlign:"left"}}>
 <span style={{fontSize:22}}>🔁</span>
 <span style={{flex:1}}>
-<span style={{display:"block",fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>Your usual: {usualAirtime.amount} {usualAirtime.raw.network} airtime</span>
+<span style={{display:"block",fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>{t("Your usual")}: {usualAirtime.amount} {usualAirtime.raw.network} airtime</span>
 <span style={{display:"block",fontSize:11,color:"var(--text-tertiary)"}}>for {usualAirtime.raw.phone} · tap to fill it in, you still confirm with your PIN</span>
 </span>
-<span style={{fontSize:12,fontWeight:700,color:C.primary}}>Repeat</span>
+<span style={{fontSize:12,fontWeight:700,color:C.primary}}>{t("Repeat")}</span>
 </button>
 </div>
 )}
@@ -1101,7 +1103,7 @@ return (
 
 <div style={{padding:"8px 16px 16px"}}>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-<p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:0,textTransform:"uppercase",letterSpacing:"0.5px"}}>Recent transactions</p>
+<p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:0,textTransform:"uppercase",letterSpacing:"0.5px"}}>{t("Recent transactions")}</p>
 <button onClick={()=>setPage("history")} style={{background:"none",border:"none",color:C.primary,fontSize:12,cursor:"pointer",fontWeight:600}}>See all →</button>
 </div>
 {transactions.slice(0,3).map(tx=>(
@@ -1333,14 +1335,20 @@ setPage("bills"); setSubPage("insurance")
 {page==="more"&&!subPage&&(
 <div><Header title="More Services"/>
 <div style={{padding:16}}>
-<p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Rates</p>
+<p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>{t("Rates")}</p>
 <SCard icon="📊" label="Zappi NG Pi Rate" desc="Our own pricing rate — not an official Pi price" bg="#FFF7ED" onClick={()=>showToast(`Current rate: ₦${liveRate}/π`,"success")}/>
-<p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Account</p>
-<SCard icon="👤" label="My Profile" desc="Manage your account" bg="#F0F0FF" onClick={()=>setShowProfile(true)}/>
-<SCard icon="💬" label="Help & Support" desc="FAQ, WhatsApp, contact us" bg="#F0FDF4" onClick={()=>setLegalPage("support")}/>
-<SCard icon="🌙" label="Dark Mode" desc={theme==="dark"?"Switch to light mode":"Switch to dark mode"} bg="#F0F0FF" onClick={toggleTheme}/>
+<p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>{t("Account")}</p>
+<SCard icon="👤" label={t("My Profile")} desc="Manage your account" bg="#F0F0FF" onClick={()=>setShowProfile(true)}/>
+<SCard icon="💬" label={t("Help & Support")} desc="FAQ, WhatsApp, contact us" bg="#F0FDF4" onClick={()=>setLegalPage("support")}/>
+<div style={{background:"var(--card-bg)",borderRadius:14,padding:"12px 14px",marginBottom:8}}>
+<p style={{margin:"0 0 8px",fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>🌍 {t("Language")}</p>
+<div style={{display:"flex",gap:8}}>
+{LANGUAGES.map(l=>(<button key={l.id} onClick={()=>{setLang(l.id);setLangTick(n=>n+1)}} style={{flex:1,padding:"8px 6px",borderRadius:10,border:`1.5px solid ${getLang()===l.id?C.primary:"var(--border)"}`,background:getLang()===l.id?C.light:"transparent",color:"var(--text-primary)",fontSize:12,fontWeight:700,cursor:"pointer"}}>{l.label}</button>))}
+</div>
+</div>
+<SCard icon="🌙" label={t("Dark Mode")} desc={theme==="dark"?"Switch to light mode":"Switch to dark mode"} bg="#F0F0FF" onClick={toggleTheme}/>
 {isAdminUser() && <SCard icon="🛠️" label="Admin" desc="Announcements & support tickets" bg="#F0F0FF" badge={openTicketCount} onClick={()=>setLegalPage("admin")}/>}
-<p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>Legal</p>
+<p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>{t("Legal")}</p>
 <SCard icon="📄" label="Privacy Policy" desc="How we handle your data" bg="#F9FAFB" onClick={()=>setLegalPage("privacy")}/>
 <SCard icon="📋" label="Terms of Service" desc="Rules for using Zappi NG" bg="#F9FAFB" onClick={()=>setLegalPage("terms")}/>
 </div></div>
@@ -1370,15 +1378,15 @@ setPage("bills"); setSubPage("insurance")
 <p style={{margin:0,fontSize:13,fontWeight:700,color:tx.type==="receive"?"#22C55E":"var(--text-primary)"}}>{tx.type==="receive"?"+":"-"}{tx.pi}</p>
 <p style={{margin:"2px 0",fontSize:11,color:"var(--text-tertiary)"}}>{tx.amount}</p>
 <span style={{background:badgeFor(tx.status).bg,color:badgeFor(tx.status).fg,fontSize:10,padding:"2px 8px",borderRadius:10,fontWeight:700}}>{badgeFor(tx.status).long}</span>
-{tx.refund==="processing"&&<p style={{margin:"3px 0 0",fontSize:10,color:"#92400E"}}>Refund in progress</p>}
-{tx.refund==="success"&&<p style={{margin:"3px 0 0",fontSize:10,color:"#166534"}}>Pi refunded</p>}
+{tx.refund==="processing"&&<p style={{margin:"3px 0 0",fontSize:10,color:"#92400E"}}>{t("Refund in progress")}</p>}
+{tx.refund==="success"&&<p style={{margin:"3px 0 0",fontSize:10,color:"#166534"}}>{t("Pi refunded")}</p>}
 </div>
 </div>
 {tx.type!=="receive"&&(
 <div style={{display:"flex",borderTop:"1px solid var(--border)"}}>
 {tx.status==="pending"&&tx.requestId&&(
 <button onClick={()=>checkStatus(tx)} disabled={checkingId===tx.id} style={{flex:1,background:"none",border:"none",borderRight:"1px solid var(--border)",padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"center",gap:6,cursor:"pointer",color:C.primary,fontSize:12,fontWeight:700}}>
-{checkingId===tx.id?"Checking…":"🔄 Check status"}
+{checkingId===tx.id?t("Checking…"):"🔄 "+t("Check status")}
 </button>
 )}
 {tx.raw&&tx.status==="success"&&(
