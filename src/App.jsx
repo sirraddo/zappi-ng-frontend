@@ -6,6 +6,7 @@ import NotificationBell, { addNotification } from "./components/NotificationBell
 import { t, setLang, getLang, LANGUAGES } from "./i18n.js"
 import DataBudgetFinder from "./components/DataBudgetFinder.jsx"
 import GiftShareModal, { GiftOption } from "./components/GiftShareModal.jsx"
+import PromoCard from "./components/PromoCard.jsx"
 import PiRateTicker from "./components/PiRateTicker.jsx"
 import TransactionReceipt from "./components/TransactionReceipt.jsx"
 import { PrivacyPolicy, TermsOfService } from "./pages/LegalPages.jsx"
@@ -571,6 +572,24 @@ fetch(`${apiUrl}/api/flags`, { headers: token ? { Authorization: `Bearer ${token
 .then(d => setFlags(d.flags || {}))
 .catch(() => setFlags({}))
 }, [])
+// Promo code: validated by the server when entered, and again (authoritatively) at payment time.
+const [promo, setPromo] = useState(() => { try { return JSON.parse(localStorage.getItem("zappi_promo")) } catch { return null } })
+const storePromo = (p) => { setPromo(p); try { p ? localStorage.setItem("zappi_promo", JSON.stringify(p)) : localStorage.removeItem("zappi_promo") } catch {} }
+const applyPromo = async (code) => {
+try {
+const r = await fetch(`${API_BASE}/api/promos/check`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("zappi_token")||""}` }, body: JSON.stringify({ code }) })
+const d = await r.json().catch(() => ({}))
+if (!r.ok) { showToast(d.error || "That code didn't work", "danger"); return false }
+storePromo(d); showToast(`${d.code} applied: ${d.percent}% off`, "success"); return true
+} catch { showToast("Network problem — try again", "danger"); return false }
+}
+// Naira off this purchase (0 when no code, or the code doesn't cover this service/amount).
+const promoDiscount = (tx) => {
+if (!promo || tx.pi != null) return 0
+if (promo.services?.length && !promo.services.includes(tx.type)) return 0
+if (promo.minAmountNGN && Number(tx.ngn) < promo.minAmountNGN) return 0
+return Math.max(0, Math.floor(Math.min(Number(tx.ngn) * promo.percent / 100, promo.maxDiscountNGN || Infinity)))
+}
 // Service notices from the admin ("MTN data is down"), refreshed every 2 minutes while signed in.
 const [notices, setNotices] = useState([])
 useEffect(() => {
@@ -899,7 +918,7 @@ resetInputs()
 // Real path: Pi payment on-chain, then VTPass delivery via /api/payments/complete.
 // If the 120s confirmation token expires while the Pi wallet ceremony runs, the
 // delivery returns 401 — we re-confirm (Pi is NOT re-charged) and retry delivery only.
-const runRealPayment=(service, tx, txnFields, piCost, confirmationToken)=>{
+const runRealPayment=(service, tx, txnFields, piCost, confirmationToken, promoCode=null)=>{
 setIsPaying(true)
 setTimeout(() => {
 setIsPaying(prevIsPaying => {
@@ -925,6 +944,7 @@ next_kin_phone: insNextKinPhone,
 business_occupation: insOccupation,
 } : {}),
 piAmount: piCost,
+...(promoCode ? { promoCode } : {}),
 }
 const deliveryFailMsg = (svc, err) => `Your Pi was received but ${svc} was not delivered${err?.message ? " ("+err.message+")" : ""}.${err?.data?.requestId ? " Ref: "+err.data.requestId+"." : ""} ${err?.data?.refund === "processing" ? "Your Pi is being refunded automatically." : "Please don't pay again — open Help & Support and we'll fix it."}`
 const recordFailure = (svc, err) => {
@@ -937,6 +957,7 @@ color: tx.color || "#EFF6FF", icon: tx.icon || "💳", raw: null, refund: err.da
 const deliver = async (token, piPaymentId) => {
 const completion = await completeBillPayment(txnFields, { ...extras, piPaymentId }, token)
 finishPayment(service, tx, piCost, completion?.txId, completion?.requestId, completion?.status === "pending" ? "pending" : "success")
+if (promoCode) storePromo(null)
 }
 createPayment(
 { amount: Number(piCost.toFixed(7)), memo: `Zappi NG — ${service}`, metadata: { ...txnFields, ...extras } },
@@ -959,11 +980,12 @@ catch (e2) { recordFailure(service, e2); showToast(deliveryFailMsg(service, e2),
 // handlePay(service, tx): tx = { type, label, sub, ngn, pi?, icon?, color? }
 const handlePay=(service, tx)=>{
 if (REAL_PAYMENTS && !rateLive) { showToast("The live Pi rate isn't confirmed yet — please wait a few seconds and try again.","danger",6000); return }
-const piCost = tx.pi != null ? Number(tx.pi) : Number(tx.ngn) / liveRate
+const promoOff = promoDiscount(tx)
+const piCost = tx.pi != null ? Number(tx.pi) : (Number(tx.ngn) - promoOff) / liveRate
 const txnFields = buildTxnFields(tx)
 const blocked = blockingNoticeFor(txnFields.billType, txnFields.serviceID)
 if (blocked) { showToast(blocked.message, "danger", 8000); return }
-requireTxnConfirmation(`Confirm ${service}`, txnFields, (confirmationToken)=>{
+requireTxnConfirmation(`Confirm ${service}${promoOff>0?` (promo −₦${promoOff})`:""}`, txnFields, (confirmationToken)=>{
 setTxnPinModal(null)
 const vtpassEligible = ["airtime","data","electricity","cable","internet","education","insurance","showmax"].includes(tx.type) && !!txnFields.serviceID
 if (REAL_PAYMENTS) {
@@ -971,7 +993,7 @@ if (REAL_PAYMENTS) {
 // inside the Pi Browser must not be shown a fake "payment successful".
 if (!vtpassEligible) showToast("This service isn't available for payment yet.","danger")
 else if (!isReady || !window.Pi) showToast("Open Zappi NG inside the Pi Browser to pay with Pi.","danger")
-else runRealPayment(service, tx, txnFields, piCost, confirmationToken)
+else runRealPayment(service, tx, txnFields, piCost, confirmationToken, promoOff>0 ? promo.code : null)
 } else {
 // Demo mode (VITE_REAL_PAYMENTS is not "true"): simulated ledger — no Pi moves.
 // A banner at the top of the screen says so.
@@ -1032,6 +1054,11 @@ return (
 {!REAL_PAYMENTS&&<div style={{background:"#FEE2E2",color:"#991B1B",padding:"8px 16px",fontSize:12,fontWeight:700,textAlign:"center"}}>Demo mode — payments are simulated, no real Pi is spent</div>}
 {isPaying&&<div style={{background:"#FEF3C7",color:"#92400E",padding:"10px 16px",fontSize:13,fontWeight:600,textAlign:"center"}}>⏳ Processing your last payment — this can take up to 30 seconds…</div>}
 
+{promo&&(
+<div style={{padding:"8px 16px 0"}}>
+<div style={{background:"#DCFCE7",color:"#166534",borderRadius:12,padding:"10px 14px",fontSize:12,fontWeight:700}}>🎟️ {promo.code}: {promo.percent}% off your next purchase{promo.maxDiscountNGN?` (up to ₦${promo.maxDiscountNGN})`:""}</div>
+</div>
+)}
 {notices.length>0&&(
 <div style={{padding:"8px 16px 0"}}>
 {notices.map(n=>(
@@ -1386,6 +1413,7 @@ onPick={({network:n,phone:ph,bundle:b})=>{setNetwork(n);setBundle(b);if(ph)setPh
 <SCard icon="📊" label="Zappi NG Pi Rate" desc="Our own pricing rate — not an official Pi price" bg="#FFF7ED" onClick={()=>showToast(`Current rate: ₦${liveRate}/π`,"success")}/>
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>{t("Account")}</p>
 <SCard icon="👤" label={t("My Profile")} desc="Manage your account" bg="#F0F0FF" onClick={()=>setShowProfile(true)}/>
+<PromoCard promo={promo} onApply={applyPromo} onRemove={()=>storePromo(null)}/>
 <SCard icon="💬" label={t("Help & Support")} desc="FAQ, WhatsApp, contact us" bg="#F0FDF4" onClick={()=>setLegalPage("support")}/>
 <div style={{background:"var(--card-bg)",borderRadius:14,padding:"12px 14px",marginBottom:8}}>
 <p style={{margin:"0 0 8px",fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>🌍 {t("Language")}</p>

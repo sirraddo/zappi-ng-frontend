@@ -170,6 +170,8 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
   const [ledger, setLedger] = useState({ refunds: [], needs: [] });
   const [money, setMoney] = useState(null);
   const [golive, setGolive] = useState(null);
+  const [promos, setPromos] = useState([]);
+  const [pf, setPf] = useState({ code: "", percent: "5", maxDiscountNGN: "100", maxUses: "100", perUserLimit: "1", service: "", expiresAt: "" });
   const [rateInfo, setRateInfo] = useState(null);
   const [spreadInput, setSpreadInput] = useState("");
   const [noticeList, setNoticeList] = useState([]);
@@ -255,6 +257,22 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
     ["electricity", "Electricity"], ["cable", "Cable TV"], ["internet", "Internet"], ["education", "Exam fees"], ["showmax", "Showmax"], ["insurance", "Insurance"],
   ];
   const noticeName = (k) => (NOTICE_SERVICES.find(([v]) => v === k) || [k, k])[1];
+  function loadPromos() {
+    setLoading(true);
+    fetch(`${API_URL}/api/promos/all`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setPromos(d.promos || []))
+      .catch(() => showToast("Could not load promo codes", "danger")).finally(() => setLoading(false));
+  }
+  function savePromo(body) {
+    return fetch(`${API_URL}/api/promos`, { method: "POST", headers: authHdrs(), body: JSON.stringify(body) })
+      .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); showToast("Saved", "success"); loadPromos(); return true; })
+      .catch((e) => { showToast(e.message, "danger"); return false; });
+  }
+  function deletePromo(code) {
+    setConfirmState({
+      message: `Delete promo code ${code}? Customers who already used it keep their discount.`,
+      onConfirm: () => { setConfirmState(null); fetch(`${API_URL}/api/promos/${encodeURIComponent(code)}`, { method: "DELETE", headers: authHdrs() }).then(() => { showToast("Deleted", "success"); loadPromos(); }).catch(() => showToast("Could not delete", "danger")); },
+    });
+  }
   function loadRate() {
     setLoading(true);
     fetch(`${API_URL}/api/admin/rate`, { headers: authHdrs() }).then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); return d; })
@@ -363,6 +381,7 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
     else if (tab === "golive") loadGolive();
     else if (tab === "notices") loadNotices();
     else if (tab === "rate") loadRate();
+    else if (tab === "promos") loadPromos();
     else if (tab === "customers") loadCustomers();
   }, [tab, txFilter]);
 
@@ -625,6 +644,7 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
             { key: "ledger", icon: "📒", label: "Ledger & refunds", badge: ledger.needs.length },
             { key: "golive", icon: "🚦", label: "Go-live check" },
             { key: "rate", icon: "📈", label: "Rate & pricing" },
+            { key: "promos", icon: "🎟️", label: "Promo codes" },
             { key: "money", icon: "💰", label: "Money check" },
             { key: "customers", icon: "👥", label: "Customers" },
             { key: "announcements", icon: "📢", label: "Announcements" },
@@ -1215,6 +1235,58 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
               : ledger.refunds.map((t) => <OrderCard key={t._id} t={t} busy={busyId === t._id} onRecheck={recheckOrder} onRefund={refundOrder} onRetryRefund={retryRefund} showToast={showToast} />)}
           </>
         )
+      )}
+
+      {tab === "promos" && (
+        <>
+          <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px", lineHeight: 1.4 }}>
+            A code takes a % off the customer's Pi price. The discount comes out of your own margin and VTPass commission, so keep it small and capped. The server checks every code at payment time, so it can't be faked.
+          </p>
+          <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 14 }}>
+            {(() => {
+              const inp = { width: "100%", boxSizing: "border-box", padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontSize: 13 };
+              const lbl = { fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", margin: "8px 0 3px", display: "block" };
+              const set = (k) => (e) => setPf({ ...pf, [k]: e.target.value });
+              return (
+                <>
+                  <label style={lbl}>Code</label><input style={inp} value={pf.code} onChange={(e) => setPf({ ...pf, code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20) })} placeholder="WELCOME5" />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <div><label style={lbl}>Percent off (1–20)</label><input style={inp} inputMode="decimal" value={pf.percent} onChange={set("percent")} /></div>
+                    <div><label style={lbl}>Max ₦ off per purchase</label><input style={inp} inputMode="numeric" value={pf.maxDiscountNGN} onChange={set("maxDiscountNGN")} /></div>
+                    <div><label style={lbl}>Total uses (0 = unlimited)</label><input style={inp} inputMode="numeric" value={pf.maxUses} onChange={set("maxUses")} /></div>
+                    <div><label style={lbl}>Uses per customer</label><input style={inp} inputMode="numeric" value={pf.perUserLimit} onChange={set("perUserLimit")} /></div>
+                  </div>
+                  <label style={lbl}>Works on</label>
+                  <select style={inp} value={pf.service} onChange={set("service")}>
+                    <option value="">All services</option>
+                    {["airtime", "data", "electricity", "cable", "internet", "education", "showmax"].map((v) => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                  <label style={lbl}>Expires (optional)</label><input style={inp} type="date" value={pf.expiresAt} onChange={set("expiresAt")} />
+                  <button onClick={async () => {
+                    const ok = await savePromo({ code: pf.code, percent: Number(pf.percent), maxDiscountNGN: Number(pf.maxDiscountNGN), maxUses: Number(pf.maxUses), perUserLimit: Number(pf.perUserLimit), services: pf.service ? [pf.service] : [], expiresAt: pf.expiresAt || null });
+                    if (ok) setPf({ ...pf, code: "" });
+                  }} style={{ width: "100%", marginTop: 12, padding: 12, borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer" }}>Save code</button>
+                </>
+              );
+            })()}
+          </div>
+          {loading ? <div>Loading…</div> : promos.length === 0 ? <div style={{ color: "var(--text-secondary)" }}>No promo codes yet</div> : promos.map((p) => (
+            <div key={p.code} style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 10, opacity: p.active ? 1 : 0.6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <b style={{ fontSize: 15, letterSpacing: 1 }}>{p.code}</b>
+                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: p.active ? "#DCFCE7" : "#E5E7EB", color: p.active ? "#166534" : "#374151" }}>{p.active ? "active" : "off"}</span>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0" }}>
+                {p.percent}% off, up to ₦{p.maxDiscountNGN} · {p.services?.length ? p.services.join(", ") : "all services"} · {p.perUserLimit || "unlimited"} use(s) per customer{p.expiresAt ? ` · expires ${new Date(p.expiresAt).toLocaleDateString()}` : ""}
+              </div>
+              <div style={{ fontSize: 12, margin: "0 0 10px" }}>Used {p.usedCount}{p.maxUses ? ` of ${p.maxUses}` : ""} times · discount given ₦{Number(p.discountGivenNGN).toLocaleString()}</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => savePromo({ ...p, active: !p.active })} style={{ flex: 1, padding: 8, borderRadius: 8, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>{p.active ? "Switch off" : "Switch on"}</button>
+                <button onClick={() => deletePromo(p.code)} style={{ flex: 1, padding: 8, borderRadius: 8, border: "1px solid var(--border)", background: "var(--card-bg)", color: "#dc2626", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Delete</button>
+              </div>
+            </div>
+          ))}
+        </>
       )}
 
       {tab === "rate" && (
