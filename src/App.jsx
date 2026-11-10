@@ -693,6 +693,7 @@ const [toastType, setToastType] = useState("success")
 // failure path doesn't explicitly clear it — never gets permanently stuck.
 const [isPaying, setIsPaying] = useState(false)
 const [forgotPin, setForgotPin] = useState(false)
+useEffect(()=>{const f=e=>showToast(e.detail,"success",4000);window.addEventListener("zappi-toast",f);return()=>window.removeEventListener("zappi-toast",f)},[])
 const [me, setMe] = useState(null)
 const [creditOn, setCreditOnState] = useState(() => localStorage.getItem("zappi_credit_off") !== "1")
 const setCreditOn = (v) => { setCreditOnState(v); try { v ? localStorage.removeItem("zappi_credit_off") : localStorage.setItem("zappi_credit_off", "1") } catch {} }

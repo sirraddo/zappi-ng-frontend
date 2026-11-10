@@ -21,7 +21,7 @@ export default function GiftShareModal({ tx, senderName, initialMessage = "", on
   const intl = ["airtime", "data"].includes(tx.type) ? toIntl(tx.sub) : null
   const text = `🎁 ${senderName ? senderName + " has" : "I have"} sent you ${tx.label} (${tx.amount}) on Zappi NG!${msg.trim() ? `\n\n"${msg.trim()}"` : ""}\n\nPay Nigerian bills with Pi: ${SITE}`
 
-  const whatsapp = () => window.open(`https://wa.me/${intl || ""}?text=${encodeURIComponent(text)}`, "_blank")
+  const whatsapp = () => { import("../shareText.js").then(m => m.shareText(text)) }
   const share = async () => { try { await navigator.share({ text }) } catch {} }
   const copy = async () => { try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000) } catch {} }
   const btn = (bg, fg) => ({ width: "100%", padding: 13, borderRadius: 12, border: "none", background: bg, color: fg, fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 8 })

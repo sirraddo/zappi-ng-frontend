@@ -3,6 +3,7 @@
  * Everything personal stays on this device except credit and referral, which live on the server.
  */
 import { useState } from "react"
+import { shareText } from "../shareText.js"
 
 const APP_URL = "https://zappi-ng-frontend.vercel.app"
 const box = { background: "var(--card-bg)", borderRadius: 14, padding: "12px 14px", marginBottom: 8 }
@@ -14,7 +15,7 @@ const solid = { padding: "9px 16px", borderRadius: 10, border: "none", backgroun
 const NETWORKS = ["MTN", "Airtel", "Glo", "9mobile"]
 const rd = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d } catch { return d } }
 const wr = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} }
-const share = (text) => window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank")
+const share = (text) => shareText(text)
 
 // ── Credit, cashback and referral ──
 export function RewardsCard({ me, creditOn, setCreditOn, onClaim }) {
@@ -160,7 +161,7 @@ export function PayForMeCard({ myLine }) {
             <input style={inp} inputMode="numeric" placeholder="Amount ₦" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value.replace(/\D/g, "").slice(0, 4) })} />
           </div>
           <input style={{ ...inp, marginBottom: 8 }} inputMode="numeric" placeholder="Your number" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })} />
-          <button style={{ ...solid, opacity: ok ? 1 : 0.5 }} disabled={!ok} onClick={send}>Share on WhatsApp</button>
+          <button style={{ ...solid, opacity: ok ? 1 : 0.5 }} disabled={!ok} onClick={send}>Share link</button>
         </div>
       )}
     </div>
