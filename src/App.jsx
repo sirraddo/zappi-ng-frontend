@@ -837,6 +837,7 @@ catch (e2) { showToast(deliveryFailMsg(service, e2),"danger",9000) }
 
 // handlePay(service, tx): tx = { type, label, sub, ngn, pi?, icon?, color? }
 const handlePay=(service, tx)=>{
+if (REAL_PAYMENTS && !rateLive) { showToast("The live Pi rate isn't confirmed yet — please wait a few seconds and try again.","danger",6000); return }
 const piCost = tx.pi != null ? Number(tx.pi) : Number(tx.ngn) / liveRate
 const txnFields = buildTxnFields(tx)
 requireTxnConfirmation(`Confirm ${service}`, txnFields, (confirmationToken)=>{
