@@ -395,6 +395,11 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
     setAiWorking(id + "polish");
     aiCall("staff", { task: "polish", text, lang: aiLang === "auto" ? undefined : aiLang, ticketId: id }).then((t) => { setPolishUndo((u) => ({ ...u, [id]: text })); setReplyDrafts((d) => ({ ...d, [id]: t })); }).catch((e) => showToast(e.message, "danger")).finally(() => setAiWorking(""));
   }
+  function fixText(text, lang, apply, key) {
+    if (!text.trim()) { showToast("Write something first", "danger"); return; }
+    setAiWorking(key);
+    aiCall("staff", { task: "polish", text, lang }).then(apply).catch((e) => showToast(e.message, "danger")).finally(() => setAiWorking(""));
+  }
   function writeReason() {
     if (!reqReason.trim()) { showToast("Type a rough note first", "danger"); return; }
     setAiWorking("reason");
@@ -1124,6 +1129,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 {(t.internalNotes || []).map((n, i) => <div key={i} style={{ fontSize: 12, margin: "3px 0" }}><b>@{n.by}</b>: {n.text}</div>)}
                 <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
                   <input value={noteDrafts[t._id] || ""} onChange={(e) => setNoteDrafts({ ...noteDrafts, [t._id]: e.target.value })} placeholder="Add a note" style={{ flex: 1, padding: 6, borderRadius: 6, border: "1px solid var(--border)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12 }} />
+                  <button disabled={!!aiWorking} onClick={() => fixText(noteDrafts[t._id] || "", "en", (x) => setNoteDrafts((n) => ({ ...n, [t._id]: x })), "n" + t._id)} style={custBtn}>{aiWorking === "n" + t._id ? "…" : "✨ Fix"}</button>
                   <button onClick={() => addNote(t._id)} style={custBtn}>Add</button>
                 </div>
               </div>
@@ -1585,6 +1591,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                   <div key={i} style={{ marginBottom: 10 }}>
                     <input style={inp} value={c.title} placeholder="Title" onChange={(e) => setCanned(canned.map((x, j) => j === i ? { ...x, title: e.target.value } : x))} />
                     <textarea style={{ ...inp, marginTop: 6, minHeight: 60, fontFamily: "inherit" }} value={c.text} placeholder="Message" onChange={(e) => setCanned(canned.map((x, j) => j === i ? { ...x, text: e.target.value } : x))} />
+                    <button disabled={!!aiWorking} onClick={() => fixText(c.text, aiLang === "auto" ? "en" : aiLang, (x) => setCanned(canned.map((y, j) => j === i ? { ...y, text: x } : y)), "c" + i)} style={{ ...custBtn, marginTop: 4, marginRight: 6 }}>{aiWorking === "c" + i ? "…" : "✨ Fix & translate"}</button>
                     <button onClick={() => setCanned(canned.filter((_, j) => j !== i))} style={{ ...custBtn, color: "#dc2626", marginTop: 4 }}>Remove</button>
                   </div>
                 ))}
