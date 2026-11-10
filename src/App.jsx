@@ -593,6 +593,7 @@ return Math.max(0, Math.floor(Math.min(Number(tx.ngn) * promo.percent / 100, pro
 }
 // Service notices from the admin ("MTN data is down"), refreshed every 2 minutes while signed in.
 const [notices, setNotices] = useState([])
+const [cfg, setCfg] = useState({})
 useEffect(() => {
 if (!isLoggedIn) return
 let off = false
@@ -600,14 +601,23 @@ const load = () => {
 const token = localStorage.getItem("zappi_token")
 fetch(`${API_BASE}/api/notices`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
 .then(r => r.ok ? r.json() : { notices: [] })
-.then(d => { if (!off) setNotices(d.notices || []) })
+.then(d => {
+if (off) return
+setNotices(d.notices || [])
+setCfg(d.config || {})
+// Support details the owner set in Admin → Settings replace the built-in ones.
+const sp = d.config?.support || {}
+if (sp.whatsapp) CONFIG.whatsappNumber = sp.whatsapp
+if (sp.email) CONFIG.supportEmail = sp.email
+CONFIG.supportHours = sp.hours || ""
+})
 .catch(() => {})
 }
 load()
 const id = setInterval(load, 120000)
 return () => { off = true; clearInterval(id) }
 }, [isLoggedIn])
-const blockingNoticeFor = (billType, serviceID) => notices.find(n => n.blocking && (n.key === billType || n.key === `${billType}:${serviceID}`))
+const blockingNoticeFor = (billType, serviceID) => notices.find(n => n.blocking && (n.key === "all" || n.key === billType || n.key === `${billType}:${serviceID}`))
 // Open-ticket count, shown as a badge on the Admin tile — only fetched
 // for the admin account, since regular users would just get a 403.
 // Exposed as a plain function (not just a useEffect body) so it can be
@@ -615,8 +625,16 @@ const blockingNoticeFor = (billType, serviceID) => notices.find(n => n.blocking 
 // backs out of the screen — previously this only ever ran once on mount,
 // so the badge stayed stuck showing a stale count until a full re-login.
 const [openTicketCount, setOpenTicketCount] = useState(0)
+// "owner", "staff" or null — decided by the server, so staff added in Admin → Settings get the Admin entry too.
+const [adminRole, setAdminRole] = useState(null)
+useEffect(() => {
+if (!isLoggedIn) return
+fetch(`${API_BASE}/api/admin-role`, { headers: { Authorization: `Bearer ${localStorage.getItem("zappi_token")||""}` } })
+.then(r => r.ok ? r.json() : { role: null }).then(d => setAdminRole(d.role || null)).catch(() => {})
+}, [isLoggedIn])
+const isAdminAny = isAdminUser() || !!adminRole
 const loadOpenTicketCount = () => {
-if (!isAdminUser()) return
+if (!isAdminAny) return
 const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com"
 const token = localStorage.getItem("zappi_token")
 fetch(`${apiUrl}/api/tickets`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
@@ -987,6 +1005,11 @@ const piCost = tx.pi != null ? Number(tx.pi) : (Number(tx.ngn) - promoOff) / liv
 const txnFields = buildTxnFields(tx)
 const blocked = blockingNoticeFor(txnFields.billType, txnFields.serviceID)
 if (blocked) { showToast(blocked.message, "danger", 8000); return }
+const lim = cfg.limits || {}
+const ngnAmt = Number(tx.ngn)
+if (lim.minNGN > 0 && ngnAmt < lim.minNGN) { showToast(`The minimum purchase is ₦${lim.minNGN}`, "danger"); return }
+if (lim.maxNGN > 0 && ngnAmt > lim.maxNGN) { showToast(`The maximum purchase is ₦${lim.maxNGN}`, "danger"); return }
+if (lim.dailyCapNGN > 0 && (cfg.spentTodayNGN || 0) + ngnAmt > lim.dailyCapNGN) { showToast(`Daily limit: ₦${lim.dailyCapNGN} per day. You have ₦${Math.max(0, lim.dailyCapNGN - (cfg.spentTodayNGN || 0))} left today.`, "danger", 7000); return }
 requireTxnConfirmation(`Confirm ${service}${promoOff>0?` (promo −₦${promoOff})`:""}`, txnFields, (confirmationToken)=>{
 setTxnPinModal(null)
 const vtpassEligible = ["airtime","data","electricity","cable","internet","education","insurance","showmax"].includes(tx.type) && !!txnFields.serviceID
@@ -1019,7 +1042,7 @@ return p === "privacy" || p === "terms" ? p : null
 if (legalPage === "privacy") return <PrivacyPolicy onBack={() => setLegalPage(null)} />
 if (legalPage === "terms") return <TermsOfService onBack={() => setLegalPage(null)} />
 if (legalPage === "support") return <SupportPage onBack={() => setLegalPage(null)} />
-if (legalPage === "admin") return <AdminScreen onBack={() => { setLegalPage(null); loadOpenTicketCount(); }} showToast={showToast} onTicketsChanged={loadOpenTicketCount} />
+if (legalPage === "admin") return <AdminScreen role={adminRole || "owner"} onBack={() => { setLegalPage(null); loadOpenTicketCount(); }} showToast={showToast} onTicketsChanged={loadOpenTicketCount} />
 
 const filteredTx = txFilter==="all"?transactions:transactions.filter(t=>t.type===txFilter)
 
@@ -1426,7 +1449,7 @@ onPick={({network:n,phone:ph,bundle:b})=>{setNetwork(n);setBundle(b);if(ph)setPh
 </div>
 </div>
 <SCard icon="🌙" label={t("Dark Mode")} desc={theme==="dark"?"Switch to light mode":"Switch to dark mode"} bg="#F0F0FF" onClick={toggleTheme}/>
-{isAdminUser() && <SCard icon="🛠️" label="Admin" desc="Announcements & support tickets" bg="#F0F0FF" badge={openTicketCount} onClick={()=>setLegalPage("admin")}/>}
+{isAdminAny && <SCard icon="🛠️" label="Admin" desc="Announcements & support tickets" bg="#F0F0FF" badge={openTicketCount} onClick={()=>setLegalPage("admin")}/>}
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>{t("Legal")}</p>
 <SCard icon="📄" label="Privacy Policy" desc="How we handle your data" bg="#F9FAFB" onClick={()=>setLegalPage("privacy")}/>
 <SCard icon="📋" label="Terms of Service" desc="Rules for using Zappi NG" bg="#F9FAFB" onClick={()=>setLegalPage("terms")}/>

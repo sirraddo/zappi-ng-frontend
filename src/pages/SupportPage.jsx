@@ -29,6 +29,7 @@ export const CONFIG = {
   supportEmail: "sirraddogloballimited@gmail.com",
   appVersion: "1.0.0",
   buildDate: "November 2026",
+  supportHours: "",
 };
 
 const FAQS = [
@@ -186,6 +187,7 @@ export default function SupportPage({ onBack }) {
           <div className="about-name">Zappi NG</div>
           <div className="about-tagline">Pay bills with Pi · Nigeria</div>
           <div className="about-version">Version {CONFIG.appVersion} · {CONFIG.buildDate}</div>
+          {CONFIG.supportHours && <div className="about-version">Support hours: {CONFIG.supportHours}</div>}
           <div className="about-links">
             <a href="/privacy-policy.html" className="about-link">Privacy Policy</a>
             <span className="about-dot">·</span>

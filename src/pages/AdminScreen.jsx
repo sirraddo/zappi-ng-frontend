@@ -131,7 +131,7 @@ function ticketThread(t) {
   return thread;
 }
 
-export default function AdminScreen({ onBack, showToast = () => {}, onTicketsChanged = () => {} }) {
+export default function AdminScreen({ role = "owner", onBack, showToast = () => {}, onTicketsChanged = () => {} }) {
   const [tab, setTab] = useState(null);
   const [confirmState, setConfirmState] = useState(null);
   const [sendingReply, setSendingReply] = useState({});
@@ -170,6 +170,8 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
   const [ledger, setLedger] = useState({ refunds: [], needs: [] });
   const [money, setMoney] = useState(null);
   const [golive, setGolive] = useState(null);
+  const [st, setSt] = useState(null);
+  const [sf, setSf] = useState(null);
   const [aiStatus, setAiStatus] = useState(null);
   const [aiOut, setAiOut] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
@@ -265,6 +267,20 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
     ["electricity", "Electricity"], ["cable", "Cable TV"], ["internet", "Internet"], ["education", "Exam fees"], ["showmax", "Showmax"], ["insurance", "Insurance"],
   ];
   const noticeName = (k) => (NOTICE_SERVICES.find(([v]) => v === k) || [k, k])[1];
+  function loadSettings() {
+    setLoading(true);
+    fetch(`${API_URL}/api/admin/settings`, { headers: authHdrs() }).then((r) => r.json()).then((d) => {
+      setSt(d);
+      setSf({ maintOn: !!d.maintenance?.on, maintMsg: d.maintenance?.message || "", min: String(d.limits.minNGN || 0), max: String(d.limits.maxNGN || 0), cap: String(d.limits.dailyCapNGN || 0),
+        low: String(d.lowBalanceNGN), fb: d.fallbackRate ? String(d.fallbackRate) : "", usd: d.usdNgnRate ? String(d.usdNgnRate) : "",
+        wa: d.support.whatsapp || "", email: d.support.email || "", hours: d.support.hours || "", staff: (d.staff || []).join(", "), cg: "" });
+    }).catch(() => showToast("Could not load settings", "danger")).finally(() => setLoading(false));
+  }
+  function saveSettings(body, okMsg) {
+    return fetch(`${API_URL}/api/admin/settings`, { method: "POST", headers: authHdrs(), body: JSON.stringify(body) })
+      .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); showToast(okMsg || "Saved", "success"); loadSettings(); })
+      .catch((e) => showToast(e.message, "danger"));
+  }
   function loadAi() {
     fetch(`${API_URL}/api/admin/ai-status`, { headers: authHdrs() }).then((r) => r.json()).then((d) => { setAiStatus(d); setAiLimit(String(d.dailyLimit)); }).catch(() => showToast("Could not load AI status", "danger"));
     if (!tickets.length) loadTickets();
@@ -427,6 +443,7 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
     else if (tab === "rate") loadRate();
     else if (tab === "promos") loadPromos();
     else if (tab === "ai") loadAi();
+    else if (tab === "settings") loadSettings();
     else if (tab === "customers") loadCustomers();
   }, [tab, txFilter]);
 
@@ -691,6 +708,7 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
             { key: "rate", icon: "📈", label: "Rate & pricing" },
             { key: "promos", icon: "🎟️", label: "Promo codes" },
             { key: "ai", icon: "✨", label: "AI Assistant" },
+            { key: "settings", icon: "⚙️", label: "Settings" },
             { key: "money", icon: "💰", label: "Money check" },
             { key: "customers", icon: "👥", label: "Customers" },
             { key: "announcements", icon: "📢", label: "Announcements" },
@@ -702,7 +720,7 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
             { key: "vtpasstest", icon: "🧪", label: "VTPass Test" },
             { key: "auditlog", icon: "📜", label: "Audit Log" },
             { key: "pending", icon: "⏳", label: "Pending orders", badge: pendingTx.length },
-          ].map((m) => (
+          ].filter((m) => role !== "staff" || ["stats", "transactions", "pending", "customers", "tickets", "users"].includes(m.key)).map((m) => (
             <button
               key={m.key}
               onClick={() => setTab(m.key)}
@@ -1283,6 +1301,90 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
         )
       )}
 
+      {tab === "settings" && (
+        loading && !st ? <div>Loading…</div> : !st || !sf ? <div style={{ color: "#dc2626" }}>Could not load settings</div> : (() => {
+          const card = { background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 12 };
+          const h = { fontWeight: 700, fontSize: 14, marginBottom: 4 };
+          const note = { fontSize: 12, color: "var(--text-secondary)", marginBottom: 10, lineHeight: 1.4 };
+          const inp = { width: "100%", boxSizing: "border-box", padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontSize: 13 };
+          const lbl = { fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", margin: "8px 0 3px", display: "block" };
+          const save = (onClick, label = "Save") => <button onClick={onClick} style={{ width: "100%", marginTop: 12, padding: 11, borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer" }}>{label}</button>;
+          const set = (k) => (e) => setSf({ ...sf, [k]: e.target.value });
+          const digits = (k) => (e) => setSf({ ...sf, [k]: e.target.value.replace(/\D/g, "").slice(0, 10) });
+          return (
+            <>
+              <div style={card}>
+                <div style={h}>🚧 Maintenance mode</div>
+                <div style={note}>Pauses every purchase and shows your message to all customers. Use it while you top up VTPass or fix something.</div>
+                <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}><input type="checkbox" checked={sf.maintOn} onChange={(e) => setSf({ ...sf, maintOn: e.target.checked })} /> Maintenance mode is ON</label>
+                <label style={lbl}>Message customers see</label>
+                <input style={inp} value={sf.maintMsg} onChange={(e) => setSf({ ...sf, maintMsg: e.target.value.slice(0, 240) })} placeholder="We are updating Zappi NG. Back in about 30 minutes." />
+                {save(() => saveSettings({ maintenance: { on: sf.maintOn, message: sf.maintMsg } }, sf.maintOn ? "Maintenance mode is ON" : "Maintenance mode is off"))}
+              </div>
+
+              <div style={card}>
+                <div style={h}>↩️ Automatic refunds</div>
+                <div style={note}>When a delivery fails, send the customer's Pi back automatically. {st.autoRefund.seedPresent ? "" : "The app wallet seed is not set on Render, so refunds cannot send yet. "}Currently <b>{st.autoRefund.on ? "ON" : "OFF"}</b> (set {st.autoRefund.source === "admin" ? "here" : "on Render"}).</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => saveSettings({ autoRefund: true }, "Automatic refunds ON")} style={{ flex: 1, padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: st.autoRefund.on ? "#DCFCE7" : "var(--card-bg)", color: "#166534", fontWeight: 700, cursor: "pointer" }}>Turn ON</button>
+                  <button onClick={() => saveSettings({ autoRefund: false }, "Automatic refunds OFF")} style={{ flex: 1, padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: !st.autoRefund.on ? "#FEE2E2" : "var(--card-bg)", color: "#991B1B", fontWeight: 700, cursor: "pointer" }}>Turn OFF</button>
+                </div>
+              </div>
+
+              <div style={card}>
+                <div style={h}>🧮 Purchase limits</div>
+                <div style={note}>Protects you from fraud and mistakes. Enter 0 for "no limit". Daily limit is per customer, resetting at midnight Lagos time.</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <div><label style={lbl}>Minimum ₦ per order</label><input style={inp} inputMode="numeric" value={sf.min} onChange={digits("min")} /></div>
+                  <div><label style={lbl}>Maximum ₦ per order</label><input style={inp} inputMode="numeric" value={sf.max} onChange={digits("max")} /></div>
+                </div>
+                <label style={lbl}>Daily spend cap per customer (₦)</label><input style={inp} inputMode="numeric" value={sf.cap} onChange={digits("cap")} />
+                {save(() => saveSettings({ limits: { minNGN: Number(sf.min), maxNGN: Number(sf.max), dailyCapNGN: Number(sf.cap) } }, "Limits saved"))}
+              </div>
+
+              <div style={card}>
+                <div style={h}>🔔 Low VTPass balance warning</div>
+                <div style={note}>Money check and Go-live check turn red when your VTPass wallet drops below this.</div>
+                <input style={inp} inputMode="numeric" value={sf.low} onChange={digits("low")} />
+                {save(() => saveSettings({ lowBalanceNGN: Number(sf.low) }, "Saved"))}
+              </div>
+
+              <div style={card}>
+                <div style={h}>📈 Backup rates</div>
+                <div style={note}>Used only when the live price sources fail. Leave empty to use none (customers are then blocked until a live rate returns, which is the safe default). {st.envFallbackRate ? `Render has ₦${st.envFallbackRate} set as a further backup.` : ""}</div>
+                <label style={lbl}>Backup ₦ per π</label><input style={inp} inputMode="decimal" value={sf.fb} onChange={set("fb")} placeholder="empty = none" />
+                <label style={lbl}>Fixed ₦ per US dollar (replaces the live dollar rate when set)</label><input style={inp} inputMode="decimal" value={sf.usd} onChange={set("usd")} placeholder="empty = use live rate" />
+                {save(() => saveSettings({ fallbackRate: sf.fb.trim() || null, usdNgnRate: sf.usd.trim() || null }, "Rates saved"))}
+              </div>
+
+              <div style={card}>
+                <div style={h}>💬 Support details</div>
+                <div style={note}>Shown on the Help & Support page and used for the WhatsApp button. Leave a field empty to keep the built-in value.</div>
+                <label style={lbl}>WhatsApp number (with country code)</label><input style={inp} inputMode="numeric" value={sf.wa} onChange={(e) => setSf({ ...sf, wa: e.target.value.replace(/\D/g, "").slice(0, 15) })} placeholder="2348012345678" />
+                <label style={lbl}>Support email</label><input style={inp} value={sf.email} onChange={set("email")} placeholder="help@example.com" />
+                <label style={lbl}>Support hours</label><input style={inp} value={sf.hours} onChange={set("hours")} placeholder="Mon–Sat, 8am–8pm" />
+                {save(() => saveSettings({ support: { whatsapp: sf.wa, email: sf.email, hours: sf.hours } }, "Support details saved"))}
+              </div>
+
+              <div style={card}>
+                <div style={h}>👥 Staff</div>
+                <div style={note}>Pi usernames you trust to help. Staff can view orders and customers, re-check an order and answer support tickets. They cannot refund, change rates or settings, or see money and the audit log.</div>
+                <input style={inp} value={sf.staff} onChange={set("staff")} placeholder="username1, username2" />
+                {save(() => saveSettings({ staff: sf.staff.split(/[ ,]+/).filter(Boolean) }, "Staff updated"))}
+              </div>
+
+              <div style={card}>
+                <div style={h}>🔑 CoinGecko key</div>
+                <div style={note}>Optional, for a steadier π price. Currently <b>{st.coingeckoKeySet ? "set" : "not set"}</b>. Stored encrypted. Leave empty and press Save to remove the saved key.</div>
+                <input type="password" autoComplete="off" style={inp} value={sf.cg} onChange={set("cg")} placeholder="Paste key" />
+                {save(() => saveSettings({ coingeckoKey: sf.cg.trim() }, sf.cg.trim() ? "Key saved" : "Key removed").then(() => setSf((x) => x && { ...x, cg: "" })))}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>Changes reach customers within about 15 seconds. Every change is recorded in the Audit Log.</div>
+            </>
+          );
+        })()
+      )}
+
       {tab === "ai" && (
         <>
           {aiStatus && (
@@ -1481,8 +1583,8 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
             <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 12 }}>
               <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>VTPass wallet</div>
               {money.vtpass?.ok ? (
-                <div style={{ fontSize: 22, fontWeight: 700, color: money.vtpass.balance < 5000 ? "#dc2626" : "var(--text-primary)" }}>
-                  ₦{Number(money.vtpass.balance).toLocaleString()}{money.vtpass.balance < 5000 ? "  ⚠ low — top up" : ""}
+                <div style={{ fontSize: 22, fontWeight: 700, color: money.vtpass.balance < (money.lowBalanceNGN ?? 5000) ? "#dc2626" : "var(--text-primary)" }}>
+                  ₦{Number(money.vtpass.balance).toLocaleString()}{money.vtpass.balance < (money.lowBalanceNGN ?? 5000) ? "  ⚠ low — top up" : ""}
                 </div>
               ) : <div style={{ color: "#dc2626", fontSize: 13 }}>Could not read the balance: {money.vtpass?.error || "unknown"}</div>}
             </div>
