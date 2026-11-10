@@ -565,7 +565,7 @@ const [toastType, setToastType] = useState("success")
 const [isPaying, setIsPaying] = useState(false)
 const [txnPinModal, setTxnPinModal] = useState(null) // {label, onSuccess}
 const [receiptTx, setReceiptTx] = useState(null)
-const txToReceipt = (tx) => ({ status: tx.status || "success", type: tx.type, amount: Number(String(tx.pi).replace(/[^0-9.]/g,"")) || 0, nairaAmount: Number(String(tx.amount).replace(/[^0-9.]/g,"")) || 0, provider: tx.label, recipient: tx.sub, reference: "ZAP-" + String(tx.backendId || tx.id).slice(-10).toUpperCase(), date: tx.ts ? new Date(tx.ts) : new Date() })
+const txToReceipt = (tx) => ({ status: tx.status || "success", type: tx.type, amount: Number(String(tx.pi).replace(/[^0-9.]/g,"")) || 0, nairaAmount: Number(String(tx.amount).replace(/[^0-9.]/g,"")) || 0, provider: tx.label, recipient: tx.sub, reference: tx.requestId || ("ZAP-" + String(tx.backendId || tx.id).slice(-10).toUpperCase()), date: tx.ts ? new Date(tx.ts) : new Date() })
 
 // ── TRANSACTION LEDGER ───────────────────────────────────────────────────────────
 // Real history only — no fabricated starting balance or seed data. Zappi
@@ -722,7 +722,7 @@ setElecMinAmount(null)
 // tx.raw is only present on transactions made after this feature shipped — older
 // seed/demo entries simply won't show the button (see the History row rendering).
 const reportIssue=(tx)=>{
-const ref = "ZAP-" + String(tx.backendId || tx.id).slice(-10).toUpperCase()
+const ref = tx.requestId || ("ZAP-" + String(tx.backendId || tx.id).slice(-10).toUpperCase())
 const msg = `Hi Zappi NG Support, I'd like to report an issue with a transaction.\n\nReference: ${ref}\nService: ${tx.label}\nAmount: ${tx.amount} (${tx.pi})\nDate: ${tx.ts ? new Date(tx.ts).toLocaleString() : tx.date}\n\nIssue: `
 const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com"
 const token = localStorage.getItem("zappi_token")
@@ -778,10 +778,10 @@ default: return { serviceID: tx.type, billType: tx.type, amount: tx.ngn, phone: 
 }
 
 // Records the transaction so History/Home stay truthful.
-const finishPayment=(service, tx, piCost, backendTxId)=>{
+const finishPayment=(service, tx, piCost, backendTxId, requestId)=>{
 setIsPaying(false)
 const newTx = {
-id: Date.now(), backendId: backendTxId || null, ts: Date.now(), status: "success",
+id: Date.now(), backendId: backendTxId || null, requestId: requestId || null, ts: Date.now(), status: "success",
 type: tx.type, label: tx.label, sub: tx.sub,
 amount: `₦${Math.round(Number(tx.ngn)).toLocaleString()}`,
 pi: `π${piCost.toFixed(2)}`,
@@ -826,10 +826,10 @@ business_occupation: insOccupation,
 } : {}),
 piAmount: piCost,
 }
-const deliveryFailMsg = (svc, err) => `Your Pi was received but ${svc} was not delivered${err?.message ? " ("+err.message+")" : ""}. Please don't pay again — open Help & Support and we'll fix it.`
+const deliveryFailMsg = (svc, err) => `Your Pi was received but ${svc} was not delivered${err?.message ? " ("+err.message+")" : ""}.${err?.data?.requestId ? " Ref: "+err.data.requestId+"." : ""} Please don't pay again — open Help & Support and we'll fix it.`
 const deliver = async (token, piPaymentId) => {
 const completion = await completeBillPayment(txnFields, { ...extras, piPaymentId }, token)
-finishPayment(service, tx, piCost, completion?.txId)
+finishPayment(service, tx, piCost, completion?.txId, completion?.requestId)
 }
 createPayment(
 { amount: Number(piCost.toFixed(7)), memo: `Zappi NG — ${service}`, metadata: { ...txnFields, ...extras } },

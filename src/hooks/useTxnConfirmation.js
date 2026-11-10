@@ -41,6 +41,7 @@ async function post(path, body, extraHeaders = {}) {
   if (!res.ok) {
     const err = new Error(data?.error || `Request failed (${res.status})`)
     err.status = res.status
+    err.data = data
     throw err
   }
   return data
