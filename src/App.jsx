@@ -4,6 +4,8 @@ import { usePi } from "./context/PiContext.jsx"
 import { useTheme } from "./context/ThemeContext.jsx"
 import NotificationBell, { addNotification } from "./components/NotificationBell.jsx"
 import { t, setLang, getLang, LANGUAGES } from "./i18n.js"
+import DataBudgetFinder from "./components/DataBudgetFinder.jsx"
+import GiftShareModal, { GiftOption } from "./components/GiftShareModal.jsx"
 import PiRateTicker from "./components/PiRateTicker.jsx"
 import TransactionReceipt from "./components/TransactionReceipt.jsx"
 import { PrivacyPolicy, TermsOfService } from "./pages/LegalPages.jsx"
@@ -642,6 +644,9 @@ const best = Object.values(counts).sort((a, b) => b.n - a.n)[0]
 return best && best.n >= 2 ? best.tx : null
 })()
 const [, setLangTick] = useState(0) // re-render after a language change
+const [giftOn, setGiftOn] = useState(false)
+const [giftMsg, setGiftMsg] = useState("")
+const [giftTx, setGiftTx] = useState(null)
 const [checkingId, setCheckingId] = useState(null)
 const patchTransaction = (matchFn, patch) => setTransactions(prev => {
 const next = prev.map(t => matchFn(t) ? { ...t, ...patch } : t)
@@ -867,6 +872,7 @@ showToast(`${service} is processing — we'll confirm it shortly. You can tap "C
 addNotification({ title: "Payment successful", body: `${service} — ${newTx.amount} paid with ${newTx.pi}`, type: "success", txRef: newTx.id })
 setReceiptTx(newTx)
 showToast(`${service} payment successful! 🎉`,"success")
+if (giftOn) { setGiftTx({ ...newTx, message: giftMsg }); setGiftOn(false); setGiftMsg("") }
 }
 setSubPage(null)
 resetInputs()
@@ -999,6 +1005,7 @@ return (
 
 {txnPinModal&&<TxnPinModal label={txnPinModal.label} txnFields={txnPinModal.txnFields} onSuccess={txnPinModal.onConfirmed} onCancel={()=>setTxnPinModal(null)}/>}
 {showHowTo&&<HowToModal onClose={()=>setShowHowTo(false)}/>}
+{giftTx&&<GiftShareModal tx={giftTx} initialMessage={giftTx.message||""} senderName={displayName(user)} onClose={()=>setGiftTx(null)}/>}
 {receiptTx&&<TransactionReceipt receipt={txToReceipt(receiptTx)} onDone={()=>setReceiptTx(null)}/>}
 
 <div style={{flex:1,overflowY:"auto"}}>
@@ -1160,13 +1167,21 @@ setPage("bills"); setSubPage("insurance")
 <div style={{display:"flex",gap:8,marginBottom:8}}>{[100,200,500,1000].map(a=><button key={a} onClick={()=>setAmount(String(a))} style={{flex:1,padding:10,borderRadius:10,border:`2px solid ${amount==a?C.primary:"var(--border)"}`,background:amount==a?C.light:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>₦{a}</button>)}</div>
 <Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Or enter amount"/>
 <PiSummary amount={amount} rate={liveRate}/>
+<GiftOption on={giftOn} setOn={setGiftOn} msg={giftMsg} setMsg={setGiftMsg}/>
 <Btn label={`Buy Airtime — π ${amount?(amount/liveRate).toFixed(4):"0"}`} disabled={!network||!phone||!amount} onClick={()=>validate("airtime")&&handlePay("Airtime",{type:"airtime",label:`${network} Airtime`,sub:phone,ngn:Number(amount),icon:"📱",color:"#EFF6FF",raw:{page:"bills",subPage:"airtime",network,phone,amount}})}/>
 </div></div>
 )}
 
+{page==="bills"&&subPage==="databudget"&&(
+<div><Header title="Best data for your budget" onBack={()=>setSubPage("data")}/>
+<DataBudgetFinder serviceIDs={VTPASS_DATA} fetchVariations={fetchVariations} liveRate={liveRate} initialPhone={phone}
+onPick={({network:n,phone:ph,bundle:b})=>{setNetwork(n);setBundle(b);if(ph)setPhone(ph);setSubPage("data")}}/>
+</div>
+)}
 {page==="bills"&&subPage==="data"&&(
 <div><Header title="Buy Data" onBack={()=>setSubPage(null)}/>
 <div style={{padding:16}}>
+<button onClick={()=>setSubPage("databudget")} style={{display:"block",width:"100%",textAlign:"left",background:C.light,border:`1.5px solid ${C.primary}`,color:C.primary,borderRadius:12,padding:"10px 14px",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:14}}>🔎 Find the best deal for your budget ›</button>
 <FL>Network</FL><NetGrid selected={network} onSelect={n=>{setNetwork(n);setBundle(null)}} extra={[{label:"GLO SME",match:"Glo"}]}/>
 <RecentList transactions={transactions} type="data" onSelect={buyAgain}/>
 <FL>Phone number</FL>
@@ -1179,6 +1194,7 @@ setPage("bills"); setSubPage("insurance")
 <VariationGrid serviceID={VTPASS_DATA[network]} selected={bundle} onSelect={setBundle} grouped/>
 </>}
 {bundle&&<PiSummary amount={bundle.price} rate={liveRate}/>}
+<GiftOption on={giftOn} setOn={setGiftOn} msg={giftMsg} setMsg={setGiftMsg}/>
 <Btn label={bundle?`Buy ${bundle.label} — π ${(bundle.price/liveRate).toFixed(4)}`:"Select a bundle"} disabled={!network||!phone||!bundle} onClick={()=>validate("data")&&handlePay("Data",{type:"data",label:`${network} ${bundle.label}`,sub:phone,ngn:bundle.price,icon:"📶",color:"#ECFDF5",raw:{page:"bills",subPage:"data",network,phone,bundleCode:bundle.code,bundleLabel:bundle.label,bundlePrice:bundle.price}})}/>
 </div></div>
 )}
@@ -1392,6 +1408,11 @@ setPage("bills"); setSubPage("insurance")
 {tx.raw&&tx.status==="success"&&(
 <button onClick={()=>buyAgain(tx)} style={{flex:1,background:"none",border:"none",borderRight:"1px solid var(--border)",padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"center",gap:6,cursor:"pointer",color:C.primary,fontSize:12,fontWeight:700}}>
 🔁 Buy Again
+</button>
+)}
+{tx.status==="success"&&(
+<button onClick={()=>setGiftTx({...tx,message:""})} style={{flex:1,background:"none",border:"none",borderRight:"1px solid var(--border)",padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"center",gap:6,cursor:"pointer",color:C.primary,fontSize:12,fontWeight:700}}>
+🎁 Gift
 </button>
 )}
 <button onClick={()=>reportIssue(tx)} style={{flex:1,background:"none",border:"none",padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"center",gap:6,cursor:"pointer",color:"var(--text-secondary)",fontSize:12,fontWeight:700}}>
