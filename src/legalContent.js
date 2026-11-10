@@ -43,6 +43,7 @@ export const PRIVACY_SECTIONS = [
     'VTPass, our bill-payment provider, and the network, utility, broadcaster, exam body or insurer your payment is for: the phone, meter, smartcard or profile numbers and, for insurance, the details listed above.',
     'Pi Network: payment approval and completion through the Pi API, and sign-in through the Pi SDK.',
     'Hosting and database providers that run the app for us (Vercel, Render and our cloud database).',
+    'An AI service provider, only if you use the "Ask Zappi" assistant: the questions you type and a short summary of your own recent orders (order type, amount, status and reference, with phone numbers partly hidden) are sent to it to produce an answer. Please do not type your PIN, passwords or card details. Never share these with anyone, including the assistant.',
     'Authorities, where we are legally required to.',
   ] },
   { title: '6. Data stored on your device', body: [

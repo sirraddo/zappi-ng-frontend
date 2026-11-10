@@ -170,6 +170,11 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
   const [ledger, setLedger] = useState({ refunds: [], needs: [] });
   const [money, setMoney] = useState(null);
   const [golive, setGolive] = useState(null);
+  const [aiStatus, setAiStatus] = useState(null);
+  const [aiOut, setAiOut] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiQ, setAiQ] = useState("");
+  const [aiTicket, setAiTicket] = useState("");
   const [promos, setPromos] = useState([]);
   const [pf, setPf] = useState({ code: "", percent: "5", maxDiscountNGN: "100", maxUses: "100", perUserLimit: "1", service: "", expiresAt: "" });
   const [rateInfo, setRateInfo] = useState(null);
@@ -257,6 +262,22 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
     ["electricity", "Electricity"], ["cable", "Cable TV"], ["internet", "Internet"], ["education", "Exam fees"], ["showmax", "Showmax"], ["insurance", "Insurance"],
   ];
   const noticeName = (k) => (NOTICE_SERVICES.find(([v]) => v === k) || [k, k])[1];
+  function loadAi() {
+    fetch(`${API_URL}/api/admin/ai-status`, { headers: authHdrs() }).then((r) => r.json()).then(setAiStatus).catch(() => showToast("Could not load AI status", "danger"));
+    if (!tickets.length) loadTickets();
+  }
+  function runAi(body) {
+    setAiBusy(true); setAiOut("");
+    fetch(`${API_URL}/api/admin/assistant`, { method: "POST", headers: authHdrs(), body: JSON.stringify(body) })
+      .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); setAiOut(d.reply || ""); })
+      .catch((e) => showToast(e.message, "danger")).finally(() => setAiBusy(false));
+  }
+  function toggleCustomerAi() {
+    const next = !aiStatus.customerEnabled;
+    fetch(`${API_URL}/api/admin/ai-status`, { method: "POST", headers: authHdrs(), body: JSON.stringify({ customerEnabled: next }) })
+      .then(() => { setAiStatus({ ...aiStatus, customerEnabled: next }); showToast(next ? "Ask Zappi is ON for customers" : "Ask Zappi is OFF for customers", "success"); })
+      .catch(() => showToast("Could not change it", "danger"));
+  }
   function loadPromos() {
     setLoading(true);
     fetch(`${API_URL}/api/promos/all`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setPromos(d.promos || []))
@@ -382,6 +403,7 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
     else if (tab === "notices") loadNotices();
     else if (tab === "rate") loadRate();
     else if (tab === "promos") loadPromos();
+    else if (tab === "ai") loadAi();
     else if (tab === "customers") loadCustomers();
   }, [tab, txFilter]);
 
@@ -645,6 +667,7 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
             { key: "golive", icon: "🚦", label: "Go-live check" },
             { key: "rate", icon: "📈", label: "Rate & pricing" },
             { key: "promos", icon: "🎟️", label: "Promo codes" },
+            { key: "ai", icon: "✨", label: "AI Assistant" },
             { key: "money", icon: "💰", label: "Money check" },
             { key: "customers", icon: "👥", label: "Customers" },
             { key: "announcements", icon: "📢", label: "Announcements" },
@@ -1235,6 +1258,43 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
               : ledger.refunds.map((t) => <OrderCard key={t._id} t={t} busy={busyId === t._id} onRecheck={recheckOrder} onRefund={refundOrder} onRetryRefund={retryRefund} showToast={showToast} />)}
           </>
         )
+      )}
+
+      {tab === "ai" && (
+        <>
+          {aiStatus && (
+            <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 12, fontSize: 13 }}>
+              <div style={{ marginBottom: 6 }}>AI key: <b style={{ color: aiStatus.keyPresent ? "#16a34a" : "#dc2626" }}>{aiStatus.keyPresent ? `set (${aiStatus.model})` : "missing — add ANTHROPIC_API_KEY on Render"}</b></div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>"Ask Zappi" for customers: <b>{aiStatus.customerEnabled ? "ON" : "OFF"}</b></span>
+                <button onClick={toggleCustomerAi} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>{aiStatus.customerEnabled ? "Switch off" : "Switch on"}</button>
+              </div>
+            </div>
+          )}
+          <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px", lineHeight: 1.4 }}>
+            The assistant reads your orders and tickets and explains or drafts. It can never refund or change anything. Customer phone numbers are partly hidden before they reach it.
+          </p>
+          <button disabled={aiBusy} onClick={() => runAi({ task: "summary" })} style={{ width: "100%", padding: 12, borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer", marginBottom: 12 }}>📋 Brief me on today</button>
+          <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 12, marginBottom: 12 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Draft a reply to a support ticket</div>
+            <select value={aiTicket} onChange={(e) => setAiTicket(e.target.value)} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", marginBottom: 8 }}>
+              <option value="">Choose a ticket…</option>
+              {tickets.filter((t) => t.status === "open").map((t) => <option key={t._id} value={t._id}>@{t.username || "user"} — {t.subject}</option>)}
+            </select>
+            <button disabled={aiBusy || !aiTicket} onClick={() => runAi({ task: "reply", ticketId: aiTicket })} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, cursor: "pointer", opacity: aiTicket ? 1 : 0.5 }}>✍️ Draft reply</button>
+          </div>
+          <form onSubmit={(e) => { e.preventDefault(); if (aiQ.trim()) runAi({ task: "ask", question: aiQ }); }} style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <input value={aiQ} onChange={(e) => setAiQ(e.target.value)} placeholder="Ask about orders, e.g. why did MTN data fail today?" style={{ flex: 1, padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontSize: 13 }} />
+            <button type="submit" disabled={aiBusy} style={{ padding: "0 14px", borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer" }}>Ask</button>
+          </form>
+          {aiBusy && <div style={{ color: "var(--text-secondary)" }}>Thinking…</div>}
+          {aiOut && (
+            <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14 }}>
+              <div style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.5 }}>{aiOut}</div>
+              <button onClick={() => navigator.clipboard.writeText(aiOut).then(() => showToast("Copied", "success")).catch(() => showToast("Couldn't copy", "danger"))} style={{ marginTop: 10, background: "none", border: "none", color: "var(--primary)", fontWeight: 700, cursor: "pointer", padding: 0 }}>Copy</button>
+            </div>
+          )}
+        </>
       )}
 
       {tab === "promos" && (

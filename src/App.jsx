@@ -6,6 +6,7 @@ import NotificationBell, { addNotification } from "./components/NotificationBell
 import { t, setLang, getLang, LANGUAGES } from "./i18n.js"
 import DataBudgetFinder from "./components/DataBudgetFinder.jsx"
 import GiftShareModal, { GiftOption } from "./components/GiftShareModal.jsx"
+import AskZappi from "./components/AskZappi.jsx"
 import PromoCard from "./components/PromoCard.jsx"
 import PiRateTicker from "./components/PiRateTicker.jsx"
 import TransactionReceipt from "./components/TransactionReceipt.jsx"
@@ -684,6 +685,7 @@ const [, setLangTick] = useState(0) // re-render after a language change
 const [giftOn, setGiftOn] = useState(false)
 const [giftMsg, setGiftMsg] = useState("")
 const [giftTx, setGiftTx] = useState(null)
+const [askOpen, setAskOpen] = useState(false)
 const [checkingId, setCheckingId] = useState(null)
 const patchTransaction = (matchFn, patch) => setTransactions(prev => {
 const next = prev.map(t => matchFn(t) ? { ...t, ...patch } : t)
@@ -1047,6 +1049,7 @@ return (
 
 {txnPinModal&&<TxnPinModal label={txnPinModal.label} txnFields={txnPinModal.txnFields} onSuccess={txnPinModal.onConfirmed} onCancel={()=>setTxnPinModal(null)}/>}
 {showHowTo&&<HowToModal onClose={()=>setShowHowTo(false)}/>}
+{askOpen&&<AskZappi onClose={()=>setAskOpen(false)} onSupport={()=>{setAskOpen(false);setLegalPage("support")}}/>}
 {giftTx&&<GiftShareModal tx={giftTx} initialMessage={giftTx.message||""} senderName={displayName(user)} onClose={()=>setGiftTx(null)}/>}
 {receiptTx&&<TransactionReceipt receipt={txToReceipt(receiptTx)} onDone={()=>setReceiptTx(null)}/>}
 
@@ -1413,6 +1416,7 @@ onPick={({network:n,phone:ph,bundle:b})=>{setNetwork(n);setBundle(b);if(ph)setPh
 <SCard icon="📊" label="Zappi NG Pi Rate" desc="Our own pricing rate — not an official Pi price" bg="#FFF7ED" onClick={()=>showToast(`Current rate: ₦${liveRate}/π`,"success")}/>
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>{t("Account")}</p>
 <SCard icon="👤" label={t("My Profile")} desc="Manage your account" bg="#F0F0FF" onClick={()=>setShowProfile(true)}/>
+<SCard icon="✨" label="Ask Zappi" desc="AI help with orders, rates and refunds" bg="#FFF7ED" onClick={()=>setAskOpen(true)}/>
 <PromoCard promo={promo} onApply={applyPromo} onRemove={()=>storePromo(null)}/>
 <SCard icon="💬" label={t("Help & Support")} desc="FAQ, WhatsApp, contact us" bg="#F0FDF4" onClick={()=>setLegalPage("support")}/>
 <div style={{background:"var(--card-bg)",borderRadius:14,padding:"12px 14px",marginBottom:8}}>
