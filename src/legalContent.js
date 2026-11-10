@@ -90,6 +90,7 @@ export const TERMS_SECTIONS = [
     `${APP_NAME} is not responsible for delays or outages at VTPass or the service provider, or for details entered incorrectly by you. Please check the phone, meter, smartcard or profile details carefully before confirming, because a delivery to the wrong number cannot be recalled.`,
   ] },
   { title: '5. Failed transactions and refunds', body: [
+    'You are responsible for entering the correct phone number, meter number or smartcard number. We show it to you before you enter your PIN. An order delivered to a wrong number or meter cannot be reversed or refunded, although we will try to help if it has not yet been delivered.',
     'Bill payments that were delivered successfully are not refundable. If Pi was charged but the service was not delivered, contact support within 48 hours with your reference ID and we will investigate and resolve it.',
   ] },
   { title: '6. Your responsibilities', list: [

@@ -632,6 +632,39 @@ if (!isLoggedIn) return
 fetch(`${API_BASE}/api/admin-role`, { headers: { Authorization: `Bearer ${localStorage.getItem("zappi_token")||""}` } })
 .then(r => r.ok ? r.json() : { role: null }).then(d => setAdminRole(d.role || null)).catch(() => {})
 }, [isLoggedIn])
+// Keep History honest: pull the latest status of orders that were still processing (or made on another device).
+useEffect(() => {
+if (!isLoggedIn) return
+const sync = async () => {
+try {
+const r = await fetch(`${API_BASE}/api/transactions`, { headers: { Authorization: `Bearer ${localStorage.getItem("zappi_token")||""}` } })
+if (!r.ok) return
+const { transactions: server = [] } = await r.json()
+const byReq = new Map(server.filter(s => s.requestId).map(s => [s.requestId, s]))
+setTransactions(prev => {
+let changed = false
+const next = prev.map(t => {
+const s = t.requestId && byReq.get(t.requestId)
+if (!s || t.status === s.status && (t.token || !s.meta?.deliveredCode) && (t.refund || !s.refund?.status)) return t
+const patch = {}
+if (t.status !== s.status && (t.status === "pending" || s.status === "failed" || s.status === "success")) patch.status = s.status
+if (!t.token && s.meta?.deliveredCode && s.status === "success") patch.token = s.meta.deliveredCode
+if (s.refund?.status && t.refund !== s.refund.status) patch.refund = s.refund.status
+if (!Object.keys(patch).length) return t
+changed = true
+if (patch.status === "success" && t.status === "pending") addNotification({ title: "Order delivered", body: `${t.label} — ${t.amount} went through.`, type: "success", txRef: t.id })
+if (patch.status === "failed" && t.status === "pending") addNotification({ title: "Order failed", body: `${t.label} — ${t.amount} could not be delivered.${s.refund?.status ? " Your Pi is being refunded." : ""}`, type: "info", txRef: t.id })
+return { ...t, ...patch }
+})
+if (changed) localStorage.setItem("zappi_txs", JSON.stringify(next))
+return changed ? next : prev
+})
+} catch {}
+}
+sync()
+const iv = setInterval(sync, 60000)
+return () => clearInterval(iv)
+}, [isLoggedIn])
 const isAdminAny = isAdminUser() || !!adminRole
 const loadOpenTicketCount = () => {
 if (!isAdminAny) return
@@ -651,9 +684,11 @@ const [toastType, setToastType] = useState("success")
 // app. The 45s safety timeout is a bounded worst-case fallback in case a
 // failure path doesn't explicitly clear it — never gets permanently stuck.
 const [isPaying, setIsPaying] = useState(false)
+const [forgotPin, setForgotPin] = useState(false)
+useEffect(()=>{const f=()=>setForgotPin(true);window.addEventListener("zappi-forgot-pin",f);return()=>window.removeEventListener("zappi-forgot-pin",f)},[])
 const [txnPinModal, setTxnPinModal] = useState(null) // {label, onSuccess}
 const [receiptTx, setReceiptTx] = useState(null)
-const txToReceipt = (tx) => ({ status: tx.status || "success", type: tx.type, amount: Number(String(tx.pi).replace(/[^0-9.]/g,"")) || 0, nairaAmount: Number(String(tx.amount).replace(/[^0-9.]/g,"")) || 0, provider: tx.label, recipient: tx.sub, reference: tx.requestId || ("ZAP-" + String(tx.backendId || tx.id).slice(-10).toUpperCase()), date: tx.ts ? new Date(tx.ts) : new Date() })
+const txToReceipt = (tx) => ({ token: tx.token || undefined, status: tx.status || "success", type: tx.type, amount: Number(String(tx.pi).replace(/[^0-9.]/g,"")) || 0, nairaAmount: Number(String(tx.amount).replace(/[^0-9.]/g,"")) || 0, provider: tx.label, recipient: tx.sub, reference: tx.requestId || ("ZAP-" + String(tx.backendId || tx.id).slice(-10).toUpperCase()), date: tx.ts ? new Date(tx.ts) : new Date() })
 
 // ── TRANSACTION LEDGER ───────────────────────────────────────────────────────────
 // Real history only — no fabricated starting balance or seed data. Zappi
@@ -719,7 +754,7 @@ const r = await fetch(`${API_BASE}/api/payments/status`, { method:"POST", header
 const d = await r.json().catch(()=>({}))
 if (!r.ok) { showToast(d.error || "Could not check right now — try again shortly.","danger"); return }
 if (d.tooSoon) { showToast("Just checked — please wait a few seconds and try again.","info"); return }
-if (d.status === "success") { patchTransaction(t=>t.id===tx.id,{status:"success"}); showToast("Delivered! Your order went through. 🎉","success") }
+if (d.status === "success") { patchTransaction(t=>t.id===tx.id,{status:"success", ...(d.token?{token:d.token}:{})}); showToast("Delivered! Your order went through. 🎉","success") }
 else if (d.status === "failed") { patchTransaction(t=>t.id===tx.id,{status:"failed", refund:d.refund||null}); showToast(d.refund==="processing" ? "This order failed. Your Pi is being refunded automatically." : "This order failed. Open Help & Support and we will sort it out.","danger",8000) }
 else showToast("Still processing. We will keep trying — check again in a minute.","info")
 } catch { showToast("Network problem — please try again.","danger") }
@@ -787,7 +822,7 @@ const showToast=(msg,type="success",ms=3500)=>{ setToast(msg); setToastType(type
 // Opens the PIN confirmation modal; onConfirmed receives a single-use confirmation
 // token bound to txnFields (required by /api/payments/complete). Setup is
 // guaranteed by the txnPinReady gate, so confirmation is never skippable.
-const requireTxnConfirmation=(label,txnFields,onConfirmed)=>setTxnPinModal({label,txnFields,onConfirmed})
+const requireTxnConfirmation=(label,txnFields,onConfirmed,detail)=>setTxnPinModal({label,txnFields,onConfirmed,detail})
 
 const validate=(type)=>{
 if(type==="airtime"){
@@ -904,7 +939,7 @@ default: return { serviceID: tx.type, billType: tx.type, amount: tx.ngn, phone: 
 }
 
 // Records the transaction so History/Home stay truthful.
-const finishPayment=(service, tx, piCost, backendTxId, requestId, status="success")=>{
+const finishPayment=(service, tx, piCost, backendTxId, requestId, status="success", deliveredToken=null)=>{
 setIsPaying(false)
 const newTx = {
 id: Date.now(), backendId: backendTxId || null, requestId: requestId || null, ts: Date.now(), status,
@@ -912,7 +947,7 @@ type: tx.type, label: tx.label, sub: tx.sub,
 amount: `₦${Math.round(Number(tx.ngn)).toLocaleString()}`,
 pi: `π${piCost.toFixed(2)}`,
 color: tx.color || "#EFF6FF", icon: tx.icon || "💳",
-raw: tx.raw || null,
+raw: tx.raw || null, token: deliveredToken || undefined,
 }
 addTransaction(newTx)
 if (status !== "failed" && tx.type === "data" && tx.raw?.bundleCode) {
@@ -976,7 +1011,7 @@ color: tx.color || "#EFF6FF", icon: tx.icon || "💳", raw: null, refund: err.da
 }
 const deliver = async (token, piPaymentId) => {
 const completion = await completeBillPayment(txnFields, { ...extras, piPaymentId }, token)
-finishPayment(service, tx, piCost, completion?.txId, completion?.requestId, completion?.status === "pending" ? "pending" : "success")
+finishPayment(service, tx, piCost, completion?.txId, completion?.requestId, completion?.status === "pending" ? "pending" : "success", completion?.token || null)
 if (promoCode) storePromo(null)
 }
 createPayment(
@@ -1024,7 +1059,7 @@ else runRealPayment(service, tx, txnFields, piCost, confirmationToken, promoOff>
 // A banner at the top of the screen says so.
 finishPayment(service, tx, piCost)
 }
-})
+}, `${tx.label || service}${tx.sub ? " → " + tx.sub : ""} · ₦${Math.round(ngnAmt).toLocaleString()}`)
 }
 
 
@@ -1057,6 +1092,8 @@ if (authScreen === "login") return <LoginScreen onSuccess={()=>{syncLocalAccount
 if (!txnPinReady) return <ChangePinFlow kind="txn" forceSetup onDone={()=>setTxnPinReady(true)}
 subtitle={hasLegacyPin() ? "We've upgraded PIN security — please set your transaction PIN again. It's now verified on our servers, never stored on your device." : undefined} />
 
+if (forgotPin) return <ChangePinFlow kind="txn" mode="reset" forceSetup onBack={()=>setForgotPin(false)} onDone={()=>{setForgotPin(false);showToast&&showToast("PIN reset. Purchases are limited for 24 hours.")}} />
+
 // Keep Profile inside the same phone-width shell as the rest of the app
 if (showProfile) return (
 <div style={{maxWidth:430,margin:"0 auto",fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",position:"relative"}}>
@@ -1070,7 +1107,7 @@ return (
 
 {toast&&<div style={{position:"fixed",top:20,left:16,right:16,maxWidth:400,margin:"0 auto",background:toastType==="success"?C.success:toastType==="info"?"#475569":C.danger,color:"white",padding:"12px 24px",borderRadius:24,fontSize:13,fontWeight:600,zIndex:9999,boxShadow:"0 4px 20px rgba(0,0,0,0.2)",whiteSpace:"normal"}}>{toast}</div>}
 
-{txnPinModal&&<TxnPinModal label={txnPinModal.label} txnFields={txnPinModal.txnFields} onSuccess={txnPinModal.onConfirmed} onCancel={()=>setTxnPinModal(null)}/>}
+{txnPinModal&&<TxnPinModal detail={txnPinModal.detail} onForgot={()=>{setTxnPinModal(null);setForgotPin(true)}} label={txnPinModal.label} txnFields={txnPinModal.txnFields} onSuccess={txnPinModal.onConfirmed} onCancel={()=>setTxnPinModal(null)}/>}
 {showHowTo&&<HowToModal onClose={()=>setShowHowTo(false)}/>}
 {askOpen&&<AskZappi onClose={()=>setAskOpen(false)} onSupport={()=>{setAskOpen(false);setLegalPage("support")}}/>}
 {giftTx&&<GiftShareModal tx={giftTx} initialMessage={giftTx.message||""} senderName={displayName(user)} onClose={()=>setGiftTx(null)}/>}

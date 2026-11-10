@@ -82,8 +82,8 @@ export async function syncPinFlag() {
 }
 
 /** Set (or replace) the server-side transaction PIN. Also clears the legacy plaintext PIN. */
-export async function setTxnPin(pin) {
-  await post("/api/confirm/pin/set", { pin })
+export async function setTxnPin(pin, currentPin) {
+  await post("/api/confirm/pin/set", { pin, ...(currentPin ? { currentPin } : {}) })
   localStorage.setItem(SERVER_PIN_FLAG, "1")
   localStorage.removeItem(LEGACY_PIN_KEY)
 }
@@ -96,6 +96,21 @@ export async function setTxnPin(pin) {
 export async function verifyTxnPin(pin, txnFields) {
   const data = await post("/api/confirm/pin/verify", { pin, ...normalizeTxnFields(txnFields) })
   return data.confirmationToken
+}
+
+/** Forgot PIN: prove identity again with Pi, then set a new PIN (purchases are capped for 24h after). */
+export async function piReauth() {
+  if (!window.Pi) throw new Error("Open Zappi NG inside Pi Browser to reset your PIN")
+  const auth = await Promise.race([
+    window.Pi.authenticate(["username", "payments"], () => {}),
+    new Promise((_, rej) => setTimeout(() => rej(new Error("Pi took too long. Try again.")), 30000)),
+  ])
+  const data = await post("/api/auth/reauth", { accessToken: auth.accessToken })
+  return data.resetToken
+}
+export async function forgotResetPin(resetToken, pin) {
+  await post("/api/confirm/pin/forgot-reset", { resetToken, pin })
+  localStorage.setItem(SERVER_PIN_FLAG, "1")
 }
 
 // -- Bill delivery (real-payments path) --

@@ -67,13 +67,16 @@ function OrderCard({ t, busy, onRecheck, onRefund, onRetryRefund, showToast }) {
         </div>
       )}
       {t.vtpassRef && <div style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace" }}>VTPass: {t.vtpassRef}</div>}
+      {t.meta?.recovered && <div style={{ fontSize: 11, fontWeight: 700, color: "#92400E", margin: "2px 0" }}>⚠ Recovered: Pi was paid but the app closed before the order was placed</div>}
+      {t.meta?.deliveredCode && <div style={{ fontSize: 12, fontFamily: "monospace", margin: "2px 0" }}>Token/PIN: {t.meta.deliveredCode} <button onClick={() => copy(String(t.meta.deliveredCode))} style={{ background: "none", border: "none", color: "var(--primary)", fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0 }}>Copy</button></div>}
+      {t.meta?.rateUsed?.ngnPerPi && <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>Rate used: ₦{Number(t.meta.rateUsed.ngnPerPi).toLocaleString()} per π{t.meta.rateUsed.spread != null ? ` (spread ${(t.meta.rateUsed.spread * 100).toFixed(1)}%)` : ""}</div>}
       {t.meta?.error && t.status !== "success" && <div style={{ fontSize: 11, color: "#991B1B", margin: "2px 0" }}>{String(t.meta.error).slice(0, 120)}</div>}
       {rl && <div style={{ fontSize: 12, fontWeight: 700, color: t.refund?.status === "failed" ? "#991B1B" : "#166534", margin: "4px 0" }}>{rl}{t.refund?.error ? ` — ${t.refund.error}` : ""}</div>}
       <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 8 }}>{new Date(t.createdAt).toLocaleString()}</div>
       {(t.status !== "success" || t.refund?.status === "failed") && (
         <div style={{ display: "flex", gap: 8 }}>
           {t.requestId && t.status !== "success" && <button disabled={busy} onClick={() => onRecheck(t)} style={btn}>{busy ? "Working…" : "🔄 Re-check"}</button>}
-          {t.status === "failed" && !t.refund?.status && t.piPaymentId && <button disabled={busy} onClick={() => onRefund(t)} style={btn}>↩️ Refund Pi</button>}
+          {(t.status === "failed" || (t.status === "pending" && t.meta?.recovered)) && !t.refund?.status && t.piPaymentId && <button disabled={busy} onClick={() => onRefund(t)} style={btn}>↩️ Refund Pi</button>}
           {t.refund?.status === "failed" && <button disabled={busy} onClick={() => onRetryRefund(t)} style={btn}>↩️ Retry refund</button>}
         </div>
       )}
@@ -113,7 +116,7 @@ function ConfirmModal({ state, onCancel }) {
           <button
             onClick={state.onConfirm}
             style={{ flex: 1, padding: 12, borderRadius: 10, border: "none", background: "#dc2626", color: "white", fontWeight: 700, fontSize: 14, cursor: "pointer" }}
-          >Delete</button>
+          >{state.label || "Delete"}</button>
         </div>
       </div>
     </div>
@@ -267,12 +270,33 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
     ["electricity", "Electricity"], ["cable", "Cable TV"], ["internet", "Internet"], ["education", "Exam fees"], ["showmax", "Showmax"], ["insurance", "Insurance"],
   ];
   const noticeName = (k) => (NOTICE_SERVICES.find(([v]) => v === k) || [k, k])[1];
+  const custBtn = { padding: "7px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, fontSize: 12, cursor: "pointer" };
+  function customerAction(c, action) {
+    const name = "@" + (c.piUsername || "this customer");
+    const run = async () => {
+      setConfirmState(null);
+      const url = `${API_URL}/api/admin/customers/${c._id}`;
+      let res;
+      if (action === "reset-pin") res = await fetch(`${url}/reset-pin`, { method: "POST", headers: authHdrs() });
+      else if (action === "delete") res = await fetch(url, { method: "DELETE", headers: authHdrs() });
+      else res = await fetch(`${url}/block`, { method: "POST", headers: authHdrs(), body: JSON.stringify({ blocked: action === "block", reason: action === "block" ? (window.__blockReason || "") : "" }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { showToast(d.error || "Failed", "danger"); return; }
+      showToast("Done", "success"); loadCustomers(custQ);
+    };
+    const msg = { "reset-pin": `Reset the transaction PIN of ${name}? They set a new one on next payment, with a 24-hour purchase cap. Do this only after a request in a support ticket.`, block: `Block ${name}? They cannot buy until you unblock them.`, unblock: `Unblock ${name}?`, delete: `Erase the personal data of ${name}? Their name and sign-in details are removed and their support tickets deleted. Order records are kept without their identity. This cannot be undone.` }[action];
+    setConfirmState({ message: msg, label: action === "delete" ? "Delete" : "Confirm", onConfirm: run });
+  }
+  const [canned, setCanned] = useState([]);
+  const [ticketCtx, setTicketCtx] = useState({});
+  function loadCanned() { fetch(`${API_URL}/api/admin/canned-replies`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setCanned(d.replies || [])).catch(() => {}); }
+  function loadTicketCtx(id) { fetch(`${API_URL}/api/admin/tickets/${id}/context`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setTicketCtx((c) => ({ ...c, [id]: d }))).catch(() => showToast("Could not load orders", "danger")); }
   function loadSettings() {
     setLoading(true);
     fetch(`${API_URL}/api/admin/settings`, { headers: authHdrs() }).then((r) => r.json()).then((d) => {
       setSt(d);
       setSf({ maintOn: !!d.maintenance?.on, maintMsg: d.maintenance?.message || "", min: String(d.limits.minNGN || 0), max: String(d.limits.maxNGN || 0), cap: String(d.limits.dailyCapNGN || 0),
-        low: String(d.lowBalanceNGN), fb: d.fallbackRate ? String(d.fallbackRate) : "", usd: d.usdNgnRate ? String(d.usdNgnRate) : "",
+        low: String(d.lowBalanceNGN), prc: String(d.postResetCapNGN ?? 5000), fb: d.fallbackRate ? String(d.fallbackRate) : "", usd: d.usdNgnRate ? String(d.usdNgnRate) : "",
         wa: d.support.whatsapp || "", email: d.support.email || "", hours: d.support.hours || "", staff: (d.staff || []).join(", "), cg: "" });
     }).catch(() => showToast("Could not load settings", "danger")).finally(() => setLoading(false));
   }
@@ -431,7 +455,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
     if (tab === "stats") loadStats();
     else if (tab === "transactions") loadTransactions();
     else if (tab === "announcements") loadAnnouncements();
-    else if (tab === "tickets") loadTickets();
+    else if (tab === "tickets") { loadTickets(); loadCanned(); }
     else if (tab === "flags") loadFlags();
     else if (tab === "banners") loadBanners();
     else if (tab === "auditlog") loadAuditLog();
@@ -938,6 +962,19 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 rows={2}
                 style={{ width: "100%", padding: 8, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 8, boxSizing: "border-box", background: "var(--card-bg)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: 12 }}
               />
+              {canned.length > 0 && (
+                <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 8 }}>
+                  {canned.map((c, i) => <button key={i} onClick={() => setReplyDrafts({ ...replyDrafts, [t._id]: c.text })} style={{ ...custBtn, whiteSpace: "nowrap", fontWeight: 600 }}>{c.title}</button>)}
+                </div>
+              )}
+              <button onClick={() => loadTicketCtx(t._id)} style={{ ...custBtn, marginBottom: 8 }}>🧾 Show this customer's orders</button>
+              {ticketCtx[t._id] && (
+                <div style={{ marginBottom: 8 }}>
+                  {ticketCtx[t._id].mentioned?.length > 0 && <div style={{ fontSize: 11, color: "#92400E", marginBottom: 4 }}>Order IDs mentioned: {ticketCtx[t._id].mentioned.join(", ")}</div>}
+                  {(ticketCtx[t._id].orders || []).length === 0 ? <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>No orders yet.</div> :
+                    ticketCtx[t._id].orders.map((o) => <OrderCard key={o._id} t={{ ...o, user: { piUsername: t.username } }} busy={busyId === o._id} onRecheck={recheckOrder} onRefund={refundOrder} onRetryRefund={retryRefund} showToast={showToast} />)}
+                </div>
+              )}
               <div style={{ display: "flex", gap: 6 }}>
                 <button
                   onClick={() => sendTicketMessage(t._id)}
@@ -1343,6 +1380,13 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
               </div>
 
               <div style={card}>
+                <div style={h}>🔑 Limit after a PIN reset (₦)</div>
+                <div style={note}>For 24 hours after a customer resets a forgotten PIN, a single purchase cannot be above this. Protects against account takeover. 0 means no extra limit.</div>
+                <input style={inp} inputMode="numeric" value={sf.prc} onChange={digits("prc")} />
+                {save(() => saveSettings({ postResetCapNGN: Number(sf.prc) }, "Saved"))}
+              </div>
+
+              <div style={card}>
                 <div style={h}>🔔 Low VTPass balance warning</div>
                 <div style={note}>Money check and Go-live check turn red when your VTPass wallet drops below this.</div>
                 <input style={inp} inputMode="numeric" value={sf.low} onChange={digits("low")} />
@@ -1621,6 +1665,15 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
               <div style={{ fontWeight: 700, fontSize: 14 }}>@{c.piUsername || "unknown"}{c.isAdmin ? " · admin" : ""}</div>
               <div style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0" }}>{c.orders} orders · ₦{Number(c.spentNGN).toLocaleString()} spent{c.failed ? ` · ${c.failed} failed` : ""}</div>
               <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>Joined {new Date(c.createdAt).toLocaleDateString()} · last seen {c.lastLogin ? new Date(c.lastLogin).toLocaleDateString() : "—"}</div>
+              {c.blocked && <div style={{ fontSize: 12, fontWeight: 700, color: "#991B1B", marginTop: 4 }}>⛔ Blocked{c.blockedReason ? `: ${c.blockedReason}` : ""}</div>}
+              {c.pinResetAt && <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>PIN last reset {new Date(c.pinResetAt).toLocaleString()}</div>}
+              {role !== "staff" && !c.isAdmin && (
+                <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                  <button onClick={() => customerAction(c, "reset-pin")} style={custBtn}>🔑 Reset PIN</button>
+                  <button onClick={() => customerAction(c, c.blocked ? "unblock" : "block")} style={custBtn}>{c.blocked ? "✅ Unblock" : "⛔ Block"}</button>
+                  <button onClick={() => customerAction(c, "delete")} style={{ ...custBtn, color: "#dc2626" }}>🗑 Delete data</button>
+                </div>
+              )}
             </div>
           ))}
         </>

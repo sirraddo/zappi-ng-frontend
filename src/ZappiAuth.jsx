@@ -1,7 +1,7 @@
 import { displayName } from "./utils/displayName.js"
 import { useState, useEffect } from "react"
 import {
-  verifyTxnPin, setTxnPin, hasServerPin, syncPinFlag,
+  verifyTxnPin, setTxnPin, hasServerPin, syncPinFlag, piReauth, forgotResetPin,
 } from "./hooks/useTxnConfirmation"
 
 const C = {
@@ -193,7 +193,7 @@ export function LoginScreen({ onSuccess }) {
 // Server-verified: the PIN is checked by the backend, which returns a
 // single-use confirmation token bound to `txnFields`. That token is passed
 // to onSuccess and is what /api/payments/complete requires.
-export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment", txnFields = {} }) {
+export function TxnPinModal({ onSuccess, onCancel, onForgot, detail, label = "Confirm Payment", txnFields = {} }) {
   const [pin, setPin] = useState("")
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
@@ -239,9 +239,11 @@ export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment", tx
         <p style={{ margin: "0 0 4px", fontSize: 13, color: "var(--text-tertiary)" }}>
           {busy ? "Verifying…" : "Enter your 6-digit transaction PIN to proceed"}
         </p>
+        {detail && <div style={{ background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 12, padding: "10px 12px", margin: "10px 0 4px", fontSize: 13, fontWeight: 700, textAlign: "center", color: "#92400E" }}>Check before you pay<br /><span style={{ fontSize: 14 }}>{detail}</span><br /><span style={{ fontSize: 11, fontWeight: 500 }}>A wrong number or meter cannot be reversed once delivered.</span></div>}
         <PinDots value={pin} length={6} error={!!error} />
         {error && <p style={{ color: C.danger, fontSize: 13, fontWeight: 600, margin: "0 0 8px", textAlign: "center" }}>{error}</p>}
         <PinPad onPress={handlePress} onDelete={() => { setError(""); setPin(p => p.slice(0, -1)) }} />
+        {onForgot && <button onClick={onForgot} style={{ display: "block", margin: "12px auto 0", background: "none", border: "none", color: C.primary, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Forgot PIN?</button>}
       </div>
     </div>
   )
@@ -249,13 +251,23 @@ export function TxnPinModal({ onSuccess, onCancel, label = "Confirm Payment", tx
 
 // -- PROFILE SCREEN --
 // -- CHANGE / SET PIN FLOW (login = 4-digit, txn = 6-digit) --
-export function ChangePinFlow({ kind = "txn", forceSetup = false, onBack, onDone, subtitle }) {
+export function ChangePinFlow({ kind = "txn", forceSetup = false, mode, onBack, onDone, subtitle }) {
   const isLogin = kind === "login"
   const len = isLogin ? 4 : 6
   const storageKey = isLogin ? "zappi_login_pin" : null // txn PIN is server-side only — never stored on-device
   const title = isLogin ? "Login PIN" : "Transaction PIN"
   const changing = (isLogin ? !!localStorage.getItem(storageKey) : hasServerPin()) && !forceSetup
-  const [stage, setStage] = useState(changing ? "current" : "new") // current | new | confirm
+  const isReset = mode === "reset"
+  const [stage, setStage] = useState(isReset ? "reauth" : changing ? "current" : "new") // reauth | current | new | confirm
+  const [resetToken, setResetToken] = useState("")
+  const [curPin, setCurPin] = useState("")
+  const startReset = async () => {
+    setBusy(true); setError("")
+    try { setResetToken(await piReauth()); setStage("new"); setEntry("") }
+    catch (e) { setError(e?.message || "Could not confirm your Pi account") }
+    finally { setBusy(false) }
+  }
+  useEffect(() => { if (isReset && stage === "reauth" && !resetToken && !busy) startReset() }, [])
   const [entry, setEntry] = useState("")
   const [draft, setDraft] = useState("")
   const [error, setError] = useState("")
@@ -277,7 +289,7 @@ export function ChangePinFlow({ kind = "txn", forceSetup = false, onBack, onDone
         setBusy(true)
         try {
           await verifyTxnPin(entry, { serviceID: "pin-change", billType: "pin-change" })
-          if (!cancelled) { setStage("new"); setEntry(""); setError("") }
+          if (!cancelled) { setCurPin(entry); setStage("new"); setEntry(""); setError("") }
         } catch (e) {
           if (!cancelled) { setError(e.status ? e.message : "Network error — try again"); setEntry("") }
         } finally { if (!cancelled) setBusy(false) }
@@ -288,7 +300,7 @@ export function ChangePinFlow({ kind = "txn", forceSetup = false, onBack, onDone
         if (isLogin) { localStorage.setItem(storageKey, draft); setDone(true); return }
         setBusy(true)
         try {
-          await setTxnPin(draft) // bcrypt-hashed server-side; also clears the legacy plaintext PIN
+          if (isReset) await forgotResetPin(resetToken, draft); else await setTxnPin(draft, curPin) // bcrypt-hashed server-side; also clears the legacy plaintext PIN
           if (!cancelled) setDone(true)
         } catch (e) {
           if (!cancelled) { setError(e.status ? e.message : "Couldn't save PIN — check your connection"); setStage("new"); setDraft(""); setEntry("") }
@@ -319,6 +331,17 @@ export function ChangePinFlow({ kind = "txn", forceSetup = false, onBack, onDone
     </div>
   )
 
+  if (isReset && stage === "reauth") return (
+    <div style={wrap}>
+      <div style={{ fontSize: 48, marginBottom: 12 }}>🔑</div>
+      <h3 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 800 }}>Reset your PIN</h3>
+      <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--text-secondary)", maxWidth: 300 }}>{busy ? "Confirming your Pi account…" : "We confirm it is you through Pi, then you choose a new PIN. For safety, purchases are limited for 24 hours after a reset."}</p>
+      {error && <p style={{ color: C.danger, fontSize: 13, fontWeight: 600, margin: "0 0 12px" }}>{error}</p>}
+      {!busy && <button onClick={startReset} style={{ background: C.primary, color: "white", border: "none", borderRadius: 12, padding: "12px 28px", fontWeight: 700, fontSize: 14, cursor: "pointer", marginBottom: 12 }}>Confirm with Pi</button>}
+      <button onClick={onBack} style={{ background: "none", border: "none", color: C.primary, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+    </div>
+  )
+
   const heading = stage === "current" ? `Enter current ${title}` : stage === "confirm" ? `Confirm new ${title}` : (changing ? `Enter new ${title}` : `Create your ${title}`)
 
   return (
@@ -332,6 +355,7 @@ export function ChangePinFlow({ kind = "txn", forceSetup = false, onBack, onDone
       <PinDots value={entry} length={len} error={!!error} />
       {error && <p style={{ color: C.danger, fontSize: 13, fontWeight: 600, margin: "0 0 8px" }}>{error}</p>}
       <PinPad onPress={press} onDelete={del} />
+      {stage === "current" && !isLogin && <button onClick={() => { window.dispatchEvent(new Event("zappi-forgot-pin")) }} style={{ marginTop: 12, background: "none", border: "none", color: C.primary, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Forgot PIN?</button>}
     </div>
   )
 }

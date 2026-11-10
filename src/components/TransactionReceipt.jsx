@@ -267,7 +267,7 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
 
         {receipt.token && receipt.status === "success" && (
           <div className="receipt-token-block">
-            <div className="receipt-token-label">⚡ Electricity Token</div>
+            <div className="receipt-token-label">⚡ Token / PIN</div>
             <div className="receipt-token-value">{receipt.token}</div>
             <button className="receipt-token-copy" onClick={copyToken}>{tokenCopied ? "✓ Copied!" : "Copy Token"}</button>
             <div className="receipt-token-hint">Enter this token on your prepaid meter</div>
