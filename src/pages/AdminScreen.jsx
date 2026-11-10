@@ -375,7 +375,8 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
   }
   const [ticketAi, setTicketAi] = useState({});
   const [aiWorking, setAiWorking] = useState("");
-  const [aiLang, setAiLang] = useState("en");
+  const [aiLang, setAiLang] = useState("auto");
+  const [polishUndo, setPolishUndo] = useState({});
   const [briefing, setBriefing] = useState(null);
   const [watch, setWatch] = useState([]);
   const [noticeFacts, setNoticeFacts] = useState("");
@@ -392,7 +393,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
   function polishDraft(id) {
     const text = (replyDrafts[id] || "").trim(); if (!text) { showToast("Write your reply first, then polish it", "danger"); return; }
     setAiWorking(id + "polish");
-    aiCall("staff", { task: "polish", text, lang: aiLang }).then((t) => setReplyDrafts((d) => ({ ...d, [id]: t }))).catch((e) => showToast(e.message, "danger")).finally(() => setAiWorking(""));
+    aiCall("staff", { task: "polish", text, lang: aiLang === "auto" ? undefined : aiLang, ticketId: id }).then((t) => { setPolishUndo((u) => ({ ...u, [id]: text })); setReplyDrafts((d) => ({ ...d, [id]: t })); }).catch((e) => showToast(e.message, "danger")).finally(() => setAiWorking(""));
   }
   function writeReason() {
     if (!reqReason.trim()) { showToast("Type a rough note first", "danger"); return; }
@@ -1113,8 +1114,9 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                 <button disabled={!!aiWorking} onClick={() => ticketAiRun(t._id, "summarize")} style={custBtn}>{aiWorking === t._id + "summarize" ? "…" : "✨ Summarise"}</button>
                 <button disabled={!!aiWorking} onClick={() => ticketAiRun(t._id, "reply")} style={custBtn}>{aiWorking === t._id + "reply" ? "…" : "✨ Draft reply"}</button>
-                <select value={aiLang} onChange={(e) => setAiLang(e.target.value)} style={{ ...custBtn, padding: "6px 6px" }}><option value="en">English</option><option value="pcm">Pidgin</option><option value="yo">Yorùbá</option></select>
-                <button disabled={!!aiWorking} onClick={() => polishDraft(t._id)} style={custBtn}>{aiWorking === t._id + "polish" ? "…" : "✨ Polish my reply"}</button>
+                <select value={aiLang} onChange={(e) => setAiLang(e.target.value)} style={{ ...custBtn, padding: "6px 6px" }}><option value="auto">Customer's language</option><option value="en">English</option><option value="pcm">Pidgin</option><option value="yo">Yorùbá</option></select>
+                <button disabled={!!aiWorking} onClick={() => polishDraft(t._id)} style={custBtn}>{aiWorking === t._id + "polish" ? "…" : "✨ Fix & translate my reply"}</button>
+                {polishUndo[t._id] && <button onClick={() => { setReplyDrafts((d) => ({ ...d, [t._id]: polishUndo[t._id] })); setPolishUndo((u) => { const n = { ...u }; delete n[t._id]; return n; }); }} style={custBtn}>↩ Undo</button>}
               </div>
               {ticketAi[t._id] && <div style={{ fontSize: 12.5, whiteSpace: "pre-wrap", padding: 10, borderRadius: 8, background: "var(--card-bg)", marginBottom: 8 }}>{ticketAi[t._id]}</div>}
               <div style={{ background: "var(--card-bg)", borderRadius: 8, padding: 8, marginBottom: 8 }}>
