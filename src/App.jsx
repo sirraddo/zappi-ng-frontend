@@ -12,6 +12,7 @@ import { PrivacyPolicy, TermsOfService } from "./pages/LegalPages.jsx"
 import SupportPage, { CONFIG } from "./pages/SupportPage.jsx"
 import { SplashScreen, LoginScreen, TxnPinModal, ProfileScreen, ChangePinFlow } from "./ZappiAuth"
 import { hasServerPin, hasLegacyPin, REAL_PAYMENTS, completeBillPayment } from "./hooks/useTxnConfirmation"
+import MyLine from "./components/MyLine.jsx"
 import SavedBeneficiaries, { useBeneficiaries, SaveBeneficiaryPrompt } from "./components/SavedBeneficiaries.jsx"
 import AdminScreen, { isAdminUser } from "./pages/AdminScreen.jsx"
 
@@ -1158,6 +1159,7 @@ setPage("bills"); setSubPage("insurance")
 <FL>Network</FL><NetGrid selected={network} onSelect={setNetwork}/>
 <RecentList transactions={transactions} type="airtime" onSelect={buyAgain}/>
 <FL>Phone number</FL>
+<MyLine phone={phone} network={network} onSelect={m=>{setPhone(m.phone); if(m.network) setNetwork(m.network)}}/>
 <SavedBeneficiaries type="airtime" currentValue={phone} onSelect={b=>{setPhone(b.value); if(b.provider) setNetwork(b.provider)}}/>
 <Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
 {phoneDetected&&<p style={{color:"#16a34a",fontSize:12,fontWeight:600,margin:"-8px 0 12px"}}>✓ Number verified ({phoneDetected} Nigeria)</p>}
@@ -1185,6 +1187,7 @@ onPick={({network:n,phone:ph,bundle:b})=>{setNetwork(n);setBundle(b);if(ph)setPh
 <FL>Network</FL><NetGrid selected={network} onSelect={n=>{setNetwork(n);setBundle(null)}} extra={[{label:"GLO SME",match:"Glo"}]}/>
 <RecentList transactions={transactions} type="data" onSelect={buyAgain}/>
 <FL>Phone number</FL>
+<MyLine phone={phone} network={network} onSelect={m=>{setPhone(m.phone); if(m.network) setNetwork(m.network)}}/>
 <SavedBeneficiaries type="data" currentValue={phone} onSelect={b=>{setPhone(b.value); if(b.provider) setNetwork(b.provider)}}/>
 <Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
 {phoneDetected&&<p style={{color:"#16a34a",fontSize:12,fontWeight:600,margin:"-8px 0 12px"}}>✓ Number verified ({phoneDetected} Nigeria)</p>}
