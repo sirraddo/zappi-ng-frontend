@@ -307,7 +307,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
     const url = role === "staff" ? "/approvals/mine" : "/approvals";
     fetch(`${API_URL}/api/admin${url}`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setApprovals({ list: d.approvals || [], pending: role === "staff" ? (d.approvals || []).filter((a) => a.status === "pending").length : d.pending || 0 })).catch(() => {});
   }
-  function loadSummary() { if (role === "staff") return; loadBriefing(); fetch(`${API_URL}/api/admin/summary`, { headers: authHdrs() }).then((r) => r.json()).then((d) => d.today && setSummary(d)).catch(() => {}); }
+  function loadSummary() { if (role === "staff") return; loadBriefing(); loadAutoLog(); fetch(`${API_URL}/api/admin/summary`, { headers: authHdrs() }).then((r) => r.json()).then((d) => d.today && setSummary(d)).catch(() => {}); }
   function askApproval(type, targetId, label) { setReqReason(""); setReqModal({ type, targetId, label }); }
   function sendRequest() {
     fetch(`${API_URL}/api/admin/approvals`, { method: "POST", headers: authHdrs(), body: JSON.stringify({ type: reqModal.type, targetId: reqModal.targetId, reason: reqReason }) })
@@ -326,6 +326,13 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
   }
   function setTicketMeta(id, patch) { fetch(`${API_URL}/api/admin/tickets/${id}/meta`, { method: "POST", headers: authHdrs(), body: JSON.stringify(patch) }).then(() => loadTickets()).catch(() => {}); }
   const [vtBal, setVtBal] = useState(undefined);
+  const [autoLog, setAutoLog] = useState([]);
+  function loadAutoLog() { if (role === "staff") return; fetch(`${API_URL}/api/admin/auto-log`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setAutoLog(d.events || [])).catch(() => {}); }
+  function resumeService(key) {
+    fetch(`${API_URL}/api/admin/auto-pause/resume`, { method: "POST", headers: authHdrs(), body: JSON.stringify({ key }) })
+      .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); showToast("Service reopened", "success"); loadSummary(); loadAutoLog(); })
+      .catch((e) => showToast(e.message, "danger"));
+  }
   const [chat, setChat] = useState([]);
   const [chatQ, setChatQ] = useState("");
   const [chatBusy, setChatBusy] = useState(false);
@@ -386,7 +393,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
     fetch(`${API_URL}/api/admin/settings`, { headers: authHdrs() }).then((r) => r.json()).then((d) => {
       setSt(d);
       setSf({ maintOn: !!d.maintenance?.on, maintMsg: d.maintenance?.message || "", min: String(d.limits.minNGN || 0), max: String(d.limits.maxNGN || 0), cap: String(d.limits.dailyCapNGN || 0),
-        low: String(d.lowBalanceNGN), pause: String(d.pauseBelowNGN ?? 0), prc: String(d.postResetCapNGN ?? 5000), cb: String(d.cashbackPct ?? 0), rr: String(d.referralRewardNGN ?? 0), fb: d.fallbackRate ? String(d.fallbackRate) : "", usd: d.usdNgnRate ? String(d.usdNgnRate) : "",
+        low: String(d.lowBalanceNGN), pause: String(d.pauseBelowNGN ?? 0), ap: { on: d.autoPause?.on !== false, minOrders: String(d.autoPause?.minOrders ?? 5), pct: String(d.autoPause?.pct ?? 70), windowMin: String(d.autoPause?.windowMin ?? 15), cooldownMin: String(d.autoPause?.cooldownMin ?? 20), maxPauseMin: String(d.autoPause?.maxPauseMin ?? 120) }, ack: d.autoAck !== false, prc: String(d.postResetCapNGN ?? 5000), cb: String(d.cashbackPct ?? 0), rr: String(d.referralRewardNGN ?? 0), fb: d.fallbackRate ? String(d.fallbackRate) : "", usd: d.usdNgnRate ? String(d.usdNgnRate) : "",
         wa: d.support.whatsapp || "", email: d.support.email || "", hours: d.support.hours || "", staff: (d.staff || []).join(", "), cg: "" });
     }).catch(() => showToast("Could not load settings", "danger")).finally(() => setLoading(false));
   }
@@ -879,6 +886,13 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 <div style={{ fontSize: 13, margin: "8px 0 2px" }}>Today: <b>{summary.today.delivered}</b> delivered · <b>{summary.today.failed}</b> failed · <b>{summary.today.pending}</b> processing · ₦{Number(summary.today.salesNGN).toLocaleString()} sold · earned ₦{summary.today.earnedNGN.toLocaleString()}</div>
                 <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Yesterday: {summary.yesterday.delivered} delivered · {summary.yesterday.failed} failed · ₦{Number(summary.yesterday.salesNGN).toLocaleString()} sold</div>
                 {summary.creditOwedNGN > 0 && <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Customer credit outstanding: ₦{Number(summary.creditOwedNGN).toLocaleString()}</div>}
+                {(summary.autoPaused || []).map((n) => <button key={n.key} onClick={() => resumeService(n.key)} style={{ ...custBtn, margin: "4px 6px 4px 0" }}>▶ Reopen {n.label || n.key} now</button>)}
+                {autoLog.length > 0 && (
+                  <div style={{ marginTop: 8, fontSize: 12 }}>
+                    <b>🤖 Done automatically</b>
+                    {autoLog.slice(0, 8).map((e, i) => <div key={i} style={{ color: "var(--text-secondary)", margin: "3px 0" }}>{new Date(e.at).toLocaleString("en-NG", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" })} · {e.text}</div>)}
+                  </div>
+                )}
                 {briefing?.text && <div style={{ marginTop: 8, padding: 10, borderRadius: 8, background: "var(--card-bg)", fontSize: 12.5, whiteSpace: "pre-wrap", lineHeight: 1.5 }}><b>✨ Morning briefing</b>{"\n"}{briefing.text}</div>}
                 {summary.reasons.length > 0 && <div style={{ marginTop: 8, fontSize: 12 }}><b>Why orders failed (7 days)</b>{summary.reasons.map((r, i) => <div key={i} style={{ color: "var(--text-secondary)" }}>{r.count}× {r.reason}</div>)}</div>}
                 {summary.staff.length > 0 && <div style={{ marginTop: 8, fontSize: 12 }}><b>Staff replies (7 days)</b>{summary.staff.map((r, i) => <div key={i} style={{ color: "var(--text-secondary)" }}>@{r.name}: {r.replies}</div>)}</div>}
@@ -1503,6 +1517,17 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 </div>
                 <label style={lbl}>Daily spend cap per customer (₦)</label><input style={inp} inputMode="numeric" value={sf.cap} onChange={digits("cap")} />
                 {save(() => saveSettings({ limits: { minNGN: Number(sf.min), maxNGN: Number(sf.max), dailyCapNGN: Number(sf.cap) } }, "Limits saved"))}
+              </div>
+
+              <div style={card}>
+                <div style={h}>🛡️ Automatic protection</div>
+                <div style={note}>When a service keeps failing on the provider's side (not customer mistakes like a wrong number), Zappi pauses just that service, shows customers a notice, and reopens it by itself after a cooldown. If it fails again quickly, the next pause is twice as long, up to your limit, then it waits for you.</div>
+                <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, margin: "4px 0 8px" }}><input type="checkbox" checked={sf.ap.on} onChange={(e) => setSf({ ...sf, ap: { ...sf.ap, on: e.target.checked } })} /> Pause failing services automatically</label>
+                {[["minOrders", "Look at the last this many orders (min)"], ["pct", "Pause when this % of them failed"], ["windowMin", "Only count the last (minutes)"], ["cooldownMin", "First pause lasts (minutes)"], ["maxPauseMin", "Longest automatic pause (minutes)"]].map(([k, t]) => (
+                  <div key={k}><label style={lbl}>{t}</label><input style={inp} inputMode="numeric" value={sf.ap[k]} onChange={(e) => setSf({ ...sf, ap: { ...sf.ap, [k]: e.target.value.replace(/\D/g, "").slice(0, 4) } })} /></div>
+                ))}
+                <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, margin: "10px 0 4px" }}><input type="checkbox" checked={sf.ack} onChange={(e) => setSf({ ...sf, ack: e.target.checked })} /> Send customers an instant "we got your message" on new tickets</label>
+                {save(() => saveSettings({ autoPause: { on: sf.ap.on, minOrders: Number(sf.ap.minOrders), pct: Number(sf.ap.pct), windowMin: Number(sf.ap.windowMin), cooldownMin: Number(sf.ap.cooldownMin), maxPauseMin: Number(sf.ap.maxPauseMin) }, autoAck: sf.ack }, "Automatic protection saved"))}
               </div>
 
               <div style={card}>
