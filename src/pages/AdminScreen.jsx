@@ -298,7 +298,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
     const url = role === "staff" ? "/approvals/mine" : "/approvals";
     fetch(`${API_URL}/api/admin${url}`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setApprovals({ list: d.approvals || [], pending: role === "staff" ? (d.approvals || []).filter((a) => a.status === "pending").length : d.pending || 0 })).catch(() => {});
   }
-  function loadSummary() { if (role === "staff") return; fetch(`${API_URL}/api/admin/summary`, { headers: authHdrs() }).then((r) => r.json()).then((d) => d.today && setSummary(d)).catch(() => {}); }
+  function loadSummary() { if (role === "staff") return; loadBriefing(); fetch(`${API_URL}/api/admin/summary`, { headers: authHdrs() }).then((r) => r.json()).then((d) => d.today && setSummary(d)).catch(() => {}); }
   function askApproval(type, targetId, label) { setReqReason(""); setReqModal({ type, targetId, label }); }
   function sendRequest() {
     fetch(`${API_URL}/api/admin/approvals`, { method: "POST", headers: authHdrs(), body: JSON.stringify({ type: reqModal.type, targetId: reqModal.targetId, reason: reqReason }) })
@@ -317,6 +317,38 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
   }
   function setTicketMeta(id, patch) { fetch(`${API_URL}/api/admin/tickets/${id}/meta`, { method: "POST", headers: authHdrs(), body: JSON.stringify(patch) }).then(() => loadTickets()).catch(() => {}); }
   const [vtBal, setVtBal] = useState(undefined);
+  const [ticketAi, setTicketAi] = useState({});
+  const [aiWorking, setAiWorking] = useState("");
+  const [aiLang, setAiLang] = useState("en");
+  const [briefing, setBriefing] = useState(null);
+  const [watch, setWatch] = useState([]);
+  const [noticeFacts, setNoticeFacts] = useState("");
+  function aiCall(path, body) {
+    return fetch(`${API_URL}/api/admin/ai/${path}`, { method: "POST", headers: authHdrs(), body: JSON.stringify(body) })
+      .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); return d.reply || ""; });
+  }
+  function ticketAiRun(id, task, extra = {}) {
+    setAiWorking(id + task);
+    aiCall("staff", { task, ticketId: id, ...extra })
+      .then((text) => { if (task === "reply") setReplyDrafts((d) => ({ ...d, [id]: text })); else setTicketAi((a) => ({ ...a, [id]: text })); })
+      .catch((e) => showToast(e.message, "danger")).finally(() => setAiWorking(""));
+  }
+  function polishDraft(id) {
+    const text = (replyDrafts[id] || "").trim(); if (!text) { showToast("Write your reply first, then polish it", "danger"); return; }
+    setAiWorking(id + "polish");
+    aiCall("staff", { task: "polish", text, lang: aiLang }).then((t) => setReplyDrafts((d) => ({ ...d, [id]: t }))).catch((e) => showToast(e.message, "danger")).finally(() => setAiWorking(""));
+  }
+  function writeReason() {
+    if (!reqReason.trim()) { showToast("Type a rough note first", "danger"); return; }
+    setAiWorking("reason");
+    aiCall("staff", { task: "reason", text: reqReason, action: reqModal.label }).then(setReqReason).catch((e) => showToast(e.message, "danger")).finally(() => setAiWorking(""));
+  }
+  function loadBriefing(refresh) {
+    if (role === "staff") return;
+    fetch(`${API_URL}/api/admin/ai/briefing${refresh ? "?refresh=1" : ""}`, { headers: authHdrs() }).then((r) => r.json()).then((d) => d.text && setBriefing(d)).catch(() => {});
+  }
+  function loadWatch() { fetch(`${API_URL}/api/admin/ai/abuse`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setWatch(d.items || [])).catch(() => {}); }
+  function runAiPath(path, body) { setAiBusy(true); setAiOut(""); aiCall(path, body).then(setAiOut).catch((e) => showToast(e.message, "danger")).finally(() => setAiBusy(false)); }
   const [canned, setCanned] = useState([]);
   const [ticketCtx, setTicketCtx] = useState({});
   function loadCanned() { fetch(`${API_URL}/api/admin/canned-replies`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setCanned(d.replies || [])).catch(() => {}); }
@@ -498,7 +530,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
     else if (tab === "notices") loadNotices();
     else if (tab === "rate") loadRate();
     else if (tab === "promos") loadPromos();
-    else if (tab === "ai") loadAi();
+    else if (tab === "ai") { loadAi(); loadWatch(); loadBriefing(); }
     else if (tab === "settings") loadSettings();
     else if (tab === "customers") loadCustomers();
     else if (tab === "approvals") loadApprovals();
@@ -821,6 +853,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 <div style={{ fontSize: 13, margin: "8px 0 2px" }}>Today: <b>{summary.today.delivered}</b> delivered · <b>{summary.today.failed}</b> failed · <b>{summary.today.pending}</b> processing · ₦{Number(summary.today.salesNGN).toLocaleString()} sold · earned ₦{summary.today.earnedNGN.toLocaleString()}</div>
                 <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Yesterday: {summary.yesterday.delivered} delivered · {summary.yesterday.failed} failed · ₦{Number(summary.yesterday.salesNGN).toLocaleString()} sold</div>
                 {summary.creditOwedNGN > 0 && <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Customer credit outstanding: ₦{Number(summary.creditOwedNGN).toLocaleString()}</div>}
+                {briefing?.text && <div style={{ marginTop: 8, padding: 10, borderRadius: 8, background: "var(--card-bg)", fontSize: 12.5, whiteSpace: "pre-wrap", lineHeight: 1.5 }}><b>✨ Morning briefing</b>{"\n"}{briefing.text}</div>}
                 {summary.reasons.length > 0 && <div style={{ marginTop: 8, fontSize: 12 }}><b>Why orders failed (7 days)</b>{summary.reasons.map((r, i) => <div key={i} style={{ color: "var(--text-secondary)" }}>{r.count}× {r.reason}</div>)}</div>}
                 {summary.staff.length > 0 && <div style={{ marginTop: 8, fontSize: 12 }}><b>Staff replies (7 days)</b>{summary.staff.map((r, i) => <div key={i} style={{ color: "var(--text-secondary)" }}>@{r.name}: {r.replies}</div>)}</div>}
               </div>
@@ -1013,6 +1046,14 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 rows={2}
                 style={{ width: "100%", padding: 8, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 8, boxSizing: "border-box", background: "var(--card-bg)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: 12 }}
               />
+              {t.aiSummary && <div style={{ fontSize: 12, margin: "0 0 8px", padding: 8, borderRadius: 8, background: "var(--card-bg)" }}>✨ {t.aiSummary}{t.mood && t.mood !== "calm" ? <b style={{ color: t.mood === "angry" ? "#991B1B" : "#92400E" }}> · customer seems {t.mood}</b> : null}</div>}
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                <button disabled={!!aiWorking} onClick={() => ticketAiRun(t._id, "summarize")} style={custBtn}>{aiWorking === t._id + "summarize" ? "…" : "✨ Summarise"}</button>
+                <button disabled={!!aiWorking} onClick={() => ticketAiRun(t._id, "reply")} style={custBtn}>{aiWorking === t._id + "reply" ? "…" : "✨ Draft reply"}</button>
+                <select value={aiLang} onChange={(e) => setAiLang(e.target.value)} style={{ ...custBtn, padding: "6px 6px" }}><option value="en">English</option><option value="pcm">Pidgin</option><option value="yo">Yorùbá</option></select>
+                <button disabled={!!aiWorking} onClick={() => polishDraft(t._id)} style={custBtn}>{aiWorking === t._id + "polish" ? "…" : "✨ Polish my reply"}</button>
+              </div>
+              {ticketAi[t._id] && <div style={{ fontSize: 12.5, whiteSpace: "pre-wrap", padding: 10, borderRadius: 8, background: "var(--card-bg)", marginBottom: 8 }}>{ticketAi[t._id]}</div>}
               <div style={{ background: "var(--card-bg)", borderRadius: 8, padding: 8, marginBottom: 8 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 4 }}>🔒 Private team notes (customer cannot see)</div>
                 {(t.internalNotes || []).map((n, i) => <div key={i} style={{ fontSize: 12, margin: "3px 0" }}><b>@{n.by}</b>: {n.text}</div>)}
@@ -1544,6 +1585,23 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
           <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px", lineHeight: 1.4 }}>
             The assistant reads your orders and tickets and explains or drafts. It can never refund or change anything. Customer phone numbers are partly hidden before they reach it.
           </p>
+          {briefing?.text && (
+            <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 12, marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}><b style={{ fontSize: 13 }}>☀️ Today's briefing</b><button onClick={() => loadBriefing(true)} style={{ ...custBtn, padding: "4px 8px" }}>↻ New</button></div>
+              <div style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.5 }}>{briefing.text}</div>
+            </div>
+          )}
+          <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 12, marginBottom: 12 }}>
+            <b style={{ fontSize: 13 }}>🔍 Watchlist</b>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)", margin: "2px 0 6px" }}>Patterns worth a look: one number getting orders from many customers, many orders in an hour, PIN lock-outs, referral farming. Nothing is blocked automatically.</div>
+            {watch.length === 0 ? <div style={{ fontSize: 13, color: "#166534" }}>🟢 Nothing unusual right now.</div> : watch.map((w, i) => <div key={i} style={{ fontSize: 12.5, margin: "4px 0", color: "#92400E" }}>🟡 {w.text}</div>)}
+          </div>
+          <button disabled={aiBusy} onClick={() => runAiPath("insights", {})} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontWeight: 700, cursor: "pointer", marginBottom: 12 }}>📈 Weekly insights</button>
+          <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 12, marginBottom: 12 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Write a customer notice (English, Pidgin, Yorùbá)</div>
+            <input value={noticeFacts} onChange={(e) => setNoticeFacts(e.target.value)} placeholder="e.g. MTN data is slow, fix expected tonight" style={{ width: "100%", boxSizing: "border-box", padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontSize: 13, marginBottom: 8 }} />
+            <button disabled={aiBusy || !noticeFacts.trim()} onClick={() => runAiPath("notice", { facts: noticeFacts })} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontWeight: 700, cursor: "pointer" }}>Write notice</button>
+          </div>
           <button disabled={aiBusy} onClick={() => runAi({ task: "summary" })} style={{ width: "100%", padding: 12, borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer", marginBottom: 12 }}>📋 Brief me on today</button>
           <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 12, marginBottom: 12 }}>
             <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Draft a reply to a support ticket</div>
@@ -1797,6 +1855,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
           <div style={{ background: "var(--card-bg)", color: "var(--text-primary)", borderRadius: 18, padding: 20, maxWidth: 340, width: "100%" }} onClick={(e) => e.stopPropagation()}>
             <div style={{ fontWeight: 700, marginBottom: 4 }}>Ask the owner to approve</div>
             <div style={{ fontSize: 13, marginBottom: 10 }}>{reqModal.label}</div>
+            <button onClick={writeReason} disabled={aiWorking === "reason"} style={{ ...custBtn, marginBottom: 6 }}>{aiWorking === "reason" ? "…" : "✨ Write the reason for me"}</button>
             <textarea value={reqReason} onChange={(e) => setReqReason(e.target.value)} rows={3} placeholder="Why? (the owner will read this)" style={{ width: "100%", boxSizing: "border-box", padding: 8, borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: 13, marginBottom: 10 }} />
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={() => setReqModal(null)} style={{ ...custBtn, flex: 1 }}>Cancel</button>

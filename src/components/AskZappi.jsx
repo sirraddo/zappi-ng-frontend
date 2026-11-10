@@ -7,7 +7,8 @@ import { useEffect, useRef, useState } from "react"
 const API = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com"
 const SUGGESTIONS = ["Where is my order?", "How do I pay with Pi?", "My order failed. What now?", "How does the Pi rate work?"]
 
-export default function AskZappi({ onClose, onSupport }) {
+export default function AskZappi({ onClose, onSupport, onAction }) {
+  const [handed, setHanded] = useState(false)
   const [msgs, setMsgs] = useState([])
   const [text, setText] = useState("")
   const [busy, setBusy] = useState(false)
@@ -26,11 +27,24 @@ export default function AskZappi({ onClose, onSupport }) {
         body: JSON.stringify({ messages: next }),
       })
       const d = await r.json().catch(() => ({}))
-      setMsgs([...next, { role: "assistant", content: r.ok ? d.reply : (d.error || "Sorry, something went wrong."), error: !r.ok }])
+      setMsgs([...next, { role: "assistant", content: r.ok ? d.reply : (d.error || "Sorry, something went wrong."), error: !r.ok, actions: r.ok ? d.actions || [] : [] }])
     } catch {
       setMsgs([...next, { role: "assistant", content: "No connection right now. Please try again.", error: true }])
     } finally { setBusy(false) }
   }
+
+  const handoff = async () => {
+    if (busy) return
+    setBusy(true)
+    try {
+      const r = await fetch(`${API}/api/assistant/handoff`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("zappi_token") || ""}` }, body: JSON.stringify({ messages: msgs.map(({ role, content }) => ({ role, content })) }) })
+      const d = await r.json().catch(() => ({}))
+      setMsgs((m) => [...m, r.ok ? { role: "assistant", content: "Done. I sent this chat and your latest orders to our support team. You can follow the reply in Help & Support. Please do not pay again for the same order." } : { role: "assistant", content: d.error || "Could not send it. Please open Help & Support.", error: true }])
+      if (r.ok) setHanded(true)
+    } catch { setMsgs((m) => [...m, { role: "assistant", content: "No connection right now. Please try again.", error: true }]) }
+    finally { setBusy(false) }
+  }
+  const act = (a) => { if (a.type === "support") handoff(); else onAction && onAction(a) }
 
   const bubble = (m) => ({
     alignSelf: m.role === "user" ? "flex-end" : "flex-start", maxWidth: "85%", padding: "10px 14px", borderRadius: 16, fontSize: 14, lineHeight: 1.45, whiteSpace: "pre-wrap",
@@ -53,8 +67,14 @@ export default function AskZappi({ onClose, onSupport }) {
             </div>
           </>
         )}
-        {msgs.map((m, i) => <div key={i} style={bubble(m)}>{m.content}</div>)}
+        {msgs.map((m, i) => (
+          <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: m.role === "user" ? "flex-end" : "flex-start" }}>
+            <div style={bubble(m)}>{m.content}</div>
+            {i === msgs.length - 1 && (m.actions || []).map((a, j) => <button key={j} disabled={busy || (a.type === "support" && handed)} onClick={() => act(a)} style={{ padding: "8px 14px", borderRadius: 20, border: "none", background: "#CC4E00", color: "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>{a.label}</button>)}
+          </div>
+        ))}
         {busy && <div style={bubble({ role: "assistant" })}>Thinking…</div>}
+        {msgs.length > 0 && !handed && <button disabled={busy} onClick={handoff} style={{ alignSelf: "center", padding: "8px 16px", borderRadius: 20, border: "1.5px solid #CC4E00", background: "transparent", color: "#CC4E00", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Send this chat to support</button>}
         {msgs.length > 0 && onSupport && <button onClick={onSupport} style={{ alignSelf: "center", background: "none", border: "none", color: "var(--text-tertiary)", fontSize: 12, textDecoration: "underline", cursor: "pointer" }}>Still stuck? Contact Help & Support</button>}
         <div ref={end} />
       </div>

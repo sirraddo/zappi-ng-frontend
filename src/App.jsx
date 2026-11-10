@@ -1146,7 +1146,7 @@ return (
 </div></div></div>}
 {txnPinModal&&<TxnPinModal detail={txnPinModal.detail} onForgot={()=>{setTxnPinModal(null);setForgotPin(true)}} label={txnPinModal.label} txnFields={txnPinModal.txnFields} onSuccess={txnPinModal.onConfirmed} onCancel={()=>setTxnPinModal(null)}/>}
 {showHowTo&&<HowToModal onClose={()=>setShowHowTo(false)}/>}
-{askOpen&&<AskZappi onClose={()=>setAskOpen(false)} onSupport={()=>{setAskOpen(false);setLegalPage("support")}}/>}
+{askOpen&&<AskZappi onClose={()=>setAskOpen(false)} onSupport={()=>{setAskOpen(false);setLegalPage("support")}} onAction={a=>{if(a.type==="forgot_pin"){setAskOpen(false);setForgotPin(true)}else if(a.type==="check_status"){const t=transactions.find(x=>x.requestId===a.ref);if(t){setAskOpen(false);setPage("history");checkStatus(t)}else showToast("Open History and tap Check status on that order","info",5000)}}}/>}
 {giftTx&&<GiftShareModal tx={giftTx} initialMessage={giftTx.message||""} senderName={displayName(user)} onClose={()=>setGiftTx(null)}/>}
 {receiptTx&&<TransactionReceipt receipt={txToReceipt(receiptTx)} onDone={()=>setReceiptTx(null)}/>}
 
