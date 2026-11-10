@@ -174,6 +174,7 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
   const [aiOut, setAiOut] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [aiQ, setAiQ] = useState("");
+  const [aiLimit, setAiLimit] = useState("");
   const [aiTicket, setAiTicket] = useState("");
   const [promos, setPromos] = useState([]);
   const [pf, setPf] = useState({ code: "", percent: "5", maxDiscountNGN: "100", maxUses: "100", perUserLimit: "1", service: "", expiresAt: "" });
@@ -263,7 +264,7 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
   ];
   const noticeName = (k) => (NOTICE_SERVICES.find(([v]) => v === k) || [k, k])[1];
   function loadAi() {
-    fetch(`${API_URL}/api/admin/ai-status`, { headers: authHdrs() }).then((r) => r.json()).then(setAiStatus).catch(() => showToast("Could not load AI status", "danger"));
+    fetch(`${API_URL}/api/admin/ai-status`, { headers: authHdrs() }).then((r) => r.json()).then((d) => { setAiStatus(d); setAiLimit(String(d.dailyLimit)); }).catch(() => showToast("Could not load AI status", "danger"));
     if (!tickets.length) loadTickets();
   }
   function runAi(body) {
@@ -271,6 +272,13 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
     fetch(`${API_URL}/api/admin/assistant`, { method: "POST", headers: authHdrs(), body: JSON.stringify(body) })
       .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); setAiOut(d.reply || ""); })
       .catch((e) => showToast(e.message, "danger")).finally(() => setAiBusy(false));
+  }
+  function saveAiLimit() {
+    const n = Number(aiLimit);
+    if (!Number.isInteger(n) || n < 0 || n > 500) return showToast("Enter a whole number from 0 to 500", "danger");
+    fetch(`${API_URL}/api/admin/ai-status`, { method: "POST", headers: authHdrs(), body: JSON.stringify({ dailyLimit: n }) })
+      .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); setAiStatus({ ...aiStatus, dailyLimit: n }); showToast(`Limit set to ${n} questions per customer per day`, "success"); })
+      .catch((e) => showToast(e.message, "danger"));
   }
   function toggleCustomerAi() {
     const next = !aiStatus.customerEnabled;
@@ -1268,6 +1276,15 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span>"Ask Zappi" for customers: <b>{aiStatus.customerEnabled ? "ON" : "OFF"}</b></span>
                 <button onClick={toggleCustomerAi} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>{aiStatus.customerEnabled ? "Switch off" : "Switch on"}</button>
+              </div>
+              <div style={{ borderTop: "1px solid var(--border)", marginTop: 12, paddingTop: 12 }}>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Daily limit per customer</div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input value={aiLimit} onChange={(e) => setAiLimit(e.target.value.replace(/\D/g, "").slice(0, 3))} inputMode="numeric" style={{ width: 80, padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontSize: 15 }} />
+                  <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>questions a day</span>
+                  <button onClick={saveAiLimit} style={{ marginLeft: "auto", padding: "10px 14px", borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer" }}>Save</button>
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 6 }}>Resets at midnight (Lagos time). 0 means no questions are allowed. Today: {aiStatus.usageToday?.messages ?? 0} questions from {aiStatus.usageToday?.customers ?? 0} customers.</div>
               </div>
             </div>
           )}
