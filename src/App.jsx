@@ -580,6 +580,20 @@ if (Array.isArray(saved)) return saved
 } catch {}
 return []
 })
+// History is cached on this device. If the signed-in account or the Pi network changed
+// (e.g. testnet -> mainnet), drop the old cache so sandbox purchases don't show up as real ones.
+const syncLocalAccount = () => {
+try {
+const t = localStorage.getItem("zappi_token") || ""
+const sub = JSON.parse(atob(t.split(".")[1].replace(/-/g,"+").replace(/_/g,"/"))).sub
+const marker = `${import.meta.env.VITE_PI_SANDBOX === "false" ? "mainnet" : "sandbox"}:${sub}`
+if (localStorage.getItem("zappi_acct") !== marker) {
+localStorage.removeItem("zappi_txs")
+localStorage.setItem("zappi_acct", marker)
+setTransactions([])
+}
+} catch {}
+}
 const addTransaction = (tx) => setTransactions(prev => {
 const next = [{ id: Date.now(), ts: Date.now(), status: "success", ...tx }, ...prev]
 localStorage.setItem("zappi_txs", JSON.stringify(next))
@@ -878,8 +892,8 @@ const filteredTx = txFilter==="all"?transactions:transactions.filter(t=>t.type==
 
 // ── AUTH SCREENS ────────────────────────────────────────────────────────────────────────
 if (!isLoggedIn) {
-if (authScreen === "splash") return <SplashScreen onContinue={setAuthScreen} onSuccess={()=>{setIsLoggedIn(true);setTxnPinReady(hasServerPin())}} />
-if (authScreen === "login") return <LoginScreen onSuccess={()=>{setIsLoggedIn(true);setTxnPinReady(hasServerPin())}} />
+if (authScreen === "splash") return <SplashScreen onContinue={setAuthScreen} onSuccess={()=>{syncLocalAccount();setIsLoggedIn(true);setTxnPinReady(hasServerPin())}} />
+if (authScreen === "login") return <LoginScreen onSuccess={()=>{syncLocalAccount();setIsLoggedIn(true);setTxnPinReady(hasServerPin())}} />
 }
 
 // First-login (or migration from the old on-device PIN): require a
