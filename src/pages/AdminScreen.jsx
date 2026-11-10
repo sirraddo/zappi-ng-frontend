@@ -170,6 +170,8 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
   const [ledger, setLedger] = useState({ refunds: [], needs: [] });
   const [money, setMoney] = useState(null);
   const [golive, setGolive] = useState(null);
+  const [rateInfo, setRateInfo] = useState(null);
+  const [spreadInput, setSpreadInput] = useState("");
   const [noticeList, setNoticeList] = useState([]);
   const [nKey, setNKey] = useState("data:mtn-data");
   const [nMsg, setNMsg] = useState("");
@@ -253,6 +255,25 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
     ["electricity", "Electricity"], ["cable", "Cable TV"], ["internet", "Internet"], ["education", "Exam fees"], ["showmax", "Showmax"], ["insurance", "Insurance"],
   ];
   const noticeName = (k) => (NOTICE_SERVICES.find(([v]) => v === k) || [k, k])[1];
+  function loadRate() {
+    setLoading(true);
+    fetch(`${API_URL}/api/admin/rate`, { headers: authHdrs() }).then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); return d; })
+      .then((d) => { setRateInfo(d); setSpreadInput(String(+(d.rate.spread * 100).toFixed(2))); })
+      .catch((e) => { setRateInfo(null); showToast(e.message, "danger"); }).finally(() => setLoading(false));
+  }
+  function rateAction(path, body, okMsg) {
+    return fetch(`${API_URL}/api/admin/rate/${path}`, { method: "POST", headers: authHdrs(), body: body ? JSON.stringify(body) : undefined })
+      .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); showToast(okMsg, "success"); loadRate(); })
+      .catch((e) => showToast(e.message, "danger"));
+  }
+  function saveSpread() {
+    const pct = Number(spreadInput);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 10) return showToast("Enter a number between 0 and 10", "danger");
+    setConfirmState({
+      message: `Set the margin to ${pct}%? Every customer's Pi price changes from the next refresh.`,
+      onConfirm: () => { setConfirmState(null); rateAction("spread", { percent: pct }, "Margin updated"); },
+    });
+  }
   function loadNotices() {
     setLoading(true);
     fetch(`${API_URL}/api/notices/all`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setNoticeList(d.notices || []))
@@ -341,6 +362,7 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
     else if (tab === "money") loadMoney();
     else if (tab === "golive") loadGolive();
     else if (tab === "notices") loadNotices();
+    else if (tab === "rate") loadRate();
     else if (tab === "customers") loadCustomers();
   }, [tab, txFilter]);
 
@@ -602,6 +624,7 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
             { key: "transactions", icon: "💳", label: "Orders" },
             { key: "ledger", icon: "📒", label: "Ledger & refunds", badge: ledger.needs.length },
             { key: "golive", icon: "🚦", label: "Go-live check" },
+            { key: "rate", icon: "📈", label: "Rate & pricing" },
             { key: "money", icon: "💰", label: "Money check" },
             { key: "customers", icon: "👥", label: "Customers" },
             { key: "announcements", icon: "📢", label: "Announcements" },
@@ -1190,6 +1213,45 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
             <div style={{ fontWeight: 700, fontSize: 14, margin: "16px 0 8px" }}>Refunds ({ledger.refunds.length})</div>
             {ledger.refunds.length === 0 ? <div style={{ color: "var(--text-secondary)" }}>No refunds yet</div>
               : ledger.refunds.map((t) => <OrderCard key={t._id} t={t} busy={busyId === t._id} onRecheck={recheckOrder} onRefund={refundOrder} onRetryRefund={retryRefund} showToast={showToast} />)}
+          </>
+        )
+      )}
+
+      {tab === "rate" && (
+        loading && !rateInfo ? <div>Loading…</div> : !rateInfo ? (
+          <div style={{ color: "#dc2626", fontSize: 13 }}>No live rate is available right now, so customers cannot pay. <button onClick={loadRate} style={{ background: "none", border: "none", color: "var(--primary)", fontWeight: 700, cursor: "pointer" }}>Try again</button></div>
+        ) : (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <StatCard label="Customers pay per π" value={`₦${Number(rateInfo.rate.ngnPerPi).toLocaleString()}`} />
+              <StatCard label="Market rate per π" value={`₦${Number(rateInfo.rate.market).toLocaleString()}`} />
+              <StatCard label="π price (USD)" value={`$${Number(rateInfo.rate.piUsd).toFixed(4)}`} />
+              <StatCard label="Dollar rate (₦)" value={`₦${Number(rateInfo.rate.usdNgn).toLocaleString()}`} />
+            </div>
+            <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>Price sources (the middle value is used)</div>
+              {Object.entries(rateInfo.rate.sources || {}).map(([k, v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
+                  <span style={{ textTransform: "capitalize" }}>{k}</span>
+                  <b style={{ color: v ? "var(--text-primary)" : "#dc2626" }}>{v ? `$${Number(v).toFixed(4)}` : "unavailable"}</b>
+                </div>
+              ))}
+              <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 8 }}>
+                Updated {new Date(rateInfo.rate.updatedAt).toLocaleTimeString()}{rateInfo.usdNgnFixed ? " · dollar rate is fixed by you on Render" : ""}
+              </div>
+            </div>
+            <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Your margin</div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 10, lineHeight: 1.4 }}>
+                Customers get this % less naira per π than the market rate. It is your protection against the price moving while an order is processed. Currently {(rateInfo.rate.spread * 100).toFixed(2)}% (set by {rateInfo.spreadSource}).
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input value={spreadInput} onChange={(e) => setSpreadInput(e.target.value)} inputMode="decimal" style={{ width: 90, padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontSize: 15 }} />
+                <span style={{ alignSelf: "center" }}>%</span>
+                <button onClick={saveSpread} style={{ flex: 1, padding: 10, borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer" }}>Save margin</button>
+              </div>
+            </div>
+            <button onClick={() => rateAction("refresh", null, "Rate refreshed")} style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, cursor: "pointer" }}>Refresh rate now</button>
           </>
         )
       )}
