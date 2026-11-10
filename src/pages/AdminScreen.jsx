@@ -169,6 +169,7 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
   const [busyId, setBusyId] = useState(null);
   const [ledger, setLedger] = useState({ refunds: [], needs: [] });
   const [money, setMoney] = useState(null);
+  const [golive, setGolive] = useState(null);
   const [customers, setCustomers] = useState({ total: 0, customers: [] });
   const [custQ, setCustQ] = useState("");
 
@@ -242,6 +243,11 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
     ]).then(([a, b]) => setLedger({ refunds: a.transactions || [], needs: b.transactions || [] }))
       .catch(() => showToast("Could not load the ledger", "danger")).finally(() => setLoading(false));
   }
+  function loadGolive() {
+    setLoading(true);
+    fetch(`${API_URL}/api/admin/go-live`, { headers: authHdrs() }).then((r) => r.json()).then(setGolive)
+      .catch(() => showToast("Could not run the go-live check", "danger")).finally(() => setLoading(false));
+  }
   function loadMoney() {
     setLoading(true);
     fetch(`${API_URL}/api/admin/money-check`, { headers: authHdrs() }).then((r) => r.json()).then(setMoney)
@@ -309,6 +315,7 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
     else if (tab === "pending") loadPendingTx();
     else if (tab === "ledger") loadLedger();
     else if (tab === "money") loadMoney();
+    else if (tab === "golive") loadGolive();
     else if (tab === "customers") loadCustomers();
   }, [tab, txFilter]);
 
@@ -569,6 +576,7 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
             { key: "stats", icon: "📊", label: "Overview" },
             { key: "transactions", icon: "💳", label: "Orders" },
             { key: "ledger", icon: "📒", label: "Ledger & refunds", badge: ledger.needs.length },
+            { key: "golive", icon: "🚦", label: "Go-live check" },
             { key: "money", icon: "💰", label: "Money check" },
             { key: "customers", icon: "👥", label: "Customers" },
             { key: "announcements", icon: "📢", label: "Announcements" },
@@ -1156,6 +1164,23 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
             <div style={{ fontWeight: 700, fontSize: 14, margin: "16px 0 8px" }}>Refunds ({ledger.refunds.length})</div>
             {ledger.refunds.length === 0 ? <div style={{ color: "var(--text-secondary)" }}>No refunds yet</div>
               : ledger.refunds.map((t) => <OrderCard key={t._id} t={t} busy={busyId === t._id} onRecheck={recheckOrder} onRefund={refundOrder} onRetryRefund={retryRefund} showToast={showToast} />)}
+          </>
+        )
+      )}
+
+      {tab === "golive" && (
+        loading || !golive ? <div>Checking everything… (up to 20 seconds)</div> : (
+          <>
+            <div style={{ padding: 14, borderRadius: 12, marginBottom: 12, fontWeight: 700, background: golive.summary === "ok" ? "#DCFCE7" : golive.summary === "warn" ? "#FEF3C7" : "#FEE2E2", color: golive.summary === "ok" ? "#166534" : golive.summary === "warn" ? "#92400E" : "#991B1B" }}>
+              {golive.summary === "ok" ? "🟢 All good — ready for customers" : golive.summary === "warn" ? "🟡 Working, but a few things need attention" : "🔴 Something is broken — fix the red items"}
+            </div>
+            {golive.checks.map((c) => (
+              <div key={c.key} style={{ display: "flex", gap: 10, background: "var(--bg-secondary)", borderRadius: 12, padding: 12, marginBottom: 8 }}>
+                <span style={{ fontSize: 18 }}>{c.status === "ok" ? "🟢" : c.status === "warn" ? "🟡" : "🔴"}</span>
+                <div><div style={{ fontWeight: 700, fontSize: 13 }}>{c.label}</div><div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.4 }}>{c.detail}</div></div>
+              </div>
+            ))}
+            <button onClick={loadGolive} style={{ marginTop: 8, padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, cursor: "pointer" }}>Run again</button>
           </>
         )
       )}
