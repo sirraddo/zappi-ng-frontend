@@ -66,6 +66,20 @@ export function normalizeTxnFields({ serviceID, billType, amount, phone, billers
 export function hasServerPin() { return localStorage.getItem(SERVER_PIN_FLAG) === "1" }
 export function hasLegacyPin() { return !!localStorage.getItem(LEGACY_PIN_KEY) }
 
+/**
+ * Ask the server whether this account has a PIN and align the local flag with it
+ * (a device may remember "PIN set" from another network/account). Never throws.
+ */
+export async function syncPinFlag() {
+  try {
+    const res = await fetch(`${API_URL}/api/confirm/pin/status`, { headers: authHeaders() })
+    if (!res.ok) return
+    const data = await res.json()
+    if (data.hasPin) localStorage.setItem(SERVER_PIN_FLAG, "1")
+    else localStorage.removeItem(SERVER_PIN_FLAG)
+  } catch { /* offline — keep whatever the device remembers */ }
+}
+
 /** Set (or replace) the server-side transaction PIN. Also clears the legacy plaintext PIN. */
 export async function setTxnPin(pin) {
   await post("/api/confirm/pin/set", { pin })

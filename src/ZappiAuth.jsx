@@ -1,7 +1,7 @@
 import { displayName } from "./utils/displayName.js"
 import { useState, useEffect } from "react"
 import {
-  verifyTxnPin, setTxnPin, hasServerPin,
+  verifyTxnPin, setTxnPin, hasServerPin, syncPinFlag,
 } from "./hooks/useTxnConfirmation"
 
 const C = {
@@ -76,6 +76,7 @@ async function piLogin(onSuccess, onMessage) {
     const data = await res.json();
     if (data.token) {
       localStorage.setItem("zappi_token", data.token);
+      await syncPinFlag();
       onSuccess?.(data);
     } else {
       onMessage?.("Pi verification failed. Please try again.");
