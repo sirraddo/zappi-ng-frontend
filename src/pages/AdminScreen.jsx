@@ -40,6 +40,47 @@ const KNOWN_FLAGS = [
   { key: "insurance_enabled", label: "Insurance" },
 ];
 
+const STATUS_COLORS = {
+  success: ["#DCFCE7", "#166534"], failed: ["#FEE2E2", "#991B1B"], pending: ["#FEF3C7", "#92400E"],
+};
+const refundLabel = (r) => (r?.status === "success" ? "Pi refunded" : r?.status === "processing" ? "Refund in progress" : r?.status === "failed" ? "Refund FAILED" : null);
+
+// One order, with the actions an admin needs: re-check with the provider, refund, retry refund.
+function OrderCard({ t, busy, onRecheck, onRefund, onRetryRefund, showToast }) {
+  const [bg, fg] = STATUS_COLORS[t.status] || STATUS_COLORS.pending;
+  const rl = refundLabel(t.refund);
+  const btn = { flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, fontSize: 12, cursor: "pointer" };
+  const copy = (v) => navigator.clipboard.writeText(v).then(() => showToast("Copied", "success")).catch(() => showToast("Couldn't copy", "danger"));
+  return (
+    <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>{t.billType} — @{t.user?.piUsername || "unknown"}</div>
+        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: bg, color: fg }}>{t.status}</span>
+      </div>
+      <div style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0" }}>
+        ₦{Number(t.amountNGN).toLocaleString()} · π{Number(t.amountPi).toFixed(4)} · {t.serviceID}{t.recipient ? ` · ${t.recipient}` : ""}
+      </div>
+      {t.requestId && (
+        <div style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace", display: "flex", gap: 8, alignItems: "center" }}>
+          <span>{t.requestId}</span>
+          <button onClick={() => copy(t.requestId)} style={{ background: "none", border: "none", color: "var(--primary)", fontSize: 11, fontWeight: 700, cursor: "pointer", padding: 0 }}>Copy</button>
+        </div>
+      )}
+      {t.vtpassRef && <div style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace" }}>VTPass: {t.vtpassRef}</div>}
+      {t.meta?.error && t.status !== "success" && <div style={{ fontSize: 11, color: "#991B1B", margin: "2px 0" }}>{String(t.meta.error).slice(0, 120)}</div>}
+      {rl && <div style={{ fontSize: 12, fontWeight: 700, color: t.refund?.status === "failed" ? "#991B1B" : "#166534", margin: "4px 0" }}>{rl}{t.refund?.error ? ` — ${t.refund.error}` : ""}</div>}
+      <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 8 }}>{new Date(t.createdAt).toLocaleString()}</div>
+      {(t.status !== "success" || t.refund?.status === "failed") && (
+        <div style={{ display: "flex", gap: 8 }}>
+          {t.requestId && t.status !== "success" && <button disabled={busy} onClick={() => onRecheck(t)} style={btn}>{busy ? "Working…" : "🔄 Re-check"}</button>}
+          {t.status === "failed" && !t.refund?.status && t.piPaymentId && <button disabled={busy} onClick={() => onRefund(t)} style={btn}>↩️ Refund Pi</button>}
+          {t.refund?.status === "failed" && <button disabled={busy} onClick={() => onRetryRefund(t)} style={btn}>↩️ Retry refund</button>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StatCard({ label, value }) {
   return (
     <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14 }}>
@@ -124,6 +165,12 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
   const [vtRunning, setVtRunning] = useState(false);
   const [auditLogs, setAuditLogs] = useState([]);
   const [pendingTx, setPendingTx] = useState([]);
+  const [orderQ, setOrderQ] = useState("");
+  const [busyId, setBusyId] = useState(null);
+  const [ledger, setLedger] = useState({ refunds: [], needs: [] });
+  const [money, setMoney] = useState(null);
+  const [customers, setCustomers] = useState({ total: 0, customers: [] });
+  const [custQ, setCustQ] = useState("");
 
   function loadAnnouncements() {
     setLoading(true);
@@ -161,9 +208,55 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
       .finally(() => setLoading(false));
   }
 
+  function reloadCurrent() {
+    if (tab === "transactions") loadTransactions();
+    else if (tab === "pending") loadPendingTx();
+    else if (tab === "ledger") loadLedger();
+    else if (tab === "stats") loadStats();
+  }
+  function adminPost(path, okMsg) {
+    return fetch(`${API_URL}/api/admin${path}`, { method: "POST", headers: authHdrs() })
+      .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); return d; })
+      .then((d) => { showToast(okMsg(d), "success"); return d; })
+      .catch((e) => showToast(e.message, "danger"));
+  }
+  function recheckOrder(t) {
+    setBusyId(t._id);
+    adminPost(`/transactions/${t._id}/recheck`, (d) => `Provider says: ${d.status}${d.refund ? " — refund started" : ""}`).finally(() => { setBusyId(null); reloadCurrent(); });
+  }
+  function refundOrder(t) {
+    setConfirmState({
+      message: `Refund π${Number(t.amountPi).toFixed(4)} to @${t.user?.piUsername || "this user"}? Do this only if they did not receive the service.`,
+      onConfirm: () => { setConfirmState(null); setBusyId(t._id); adminPost(`/transactions/${t._id}/refund`, () => "Refund started").finally(() => { setBusyId(null); setTimeout(reloadCurrent, 4000); }); },
+    });
+  }
+  function retryRefund(t) {
+    setBusyId(t._id);
+    adminPost(`/transactions/${t._id}/refund-retry`, () => "Refund retry started").finally(() => { setBusyId(null); setTimeout(reloadCurrent, 4000); });
+  }
+  function loadLedger() {
+    setLoading(true);
+    Promise.all([
+      fetch(`${API_URL}/api/admin/transactions/recent?refund=any`, { headers: authHdrs() }).then((r) => r.json()),
+      fetch(`${API_URL}/api/admin/transactions/recent?needsRefund=1`, { headers: authHdrs() }).then((r) => r.json()),
+    ]).then(([a, b]) => setLedger({ refunds: a.transactions || [], needs: b.transactions || [] }))
+      .catch(() => showToast("Could not load the ledger", "danger")).finally(() => setLoading(false));
+  }
+  function loadMoney() {
+    setLoading(true);
+    fetch(`${API_URL}/api/admin/money-check`, { headers: authHdrs() }).then((r) => r.json()).then(setMoney)
+      .catch(() => showToast("Could not run the money check", "danger")).finally(() => setLoading(false));
+  }
+  function loadCustomers(q = custQ) {
+    setLoading(true);
+    fetch(`${API_URL}/api/admin/customers?q=${encodeURIComponent(q)}`, { headers: authHdrs() }).then((r) => r.json())
+      .then((d) => setCustomers({ total: d.total || 0, customers: d.customers || [] }))
+      .catch(() => showToast("Could not load customers", "danger")).finally(() => setLoading(false));
+  }
+
   function loadTransactions() {
     setLoading(true);
-    const qs = txFilter ? `?status=${txFilter}` : "";
+    const qs = `?status=${txFilter}&q=${encodeURIComponent(orderQ)}`;
     fetch(`${API_URL}/api/admin/transactions/recent${qs}`, { headers: authHdrs() })
       .then((r) => r.json())
       .then((d) => setTransactions(d.transactions || []))
@@ -214,6 +307,9 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
     else if (tab === "banners") loadBanners();
     else if (tab === "auditlog") loadAuditLog();
     else if (tab === "pending") loadPendingTx();
+    else if (tab === "ledger") loadLedger();
+    else if (tab === "money") loadMoney();
+    else if (tab === "customers") loadCustomers();
   }, [tab, txFilter]);
 
   // Fetch tickets on mount (not lazily) so the open-count badge on the
@@ -470,8 +566,11 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
       {!tab ? (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {[
-            { key: "stats", icon: "📊", label: "Stats" },
-            { key: "transactions", icon: "💳", label: "Transactions" },
+            { key: "stats", icon: "📊", label: "Overview" },
+            { key: "transactions", icon: "💳", label: "Orders" },
+            { key: "ledger", icon: "📒", label: "Ledger & refunds", badge: ledger.needs.length },
+            { key: "money", icon: "💰", label: "Money check" },
+            { key: "customers", icon: "👥", label: "Customers" },
             { key: "announcements", icon: "📢", label: "Announcements" },
             { key: "tickets", icon: "🎫", label: "Support Tickets", badge: tickets.filter((t) => t.status === "open").length },
             { key: "flags", icon: "🚩", label: "Flags" },
@@ -479,7 +578,7 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
             { key: "banners", icon: "🖼️", label: "Banners" },
             { key: "vtpasstest", icon: "🧪", label: "VTPass Test" },
             { key: "auditlog", icon: "📜", label: "Audit Log" },
-            { key: "pending", icon: "⏳", label: "Pending Txns", badge: pendingTx.length },
+            { key: "pending", icon: "⏳", label: "Pending orders", badge: pendingTx.length },
           ].map((m) => (
             <button
               key={m.key}
@@ -520,6 +619,12 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
               <StatCard label="Transactions today" value={stats.transactionsToday} />
               <StatCard label="Transactions this week" value={stats.transactionsThisWeek} />
             </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+              <StatCard label="Sales today (₦)" value={`₦${Number(stats.salesTodayNGN || 0).toLocaleString()}`} />
+              <StatCard label="Sales today (π)" value={`π${Number(stats.salesTodayPi || 0).toFixed(2)}`} />
+              <StatCard label="Stuck over 10 min" value={stats.stuckPending ?? 0} />
+              <StatCard label="π refunded" value={`π${Number(stats.refunds?.success?.pi || 0).toFixed(2)}`} />
+            </div>
             <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 16 }}>
               <div style={{ fontWeight: 700, marginBottom: 10, fontSize: 14 }}>Successful volume</div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
@@ -552,6 +657,11 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
 
       {tab === "transactions" && (
         <>
+          <form onSubmit={(e) => { e.preventDefault(); loadTransactions(); }} style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <input value={orderQ} onChange={(e) => setOrderQ(e.target.value)} placeholder="Search ZNG reference, VTPass ref, phone, @user"
+              style={{ flex: 1, padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontSize: 13 }} />
+            <button type="submit" style={{ padding: "0 14px", borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer" }}>Search</button>
+          </form>
           <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto" }}>
             {["", "failed", "pending", "success"].map((s) => (
               <button
@@ -571,31 +681,7 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
           ) : transactions.length === 0 ? (
             <div style={{ color: "var(--text-secondary)" }}>No transactions found</div>
           ) : (
-            transactions.map((t) => (
-              <div key={t._id} style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{t.billType} — @{t.user?.piUsername || "unknown"}</div>
-                  <span style={{
-                    fontSize: 11, padding: "2px 8px", borderRadius: 10,
-                    background: t.status === "success" ? "#DCFCE7" : t.status === "failed" ? "#FEE2E2" : "#FEF3C7",
-                    color: t.status === "success" ? "#166534" : t.status === "failed" ? "#991B1B" : "#92400E",
-                  }}>{t.status}</span>
-                </div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0" }}>
-                  ₦{Number(t.amountNGN).toLocaleString()} · π{Number(t.amountPi).toFixed(4)} · {t.serviceID}
-                </div>
-                {t.status === "success" && t.requestId && (
-                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace", display: "flex", alignItems: "center", gap: 8, margin: "0 0 4px" }}>
-                    <span>Request ID: {t.requestId}</span>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(t.requestId).then(() => showToast("Copied", "success")).catch(() => showToast("Couldn't copy", "danger"))}
-                      style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: 0 }}
-                    >Copy</button>
-                  </div>
-                )}
-                <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>{new Date(t.createdAt).toLocaleString()}</div>
-              </div>
-            ))
+            transactions.map((t) => <OrderCard key={t._id} t={t} busy={busyId === t._id} onRecheck={recheckOrder} onRefund={refundOrder} onRetryRefund={retryRefund} showToast={showToast} />            )
           )}
         </>
       )}
@@ -1053,20 +1139,73 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
           ) : pendingTx.length === 0 ? (
             <div style={{ color: "var(--text-secondary)" }}>Nothing pending — all clear</div>
           ) : (
-            pendingTx.map((t) => (
-              <div key={t._id} style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{t.billType} — @{t.user?.piUsername || "unknown"}</div>
-                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: "#FEF3C7", color: "#92400E" }}>pending</span>
-                </div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0" }}>
-                  ₦{Number(t.amountNGN).toLocaleString()} · π{Number(t.amountPi).toFixed(4)} · {t.serviceID}
-                </div>
-                {t.requestId && <div style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace" }}>Request ID: {t.requestId}</div>}
-                <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>{new Date(t.createdAt).toLocaleString()}</div>
-              </div>
-            ))
+            pendingTx.map((t) => <OrderCard key={t._id} t={t} busy={busyId === t._id} onRecheck={recheckOrder} onRefund={refundOrder} onRetryRefund={retryRefund} showToast={showToast} />            )
           )}
+        </>
+      )}
+
+      {tab === "ledger" && (
+        loading ? <div>Loading…</div> : (
+          <>
+            <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px", lineHeight: 1.4 }}>
+              Customers who paid Pi but got nothing, and every refund sent. "Needs refund" are failed orders with no refund yet — check each one is really undelivered first.
+            </p>
+            <div style={{ fontWeight: 700, fontSize: 14, margin: "0 0 8px" }}>Needs refund ({ledger.needs.length})</div>
+            {ledger.needs.length === 0 ? <div style={{ color: "var(--text-secondary)", marginBottom: 16 }}>None — all clear</div>
+              : ledger.needs.map((t) => <OrderCard key={t._id} t={t} busy={busyId === t._id} onRecheck={recheckOrder} onRefund={refundOrder} onRetryRefund={retryRefund} showToast={showToast} />)}
+            <div style={{ fontWeight: 700, fontSize: 14, margin: "16px 0 8px" }}>Refunds ({ledger.refunds.length})</div>
+            {ledger.refunds.length === 0 ? <div style={{ color: "var(--text-secondary)" }}>No refunds yet</div>
+              : ledger.refunds.map((t) => <OrderCard key={t._id} t={t} busy={busyId === t._id} onRecheck={recheckOrder} onRefund={refundOrder} onRetryRefund={retryRefund} showToast={showToast} />)}
+          </>
+        )
+      )}
+
+      {tab === "money" && (
+        loading || !money ? <div>Checking…</div> : (
+          <>
+            <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>VTPass wallet</div>
+              {money.vtpass?.ok ? (
+                <div style={{ fontSize: 22, fontWeight: 700, color: money.vtpass.balance < 5000 ? "#dc2626" : "var(--text-primary)" }}>
+                  ₦{Number(money.vtpass.balance).toLocaleString()}{money.vtpass.balance < 5000 ? "  ⚠ low — top up" : ""}
+                </div>
+              ) : <div style={{ color: "#dc2626", fontSize: 13 }}>Could not read the balance: {money.vtpass?.error || "unknown"}</div>}
+            </div>
+            {money.pi && (
+              <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 12 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>Pi in and out</div>
+                {[["Received for delivered orders", `π${money.pi.receivedForDelivered.toFixed(4)}`], ["Held for processing orders", `π${money.pi.heldPending.toFixed(4)}`],
+                  [`Paid but failed (${money.pi.failedPaidCount})`, `π${money.pi.failedPaid.toFixed(4)}`], ["Already refunded", `π${money.pi.refunded.toFixed(4)}`],
+                  ["Still owed to customers", `π${money.pi.owedToCustomers.toFixed(4)}`], ["Delivered value", `₦${Number(money.pi.deliveredNGN).toLocaleString()}`],
+                  ["VTPass commission earned", `₦${Number(money.pi.commissionNGN).toLocaleString()}`]].map(([k, v]) => (
+                  <div key={k} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 13 }}><span style={{ color: "var(--text-secondary)" }}>{k}</span><b>{v}</b></div>
+                ))}
+              </div>
+            )}
+            <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, fontSize: 13 }}>
+              <div style={{ marginBottom: 6 }}>Pi rate: <b>{money.rate ? `₦${Number(money.rate).toFixed(2)} per π` : "not available"}</b></div>
+              <div>Automatic refunds: <b style={{ color: money.refundsEnabled ? "#16a34a" : "#d97706" }}>{money.refundsEnabled ? "ON" : "OFF"}</b></div>
+            </div>
+            <button onClick={loadMoney} style={{ marginTop: 12, padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, cursor: "pointer" }}>Refresh</button>
+          </>
+        )
+      )}
+
+      {tab === "customers" && (
+        <>
+          <form onSubmit={(e) => { e.preventDefault(); loadCustomers(custQ); }} style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <input value={custQ} onChange={(e) => setCustQ(e.target.value)} placeholder="Search Pi username"
+              style={{ flex: 1, padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontSize: 13 }} />
+            <button type="submit" style={{ padding: "0 14px", borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer" }}>Search</button>
+          </form>
+          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 10 }}>{customers.total} customers in total · showing the latest 100</div>
+          {loading ? <div>Loading…</div> : customers.customers.map((c) => (
+            <div key={c._id} style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 10 }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>@{c.piUsername || "unknown"}{c.isAdmin ? " · admin" : ""}</div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0" }}>{c.orders} orders · ₦{Number(c.spentNGN).toLocaleString()} spent{c.failed ? ` · ${c.failed} failed` : ""}</div>
+              <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>Joined {new Date(c.createdAt).toLocaleDateString()} · last seen {c.lastLogin ? new Date(c.lastLogin).toLocaleDateString() : "—"}</div>
+            </div>
+          ))}
         </>
       )}
 
