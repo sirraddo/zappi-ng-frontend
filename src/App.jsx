@@ -696,6 +696,18 @@ const [toastType, setToastType] = useState("success")
 // failure path doesn't explicitly clear it — never gets permanently stuck.
 const [isPaying, setIsPaying] = useState(false)
 const [forgotPin, setForgotPin] = useState(false)
+const goToPlace = (id) => {
+  const bills = ["airtime","data","electricity","cable","internet","education","showmax"]
+  if (bills.includes(id)) { setPage("bills"); setSubPage(id); return }
+  if (id === "history") { setSubPage(null); setPage("history"); return }
+  if (id === "profile") { setShowProfile(true); return }
+  if (id === "support") { setLegalPage("support"); return }
+  if (["promo","rewards","reminders","paylink","language"].includes(id)) {
+    setSubPage(null); setPage("more")
+    let tries = 0
+    const t = setInterval(() => { const el = document.getElementById("more-" + id); if (el) { clearInterval(t); el.scrollIntoView({ behavior: "smooth", block: "center" }); const o = el.style.boxShadow; el.style.boxShadow = "0 0 0 3px #CC4E00"; el.style.borderRadius = "14px"; setTimeout(() => { el.style.boxShadow = o }, 2200) } else if (++tries > 20) clearInterval(t) }, 150)
+  }
+}
 useEffect(()=>{const f=e=>showToast(e.detail,"success",4000);window.addEventListener("zappi-toast",f);return()=>window.removeEventListener("zappi-toast",f)},[])
 const [me, setMe] = useState(null)
 const [creditOn, setCreditOnState] = useState(() => localStorage.getItem("zappi_credit_off") !== "1")
@@ -1146,7 +1158,7 @@ return (
 </div></div></div>}
 {txnPinModal&&<TxnPinModal detail={txnPinModal.detail} onForgot={()=>{setTxnPinModal(null);setForgotPin(true)}} label={txnPinModal.label} txnFields={txnPinModal.txnFields} onSuccess={txnPinModal.onConfirmed} onCancel={()=>setTxnPinModal(null)}/>}
 {showHowTo&&<HowToModal onClose={()=>setShowHowTo(false)}/>}
-{askOpen&&<AskZappi onClose={()=>setAskOpen(false)} onSupport={()=>{setAskOpen(false);setLegalPage("support")}} onAction={a=>{if(a.type==="forgot_pin"){setAskOpen(false);setForgotPin(true)}else if(a.type==="check_status"){const t=transactions.find(x=>x.requestId===a.ref);if(t){setAskOpen(false);setPage("history");checkStatus(t)}else showToast("Open History and tap Check status on that order","info",5000)}}}/>}
+{askOpen&&<AskZappi onClose={()=>setAskOpen(false)} onSupport={()=>{setAskOpen(false);setLegalPage("support")}} onAction={a=>{if(a.type==="forgot_pin"){setAskOpen(false);setForgotPin(true)}else if(a.type==="goto"){setAskOpen(false);goToPlace(a.target)}else if(a.type==="check_status"){const t=transactions.find(x=>x.requestId===a.ref);if(t){setAskOpen(false);setPage("history");checkStatus(t)}else showToast("Open History and tap Check status on that order","info",5000)}}}/>}
 {giftTx&&<GiftShareModal tx={giftTx} initialMessage={giftTx.message||""} senderName={displayName(user)} onClose={()=>setGiftTx(null)}/>}
 {receiptTx&&<TransactionReceipt receipt={txToReceipt(receiptTx)} onDone={()=>setReceiptTx(null)}/>}
 
@@ -1514,14 +1526,14 @@ onPick={({network:n,phone:ph,bundle:b})=>{setNetwork(n);setBundle(b);if(ph)setPh
 <p style={{fontSize:12,fontWeight:700,color:"var(--text-tertiary)",margin:"16px 0 10px",textTransform:"uppercase",letterSpacing:"0.5px"}}>{t("Account")}</p>
 <SCard icon="👤" label={t("My Profile")} desc="Manage your account" bg="#F0F0FF" onClick={()=>setShowProfile(true)}/>
 <SCard icon="✨" label="Ask Zappi" desc="AI help with orders, rates and refunds" bg="#FFF7ED" onClick={()=>setAskOpen(true)}/>
-<PromoCard promo={promo} onApply={applyPromo} onRemove={()=>storePromo(null)}/>
-<RewardsCard me={me} creditOn={creditOn} setCreditOn={setCreditOn} onClaim={claimRef}/>
+<div id="more-promo"><PromoCard promo={promo} onApply={applyPromo} onRemove={()=>storePromo(null)}/></div>
+<div id="more-rewards"><RewardsCard me={me} creditOn={creditOn} setCreditOn={setCreditOn} onClaim={claimRef}/></div>
 <MonthlySummary transactions={transactions}/>
-<RemindersCard/>
-<PayForMeCard myLine={(()=>{try{return JSON.parse(localStorage.getItem("zappi_my_line"))}catch{return null}})()}/>
+<div id="more-reminders"><RemindersCard/></div>
+<div id="more-paylink"><PayForMeCard myLine={(()=>{try{return JSON.parse(localStorage.getItem("zappi_my_line"))}catch{return null}})()}/></div>
 <SCard icon="💬" label={t("Help & Support")} desc="FAQ, WhatsApp, contact us" bg="#F0FDF4" onClick={()=>setLegalPage("support")}/>
 <div style={{background:"var(--card-bg)",borderRadius:14,padding:"12px 14px",marginBottom:8}}>
-<p style={{margin:"0 0 8px",fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>🌍 {t("Language")}</p>
+<p id="more-language" style={{margin:"0 0 8px",fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>🌍 {t("Language")}</p>
 <div style={{display:"flex",gap:8}}>
 {LANGUAGES.map(l=>(<button key={l.id} onClick={()=>{setLang(l.id);setLangTick(n=>n+1)}} style={{flex:1,padding:"8px 6px",borderRadius:10,border:`1.5px solid ${getLang()===l.id?C.primary:"var(--border)"}`,background:getLang()===l.id?C.light:"transparent",color:"var(--text-primary)",fontSize:12,fontWeight:700,cursor:"pointer"}}>{l.label}</button>))}
 </div>

@@ -139,6 +139,7 @@ const AI_PROMPTS = [
   { title: "Problems", items: ["Why are purchases failing right now?", "Show failed orders today and why", "Any server errors in the last hour? Find the likely cause", "Anything that needs my attention?", "Any fraud or risk flags I should look at?", "Is my database close to its limit?"] },
   { title: "Customers", items: ["Who are my top 5 customers this month?", "Who are my regulars slipping away? Make a win-back campaign", "What are customers saying in their ratings?", "Plan a campaign to win back customers who stopped buying"] },
   { title: "Support", items: ["Summarise how support is doing this week", "What questions keep coming up in support? Suggest Help Centre answers", "Review last week's support replies for tone and accuracy"] },
+  { title: "Find a setting", items: ["Where do I set cashback?", "Take me to the automatic pause settings", "Where do I turn customer AI on or off?", "Where do I set the AI daily limit?", "Where do I add the AI key?", "Where do I add support staff?", "Where do I set purchase limits?"] },
   { title: "Rewards and promos", items: ["Set cashback to 1% and the referral bonus to ₦50", "Create a weekend promo for data, 5% off", "Create a challenge idea: buy data 5 times this month for a reward"] },
   { title: "Writing", items: ["Design a Christmas data promo post and WhatsApp status text", "Plan my social media posts for this week", "Write to VTpass about our change from Sirraddo Venture to SIRRADDO GLOBAL LIMITED"] },
 ];
@@ -333,6 +334,21 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
       .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); showToast("Service reopened", "success"); loadSummary(); loadAutoLog(); })
       .catch((e) => showToast(e.message, "danger"));
   }
+  function goToDest(l) {
+    setTab(l.tab);
+    window.scrollTo({ top: 0 });
+    if (!l.anchor) return;
+    let tries = 0;
+    const t = setInterval(() => {
+      const el = document.getElementById("sec-" + l.anchor);
+      if (el) {
+        clearInterval(t);
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        const old = el.style.boxShadow; el.style.boxShadow = "0 0 0 3px var(--primary)"; el.style.transition = "box-shadow .4s";
+        setTimeout(() => { el.style.boxShadow = old; }, 2200);
+      } else if (++tries > 25) clearInterval(t);
+    }, 150);
+  }
   const [chat, setChat] = useState([]);
   const [chatQ, setChatQ] = useState("");
   const [chatBusy, setChatBusy] = useState(false);
@@ -342,7 +358,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
     const history = chat.map(({ role, content }) => ({ role, content }));
     setChat((c) => [...c, { role: "user", content: question }]); setChatQ(""); setChatBusy(true);
     fetch(`${API_URL}/api/admin/ai/ask`, { method: "POST", headers: authHdrs(), body: JSON.stringify({ question, history }) })
-      .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); setChat((c) => [...c, { role: "assistant", content: d.reply, proposals: d.proposals || [] }]); })
+      .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); setChat((c) => [...c, { role: "assistant", content: d.reply, proposals: d.proposals || [], links: d.links || [] }]); })
       .catch((e) => setChat((c) => [...c, { role: "assistant", content: e.message, error: true }])).finally(() => setChatBusy(false));
   }
   function applyProposal(key, p) {
@@ -1490,7 +1506,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
           const digits = (k) => (e) => setSf({ ...sf, [k]: e.target.value.replace(/\D/g, "").slice(0, 10) });
           return (
             <>
-              <div style={card}>
+              <div id="sec-maintenance" style={card}>
                 <div style={h}>🚧 Maintenance mode</div>
                 <div style={note}>Pauses every purchase and shows your message to all customers. Use it while you top up VTPass or fix something.</div>
                 <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}><input type="checkbox" checked={sf.maintOn} onChange={(e) => setSf({ ...sf, maintOn: e.target.checked })} /> Maintenance mode is ON</label>
@@ -1499,7 +1515,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 {save(() => saveSettings({ maintenance: { on: sf.maintOn, message: sf.maintMsg } }, sf.maintOn ? "Maintenance mode is ON" : "Maintenance mode is off"))}
               </div>
 
-              <div style={card}>
+              <div id="sec-auto_refunds" style={card}>
                 <div style={h}>↩️ Automatic refunds</div>
                 <div style={note}>When a delivery fails, send the customer's Pi back automatically. {st.autoRefund.seedPresent ? "" : "The app wallet seed is not set on Render, so refunds cannot send yet. "}Currently <b>{st.autoRefund.on ? "ON" : "OFF"}</b> (set {st.autoRefund.source === "admin" ? "here" : "on Render"}).</div>
                 <div style={{ display: "flex", gap: 8 }}>
@@ -1508,7 +1524,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 </div>
               </div>
 
-              <div style={card}>
+              <div id="sec-purchase_limits" style={card}>
                 <div style={h}>🧮 Purchase limits</div>
                 <div style={note}>Protects you from fraud and mistakes. Enter 0 for "no limit". Daily limit is per customer, resetting at midnight Lagos time.</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -1519,7 +1535,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 {save(() => saveSettings({ limits: { minNGN: Number(sf.min), maxNGN: Number(sf.max), dailyCapNGN: Number(sf.cap) } }, "Limits saved"))}
               </div>
 
-              <div style={card}>
+              <div id="sec-auto_protection" style={card}>
                 <div style={h}>🛡️ Automatic protection</div>
                 <div style={note}>When a service keeps failing on the provider's side (not customer mistakes like a wrong number), Zappi pauses just that service, shows customers a notice, and reopens it by itself after a cooldown. If it fails again quickly, the next pause is twice as long, up to your limit, then it waits for you.</div>
                 <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, margin: "4px 0 8px" }}><input type="checkbox" checked={sf.ap.on} onChange={(e) => setSf({ ...sf, ap: { ...sf.ap, on: e.target.checked } })} /> Pause failing services automatically</label>
@@ -1530,7 +1546,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 {save(() => saveSettings({ autoPause: { on: sf.ap.on, minOrders: Number(sf.ap.minOrders), pct: Number(sf.ap.pct), windowMin: Number(sf.ap.windowMin), cooldownMin: Number(sf.ap.cooldownMin), maxPauseMin: Number(sf.ap.maxPauseMin) }, autoAck: sf.ack }, "Automatic protection saved"))}
               </div>
 
-              <div style={card}>
+              <div id="sec-rewards" style={card}>
                 <div style={h}>🎁 Cashback and referral rewards</div>
                 <div style={note}>Cashback: percent of each delivered order given back as credit (0 to 5, 0 is off). Referral reward: naira credit given to both a new customer and the friend who invited them after the first delivered order (0 to 500, 0 is off). Credit is a discount on later orders; it costs you money, so keep it small.</div>
                 <label style={lbl}>Cashback (%)</label><input style={inp} inputMode="decimal" value={sf.cb} onChange={(e) => setSf({ ...sf, cb: e.target.value.replace(/[^0-9.]/g, "").slice(0, 4) })} />
@@ -1538,7 +1554,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 {save(() => saveSettings({ cashbackPct: Number(sf.cb), referralRewardNGN: Number(sf.rr) }, "Rewards saved"))}
               </div>
 
-              <div style={card}>
+              <div id="sec-quick_replies" style={card}>
                 <div style={h}>💬 Quick replies for support</div>
                 <div style={note}>Ready-made answers that you and your staff can tap inside a ticket. Edit the wording, add or remove.</div>
                 {canned.map((c, i) => (
@@ -1552,14 +1568,14 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 {save(() => fetch(`${API_URL}/api/admin/canned-replies`, { method: "POST", headers: authHdrs(), body: JSON.stringify({ replies: canned }) }).then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); showToast("Quick replies saved", "success"); loadCanned(); }).catch((e) => showToast(e.message, "danger")))}
               </div>
 
-              <div style={card}>
+              <div id="sec-post_reset_cap" style={card}>
                 <div style={h}>🔑 Limit after a PIN reset (₦)</div>
                 <div style={note}>For 24 hours after a customer resets a forgotten PIN, a single purchase cannot be above this. Protects against account takeover. 0 means no extra limit.</div>
                 <input style={inp} inputMode="numeric" value={sf.prc} onChange={digits("prc")} />
                 {save(() => saveSettings({ postResetCapNGN: Number(sf.prc) }, "Saved"))}
               </div>
 
-              <div style={card}>
+              <div id="sec-vtpass_wallet" style={card}>
                 <div style={h}>🔔 VTPass wallet balance</div>
                 <div style={{ fontSize: 22, fontWeight: 800, margin: "4px 0" }}>{vtBal === undefined ? "…" : vtBal === null ? "Not available" : `₦${Number(vtBal).toLocaleString()}`}</div>
                 <button onClick={() => { setVtBal(undefined); fetch(`${API_URL}/api/admin/vt-balance?fresh=1`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setVtBal(d.balance)).catch(() => setVtBal(null)); }} style={{ ...custBtn, marginBottom: 10 }}>↻ Refresh balance</button>
@@ -1572,7 +1588,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 {save(() => saveSettings({ lowBalanceNGN: Number(sf.low), pauseBelowNGN: Number(sf.pause) }, "Saved"))}
               </div>
 
-              <div style={card}>
+              <div id="sec-backup_rates" style={card}>
                 <div style={h}>📈 Backup rates</div>
                 <div style={note}>Used only when the live price sources fail. Leave empty to use none (customers are then blocked until a live rate returns, which is the safe default). {st.envFallbackRate ? `Render has ₦${st.envFallbackRate} set as a further backup.` : ""}</div>
                 <label style={lbl}>Backup ₦ per π</label><input style={inp} inputMode="decimal" value={sf.fb} onChange={set("fb")} placeholder="empty = none" />
@@ -1580,7 +1596,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 {save(() => saveSettings({ fallbackRate: sf.fb.trim() || null, usdNgnRate: sf.usd.trim() || null }, "Rates saved"))}
               </div>
 
-              <div style={card}>
+              <div id="sec-support_details" style={card}>
                 <div style={h}>💬 Support details</div>
                 <div style={note}>Shown on the Help & Support page and used for the WhatsApp button. Leave a field empty to keep the built-in value.</div>
                 <label style={lbl}>WhatsApp number (with country code)</label><input style={inp} inputMode="numeric" value={sf.wa} onChange={(e) => setSf({ ...sf, wa: e.target.value.replace(/\D/g, "").slice(0, 15) })} placeholder="2348012345678" />
@@ -1589,14 +1605,14 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 {save(() => saveSettings({ support: { whatsapp: sf.wa, email: sf.email, hours: sf.hours } }, "Support details saved"))}
               </div>
 
-              <div style={card}>
+              <div id="sec-staff" style={card}>
                 <div style={h}>👥 Staff</div>
                 <div style={note}>Pi usernames you trust to help. Staff can view orders and customers, re-check an order and answer support tickets. They cannot refund, change rates or settings, or see money and the audit log.</div>
                 <input style={inp} value={sf.staff} onChange={set("staff")} placeholder="username1, username2" />
                 {save(() => saveSettings({ staff: sf.staff.split(/[ ,]+/).filter(Boolean) }, "Staff updated"))}
               </div>
 
-              <div style={card}>
+              <div id="sec-coingecko" style={card}>
                 <div style={h}>🔑 CoinGecko key</div>
                 <div style={note}>Optional, for a steadier π price. Currently <b>{st.coingeckoKeySet ? "set" : "not set"}</b>. Stored encrypted. Leave empty and press Save to remove the saved key.</div>
                 <input type="password" autoComplete="off" style={inp} value={sf.cg} onChange={set("cg")} placeholder="Paste key" />
@@ -1611,18 +1627,18 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
       {tab === "ai" && (
         <>
           {aiStatus && (
-            <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 12, fontSize: 13 }}>
+            <div id="sec-ai_key" style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 12, fontSize: 13 }}>
               <div style={{ marginBottom: 6 }}>AI key: <b style={{ color: aiStatus.keyPresent ? "#16a34a" : "#dc2626" }}>{aiStatus.keyPresent ? `set ${aiStatus.keyHint} (${aiStatus.keySource === "admin" ? "saved here" : "from Render"}, ${aiStatus.model})` : "not set yet"}</b></div>
               <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                 <input type="password" autoComplete="off" value={aiKeyInput} onChange={(e) => setAiKeyInput(e.target.value)} placeholder={aiStatus.keyPresent ? "Paste a new key to replace it" : "Paste your Anthropic key (sk-ant-…)"} style={{ flex: 1, minWidth: 0, padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontSize: 13 }} />
                 <button disabled={aiKeyBusy || !aiKeyInput.trim()} onClick={saveAiKey} style={{ padding: "0 14px", borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer", opacity: aiKeyInput.trim() ? 1 : 0.5 }}>{aiKeyBusy ? "Testing…" : "Save"}</button>
               </div>
               {aiStatus.keySource === "admin" && <button onClick={removeAiKey} style={{ background: "none", border: "none", color: "#dc2626", fontWeight: 700, fontSize: 12, cursor: "pointer", padding: 0, marginBottom: 10 }}>Remove saved key</button>}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div id="sec-ai_switch" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span>"Ask Zappi" for customers: <b>{aiStatus.customerEnabled ? "ON" : "OFF"}</b></span>
                 <button onClick={toggleCustomerAi} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>{aiStatus.customerEnabled ? "Switch off" : "Switch on"}</button>
               </div>
-              <div style={{ borderTop: "1px solid var(--border)", marginTop: 12, paddingTop: 12 }}>
+              <div id="sec-ai_limit" style={{ borderTop: "1px solid var(--border)", marginTop: 12, paddingTop: 12 }}>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Daily limit per customer</div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <input value={aiLimit} onChange={(e) => setAiLimit(e.target.value.replace(/\D/g, "").slice(0, 3))} inputMode="numeric" style={{ width: 80, padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontSize: 15 }} />
@@ -1642,13 +1658,13 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
               <div style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.5 }}>{briefing.text}</div>
             </div>
           )}
-          <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 12, marginBottom: 12 }}>
+          <div id="sec-ai_watchlist" style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 12, marginBottom: 12 }}>
             <b style={{ fontSize: 13 }}>🔍 Watchlist</b>
             <div style={{ fontSize: 11, color: "var(--text-secondary)", margin: "2px 0 6px" }}>Patterns worth a look: one number getting orders from many customers, many orders in an hour, PIN lock-outs, referral farming. Nothing is blocked automatically.</div>
             {watch.length === 0 ? <div style={{ fontSize: 13, color: "#166534" }}>🟢 Nothing unusual right now.</div> : watch.map((w, i) => <div key={i} style={{ fontSize: 12.5, margin: "4px 0", color: "#92400E" }}>🟡 {w.text}</div>)}
           </div>
           <button disabled={aiBusy} onClick={() => runAiPath("insights", {})} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontWeight: 700, cursor: "pointer", marginBottom: 12 }}>📈 Weekly insights</button>
-          <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 12, marginBottom: 12 }}>
+          <div id="sec-ai_notice" style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 12, marginBottom: 12 }}>
             <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Write a customer notice (English, Pidgin, Yorùbá)</div>
             <input value={noticeFacts} onChange={(e) => setNoticeFacts(e.target.value)} placeholder="e.g. MTN data is slow, fix expected tonight" style={{ width: "100%", boxSizing: "border-box", padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontSize: 13, marginBottom: 8 }} />
             <button disabled={aiBusy || !noticeFacts.trim()} onClick={() => runAiPath("notice", { facts: noticeFacts })} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontWeight: 700, cursor: "pointer" }}>Write notice</button>
@@ -1662,7 +1678,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
             </select>
             <button disabled={aiBusy || !aiTicket} onClick={() => runAi({ task: "reply", ticketId: aiTicket })} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, cursor: "pointer", opacity: aiTicket ? 1 : 0.5 }}>✍️ Draft reply</button>
           </div>
-          <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 12, marginBottom: 12 }}>
+          <div id="sec-ai_chat" style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 12, marginBottom: 12 }}>
             <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>💬 Ask about your business</div>
             {chat.length === 0 && (
               <>
@@ -1681,6 +1697,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
               {chat.map((m, i) => (
                 <div key={i}>
                   <div style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", marginLeft: m.role === "user" ? 30 : 0, marginRight: m.role === "user" ? 0 : 10, padding: "8px 12px", borderRadius: 12, fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap", background: m.role === "user" ? "var(--primary)" : m.error ? "#FEE2E2" : "var(--card-bg)", color: m.role === "user" ? "white" : m.error ? "#991B1B" : "var(--text-primary)" }}>{m.content}</div>
+                  {(m.links || []).map((l, j) => <button key={"l" + j} onClick={() => goToDest(l)} style={{ ...custBtn, marginTop: 6, marginRight: 6, background: "var(--primary)", color: "white", border: "none" }}>📍 Open: {l.label}</button>)}
                   {(m.proposals || []).map((p, j) => (
                     <div key={j} style={{ marginTop: 6, padding: 10, borderRadius: 10, border: "1.5px dashed var(--primary)", background: "var(--card-bg)", fontSize: 12.5 }}>
                       <b>{p.kind === "promo" ? `🎟️ Create promo ${p.code}: ${p.percent}% off (cap ₦${p.maxDiscountNGN}${p.maxUses ? `, ${p.maxUses} uses` : ""}, ${p.daysValid} days${p.services?.length ? `, ${p.services.join("/")}` : ""})` : `⚙️ ${p.label}: ${p.current ?? "not set"} → ${p.value}`}</b>
