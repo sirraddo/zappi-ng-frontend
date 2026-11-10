@@ -134,6 +134,15 @@ function ticketThread(t) {
   return thread;
 }
 
+const AI_PROMPTS = [
+  { title: "Money", items: ["How did we do today?", "Compare this week with last week", "Which service made the most profit this month?", "How much did I really make this month, line by line?", "If customers spend ₦1,000 on each service, how much do I keep?", "What if I give 2% off data, will I still make money?", "Check my discounts and rewards are safe for my margins", "Did VTPass change any prices or commissions?", "How long will my VTPass balance last?", "Explain my money check in simple words"] },
+  { title: "Problems", items: ["Why are purchases failing right now?", "Show failed orders today and why", "Any server errors in the last hour? Find the likely cause", "Anything that needs my attention?", "Any fraud or risk flags I should look at?", "Is my database close to its limit?"] },
+  { title: "Customers", items: ["Who are my top 5 customers this month?", "Who are my regulars slipping away? Make a win-back campaign", "What are customers saying in their ratings?", "Plan a campaign to win back customers who stopped buying"] },
+  { title: "Support", items: ["Summarise how support is doing this week", "What questions keep coming up in support? Suggest Help Centre answers", "Review last week's support replies for tone and accuracy"] },
+  { title: "Rewards and promos", items: ["Set cashback to 1% and the referral bonus to ₦50", "Create a weekend promo for data, 5% off", "Create a challenge idea: buy data 5 times this month for a reward"] },
+  { title: "Writing", items: ["Design a Christmas data promo post and WhatsApp status text", "Plan my social media posts for this week", "Write to VTpass about our change from Sirraddo Venture to SIRRADDO GLOBAL LIMITED"] },
+];
+
 export default function AdminScreen({ role = "owner", onBack, showToast = () => {}, onTicketsChanged = () => {} }) {
   const [tab, setTab] = useState(null);
   const [confirmState, setConfirmState] = useState(null);
@@ -317,6 +326,23 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
   }
   function setTicketMeta(id, patch) { fetch(`${API_URL}/api/admin/tickets/${id}/meta`, { method: "POST", headers: authHdrs(), body: JSON.stringify(patch) }).then(() => loadTickets()).catch(() => {}); }
   const [vtBal, setVtBal] = useState(undefined);
+  const [chat, setChat] = useState([]);
+  const [chatQ, setChatQ] = useState("");
+  const [chatBusy, setChatBusy] = useState(false);
+  const [applied, setApplied] = useState({});
+  function chatAsk(q) {
+    const question = (q ?? chatQ).trim(); if (!question || chatBusy) return;
+    const history = chat.map(({ role, content }) => ({ role, content }));
+    setChat((c) => [...c, { role: "user", content: question }]); setChatQ(""); setChatBusy(true);
+    fetch(`${API_URL}/api/admin/ai/ask`, { method: "POST", headers: authHdrs(), body: JSON.stringify({ question, history }) })
+      .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); setChat((c) => [...c, { role: "assistant", content: d.reply, proposals: d.proposals || [] }]); })
+      .catch((e) => setChat((c) => [...c, { role: "assistant", content: e.message, error: true }])).finally(() => setChatBusy(false));
+  }
+  function applyProposal(key, p) {
+    fetch(`${API_URL}/api/admin/ai/apply`, { method: "POST", headers: authHdrs(), body: JSON.stringify({ proposal: p }) })
+      .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); setApplied((a) => ({ ...a, [key]: true })); showToast(d.message || "Applied", "success"); })
+      .catch((e) => showToast(e.message, "danger"));
+  }
   const [ticketAi, setTicketAi] = useState({});
   const [aiWorking, setAiWorking] = useState("");
   const [aiLang, setAiLang] = useState("en");
@@ -1611,10 +1637,43 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
             </select>
             <button disabled={aiBusy || !aiTicket} onClick={() => runAi({ task: "reply", ticketId: aiTicket })} style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, cursor: "pointer", opacity: aiTicket ? 1 : 0.5 }}>✍️ Draft reply</button>
           </div>
-          <form onSubmit={(e) => { e.preventDefault(); if (aiQ.trim()) runAi({ task: "ask", question: aiQ }); }} style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-            <input value={aiQ} onChange={(e) => setAiQ(e.target.value)} placeholder="Ask about orders, e.g. why did MTN data fail today?" style={{ flex: 1, padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontSize: 13 }} />
-            <button type="submit" disabled={aiBusy} style={{ padding: "0 14px", borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer" }}>Ask</button>
-          </form>
+          <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 12, marginBottom: 12 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>💬 Ask about your business</div>
+            {chat.length === 0 && (
+              <>
+                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 6 }}>Try one of these (swipe the groups):</div>
+                <div style={{ maxHeight: 210, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+                  {AI_PROMPTS.map((g) => (
+                    <div key={g.title}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-tertiary)", textTransform: "uppercase", margin: "4px 0 3px" }}>{g.title}</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{g.items.map((q) => <button key={q} onClick={() => chatAsk(q)} style={{ ...custBtn, fontWeight: 600, textAlign: "left" }}>{q}</button>)}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
+              {chat.map((m, i) => (
+                <div key={i}>
+                  <div style={{ alignSelf: m.role === "user" ? "flex-end" : "flex-start", marginLeft: m.role === "user" ? 30 : 0, marginRight: m.role === "user" ? 0 : 10, padding: "8px 12px", borderRadius: 12, fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap", background: m.role === "user" ? "var(--primary)" : m.error ? "#FEE2E2" : "var(--card-bg)", color: m.role === "user" ? "white" : m.error ? "#991B1B" : "var(--text-primary)" }}>{m.content}</div>
+                  {(m.proposals || []).map((p, j) => (
+                    <div key={j} style={{ marginTop: 6, padding: 10, borderRadius: 10, border: "1.5px dashed var(--primary)", background: "var(--card-bg)", fontSize: 12.5 }}>
+                      <b>{p.kind === "promo" ? `🎟️ Create promo ${p.code}: ${p.percent}% off (cap ₦${p.maxDiscountNGN}${p.maxUses ? `, ${p.maxUses} uses` : ""}, ${p.daysValid} days${p.services?.length ? `, ${p.services.join("/")}` : ""})` : `⚙️ ${p.label}: ${p.current ?? "not set"} → ${p.value}`}</b>
+                      <div style={{ color: "var(--text-secondary)", margin: "3px 0 6px" }}>{p.reason}</div>
+                      <button disabled={applied[i + "-" + j]} onClick={() => applyProposal(i + "-" + j, p)} style={{ ...custBtn, background: applied[i + "-" + j] ? "#DCFCE7" : "var(--primary)", color: applied[i + "-" + j] ? "#166534" : "white", border: "none" }}>{applied[i + "-" + j] ? "✓ Applied" : "Apply"}</button>
+                    </div>
+                  ))}
+                </div>
+              ))}
+              {chatBusy && <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>Looking at your data…</div>}
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); chatAsk(); }} style={{ display: "flex", gap: 8 }}>
+              <input value={chatQ} onChange={(e) => setChatQ(e.target.value)} placeholder="e.g. Which service made the most profit this month?" style={{ flex: 1, padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontSize: 13 }} />
+              <button type="submit" disabled={chatBusy} style={{ padding: "0 14px", borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer" }}>Ask</button>
+            </form>
+            {chat.length > 0 && <button onClick={() => setChat([])} style={{ ...custBtn, marginTop: 8 }}>New chat</button>}
+            <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 6 }}>AI can make mistakes. Check important numbers on Overview and Orders. It only suggests changes; nothing changes until you tap Apply.</div>
+          </div>
           {aiBusy && <div style={{ color: "var(--text-secondary)" }}>Thinking…</div>}
           {aiOut && (
             <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14 }}>

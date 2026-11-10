@@ -1562,6 +1562,12 @@ onPick={({network:n,phone:ph,bundle:b})=>{setNetwork(n);setBundle(b);if(ph)setPh
 {tx.refund==="success"&&<p style={{margin:"3px 0 0",fontSize:10,color:"#166534"}}>{t("Pi refunded")}</p>}
 </div>
 </div>
+{tx.type!=="receive"&&tx.status==="success"&&tx.requestId&&!tx.rated&&(
+<div style={{display:"flex",alignItems:"center",gap:8,borderTop:"1px solid var(--border)",padding:"8px 14px"}}>
+<span style={{fontSize:12,color:"var(--text-tertiary)",flex:1}}>How was this order?</span>
+{[[1,"👍"],[-1,"👎"]].map(([sc,em])=>(<button key={sc} onClick={async()=>{patchTransaction(t=>t.id===tx.id,{rated:sc});try{await fetch(`${API_BASE}/api/transactions/rate`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${localStorage.getItem("zappi_token")||""}`},body:JSON.stringify({requestId:tx.requestId,score:sc})});showToast(sc===1?"Thanks!":"Thanks. We will work to do better.","success")}catch{}}} style={{background:"none",border:"1px solid var(--border)",borderRadius:16,padding:"4px 12px",fontSize:16,cursor:"pointer"}}>{em}</button>))}
+</div>
+)}
 {tx.type!=="receive"&&(
 <div style={{display:"flex",borderTop:"1px solid var(--border)"}}>
 {tx.status==="pending"&&tx.requestId&&(
