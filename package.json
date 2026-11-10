@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "prebuild": "node scripts/build-legal.mjs"
+    "prebuild": "node scripts/build-legal.mjs && node scripts/check-admin-map.mjs",
+    "check:map": "node scripts/check-admin-map.mjs"
   },
   "dependencies": {
     "react": "^19.2.6",

@@ -186,6 +186,13 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
   const [st, setSt] = useState(null);
   const [sf, setSf] = useState(null);
   const [aiStatus, setAiStatus] = useState(null);
+  const [emailSt, setEmailSt] = useState(null);
+  const [emailKey, setEmailKey] = useState("");
+  const loadEmail = () => fetch(`${API_URL}/api/admin/email-status`, { headers: authHdrs() }).then((r) => r.json()).then(setEmailSt).catch(() => {});
+  const emailCall = (path, method, body, ok) => fetch(`${API_URL}/api/admin/${path}`, { method, headers: authHdrs(), body: body ? JSON.stringify(body) : undefined })
+    .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); showToast(ok, "success"); setEmailKey(""); loadEmail(); })
+    .catch((e) => showToast(e.message, "danger"));
+  const toggleTriage = () => { const next = !aiStatus.triageEnabled; fetch(`${API_URL}/api/admin/ai-status`, { method: "POST", headers: authHdrs(), body: JSON.stringify({ triageEnabled: next }) }).then(() => { setAiStatus({ ...aiStatus, triageEnabled: next }); showToast(next ? "Ticket sorting is ON" : "Ticket sorting is OFF", "success"); }).catch(() => showToast("Failed", "danger")); };
   const [aiOut, setAiOut] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [aiQ, setAiQ] = useState("");
@@ -403,13 +410,13 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
   function loadCanned() { fetch(`${API_URL}/api/admin/canned-replies`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setCanned(d.replies || [])).catch(() => {}); }
   function loadTicketCtx(id) { fetch(`${API_URL}/api/admin/tickets/${id}/context`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setTicketCtx((c) => ({ ...c, [id]: d }))).catch(() => showToast("Could not load orders", "danger")); }
   function loadSettings() {
-    loadCanned();
+    loadCanned(); loadEmail();
     fetch(`${API_URL}/api/admin/vt-balance`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setVtBal(d.balance)).catch(() => setVtBal(null));
     setLoading(true);
     fetch(`${API_URL}/api/admin/settings`, { headers: authHdrs() }).then((r) => r.json()).then((d) => {
       setSt(d);
       setSf({ maintOn: !!d.maintenance?.on, maintMsg: d.maintenance?.message || "", min: String(d.limits.minNGN || 0), max: String(d.limits.maxNGN || 0), cap: String(d.limits.dailyCapNGN || 0),
-        low: String(d.lowBalanceNGN), pause: String(d.pauseBelowNGN ?? 0), ap: { on: d.autoPause?.on !== false, minOrders: String(d.autoPause?.minOrders ?? 5), pct: String(d.autoPause?.pct ?? 70), windowMin: String(d.autoPause?.windowMin ?? 15), cooldownMin: String(d.autoPause?.cooldownMin ?? 20), maxPauseMin: String(d.autoPause?.maxPauseMin ?? 120) }, ack: d.autoAck !== false, prc: String(d.postResetCapNGN ?? 5000), cb: String(d.cashbackPct ?? 0), rr: String(d.referralRewardNGN ?? 0), fb: d.fallbackRate ? String(d.fallbackRate) : "", usd: d.usdNgnRate ? String(d.usdNgnRate) : "",
+        low: String(d.lowBalanceNGN), pause: String(d.pauseBelowNGN ?? 0), ap: { on: d.autoPause?.on !== false, minOrders: String(d.autoPause?.minOrders ?? 5), pct: String(d.autoPause?.pct ?? 70), windowMin: String(d.autoPause?.windowMin ?? 15), cooldownMin: String(d.autoPause?.cooldownMin ?? 20), maxPauseMin: String(d.autoPause?.maxPauseMin ?? 120) }, ack: d.autoAck !== false, ae: d.alertEmail || "", aeOn: d.emailAlertsOn !== false, prc: String(d.postResetCapNGN ?? 5000), cb: String(d.cashbackPct ?? 0), rr: String(d.referralRewardNGN ?? 0), fb: d.fallbackRate ? String(d.fallbackRate) : "", usd: d.usdNgnRate ? String(d.usdNgnRate) : "",
         wa: d.support.whatsapp || "", email: d.support.email || "", hours: d.support.hours || "", staff: (d.staff || []).join(", "), cg: "" });
     }).catch(() => showToast("Could not load settings", "danger")).finally(() => setLoading(false));
   }
@@ -1546,6 +1553,21 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 {save(() => saveSettings({ autoPause: { on: sf.ap.on, minOrders: Number(sf.ap.minOrders), pct: Number(sf.ap.pct), windowMin: Number(sf.ap.windowMin), cooldownMin: Number(sf.ap.cooldownMin), maxPauseMin: Number(sf.ap.maxPauseMin) }, autoAck: sf.ack }, "Automatic protection saved"))}
               </div>
 
+              <div id="sec-email_alerts" style={card}>
+                <div style={h}>📧 Email alerts to you</div>
+                <div style={note}>Pi cannot send you notifications, so Zappi can email you when a service is paused automatically, refunds keep failing, an urgent ticket waits 30 minutes, a staff request needs approval, or the VTPass wallet is low. Create a free Resend account (resend.com) using the email you want alerts on, create an API key, and paste it below. With the free Resend sender, alerts can only go to that same email address.</div>
+                <div style={{ fontSize: 13, marginBottom: 8 }}>Email key: <b style={{ color: emailSt?.keyPresent ? "#16a34a" : "#dc2626" }}>{emailSt?.keyPresent ? `set ${emailSt.keyHint} (${emailSt.keySource === "admin" ? "saved here" : "from Render"})` : "not set yet"}</b></div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input type="password" autoComplete="off" value={emailKey} onChange={(e) => setEmailKey(e.target.value)} placeholder="Paste Resend key (re_…)" style={{ ...inp, flex: 1, minWidth: 0 }} />
+                  <button onClick={() => emailCall("email-key", "POST", { key: emailKey.trim() }, "Email key saved")} style={{ padding: "10px 14px", borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer" }}>Save</button>
+                </div>
+                {emailSt?.keySource === "admin" && <button onClick={() => emailCall("email-key", "DELETE", null, "Email key removed")} style={{ background: "none", border: "none", color: "#dc2626", fontWeight: 700, fontSize: 12, cursor: "pointer", padding: 0, marginTop: 6 }}>Remove saved key</button>}
+                <label style={lbl}>Send alerts to</label><input style={inp} type="email" value={sf.ae} onChange={(e) => setSf({ ...sf, ae: e.target.value.trim() })} placeholder="you@example.com" />
+                <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, margin: "10px 0 4px" }}><input type="checkbox" checked={sf.aeOn} onChange={(e) => setSf({ ...sf, aeOn: e.target.checked })} /> Email alerts are on</label>
+                {save(() => saveSettings({ alertEmail: sf.ae, emailAlertsOn: sf.aeOn }, "Alert settings saved"))}
+                <button onClick={() => emailCall("email-test", "POST", null, "Test email sent. Check your inbox")} style={{ width: "100%", marginTop: 8, padding: 11, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, cursor: "pointer" }}>Send a test email</button>
+              </div>
+
               <div id="sec-rewards" style={card}>
                 <div style={h}>🎁 Cashback and referral rewards</div>
                 <div style={note}>Cashback: percent of each delivered order given back as credit (0 to 5, 0 is off). Referral reward: naira credit given to both a new customer and the friend who invited them after the first delivered order (0 to 500, 0 is off). Credit is a discount on later orders; it costs you money, so keep it small.</div>
@@ -1637,6 +1659,10 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
               <div id="sec-ai_switch" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span>"Ask Zappi" for customers: <b>{aiStatus.customerEnabled ? "ON" : "OFF"}</b></span>
                 <button onClick={toggleCustomerAi} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>{aiStatus.customerEnabled ? "Switch off" : "Switch on"}</button>
+              </div>
+              <div id="sec-ai_triage" style={{ borderTop: "1px solid var(--border)", marginTop: 12, paddingTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>Automatic ticket sorting: <b>{aiStatus.triageEnabled !== false ? "ON" : "OFF"}</b></span>
+                <button onClick={toggleTriage} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>{aiStatus.triageEnabled !== false ? "Switch off" : "Switch on"}</button>
               </div>
               <div id="sec-ai_limit" style={{ borderTop: "1px solid var(--border)", marginTop: 12, paddingTop: 12 }}>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Daily limit per customer</div>
