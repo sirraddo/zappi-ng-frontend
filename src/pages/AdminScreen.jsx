@@ -175,6 +175,8 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
   const [aiBusy, setAiBusy] = useState(false);
   const [aiQ, setAiQ] = useState("");
   const [aiLimit, setAiLimit] = useState("");
+  const [aiKeyInput, setAiKeyInput] = useState("");
+  const [aiKeyBusy, setAiKeyBusy] = useState(false);
   const [aiTicket, setAiTicket] = useState("");
   const [promos, setPromos] = useState([]);
   const [pf, setPf] = useState({ code: "", percent: "5", maxDiscountNGN: "100", maxUses: "100", perUserLimit: "1", service: "", expiresAt: "" });
@@ -272,6 +274,19 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
     fetch(`${API_URL}/api/admin/assistant`, { method: "POST", headers: authHdrs(), body: JSON.stringify(body) })
       .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); setAiOut(d.reply || ""); })
       .catch((e) => showToast(e.message, "danger")).finally(() => setAiBusy(false));
+  }
+  function saveAiKey() {
+    if (!aiKeyInput.trim()) return;
+    setAiKeyBusy(true);
+    fetch(`${API_URL}/api/admin/ai-key`, { method: "POST", headers: authHdrs(), body: JSON.stringify({ key: aiKeyInput.trim() }) })
+      .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); setAiKeyInput(""); showToast("AI key saved and tested", "success"); loadAi(); })
+      .catch((e) => showToast(e.message, "danger")).finally(() => setAiKeyBusy(false));
+  }
+  function removeAiKey() {
+    setConfirmState({
+      message: "Remove the AI key saved here? The assistants stop working unless a key is set on Render.",
+      onConfirm: () => { setConfirmState(null); fetch(`${API_URL}/api/admin/ai-key`, { method: "DELETE", headers: authHdrs() }).then(() => { showToast("Key removed", "success"); loadAi(); }).catch(() => showToast("Could not remove", "danger")); },
+    });
   }
   function saveAiLimit() {
     const n = Number(aiLimit);
@@ -1272,7 +1287,12 @@ export default function AdminScreen({ onBack, showToast = () => {}, onTicketsCha
         <>
           {aiStatus && (
             <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 12, fontSize: 13 }}>
-              <div style={{ marginBottom: 6 }}>AI key: <b style={{ color: aiStatus.keyPresent ? "#16a34a" : "#dc2626" }}>{aiStatus.keyPresent ? `set (${aiStatus.model})` : "missing — add ANTHROPIC_API_KEY on Render"}</b></div>
+              <div style={{ marginBottom: 6 }}>AI key: <b style={{ color: aiStatus.keyPresent ? "#16a34a" : "#dc2626" }}>{aiStatus.keyPresent ? `set ${aiStatus.keyHint} (${aiStatus.keySource === "admin" ? "saved here" : "from Render"}, ${aiStatus.model})` : "not set yet"}</b></div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                <input type="password" autoComplete="off" value={aiKeyInput} onChange={(e) => setAiKeyInput(e.target.value)} placeholder={aiStatus.keyPresent ? "Paste a new key to replace it" : "Paste your Anthropic key (sk-ant-…)"} style={{ flex: 1, minWidth: 0, padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontSize: 13 }} />
+                <button disabled={aiKeyBusy || !aiKeyInput.trim()} onClick={saveAiKey} style={{ padding: "0 14px", borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer", opacity: aiKeyInput.trim() ? 1 : 0.5 }}>{aiKeyBusy ? "Testing…" : "Save"}</button>
+              </div>
+              {aiStatus.keySource === "admin" && <button onClick={removeAiKey} style={{ background: "none", border: "none", color: "#dc2626", fontWeight: 700, fontSize: 12, cursor: "pointer", padding: 0, marginBottom: 10 }}>Remove saved key</button>}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span>"Ask Zappi" for customers: <b>{aiStatus.customerEnabled ? "ON" : "OFF"}</b></span>
                 <button onClick={toggleCustomerAi} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>{aiStatus.customerEnabled ? "Switch off" : "Switch on"}</button>
