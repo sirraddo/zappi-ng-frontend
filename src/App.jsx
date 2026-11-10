@@ -15,6 +15,7 @@ import SupportPage, { CONFIG } from "./pages/SupportPage.jsx"
 import { SplashScreen, LoginScreen, TxnPinModal, ProfileScreen, ChangePinFlow } from "./ZappiAuth"
 import { hasServerPin, hasLegacyPin, REAL_PAYMENTS, completeBillPayment } from "./hooks/useTxnConfirmation"
 import MyLine from "./components/MyLine.jsx"
+import { RewardsCard, SavedPeople, RemindersCard, MonthlySummary, PayForMeCard, dueReminders, readPayRequest, readRefCode } from "./components/MoreExtras.jsx"
 import SavedBeneficiaries, { useBeneficiaries, SaveBeneficiaryPrompt } from "./components/SavedBeneficiaries.jsx"
 import AdminScreen, { isAdminUser } from "./pages/AdminScreen.jsx"
 
@@ -632,6 +633,13 @@ if (!isLoggedIn) return
 fetch(`${API_BASE}/api/admin-role`, { headers: { Authorization: `Bearer ${localStorage.getItem("zappi_token")||""}` } })
 .then(r => r.ok ? r.json() : { role: null }).then(d => setAdminRole(d.role || null)).catch(() => {})
 }, [isLoggedIn])
+useEffect(() => {
+if (!isLoggedIn) return
+loadMe()
+const rc = readRefCode()
+if (rc) { claimRef(rc).finally(() => { try { const u = new URL(window.location.href); u.searchParams.delete("ref"); window.history.replaceState({}, "", u) } catch {} }) }
+dueReminders().forEach(r => addNotification({ title: "Time to buy again", body: `${r.what}${r.who ? " for " + r.who : ""} — your ${r.every}ly reminder.`, type: "info" }))
+}, [isLoggedIn])
 // Keep History honest: pull the latest status of orders that were still processing (or made on another device).
 useEffect(() => {
 if (!isLoggedIn) return
@@ -685,6 +693,19 @@ const [toastType, setToastType] = useState("success")
 // failure path doesn't explicitly clear it — never gets permanently stuck.
 const [isPaying, setIsPaying] = useState(false)
 const [forgotPin, setForgotPin] = useState(false)
+const [me, setMe] = useState(null)
+const [creditOn, setCreditOnState] = useState(() => localStorage.getItem("zappi_credit_off") !== "1")
+const setCreditOn = (v) => { setCreditOnState(v); try { v ? localStorage.removeItem("zappi_credit_off") : localStorage.setItem("zappi_credit_off", "1") } catch {} }
+const [payReq, setPayReq] = useState(() => readPayRequest())
+const loadMe = () => fetch(`${API_BASE}/api/referral/me`, { headers: { Authorization: `Bearer ${localStorage.getItem("zappi_token")||""}` } }).then(r => r.ok ? r.json() : null).then(d => d && setMe(d)).catch(() => {})
+const claimRef = async (code) => {
+  try {
+    const r = await fetch(`${API_BASE}/api/referral/claim`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("zappi_token")||""}` }, body: JSON.stringify({ code }) })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok) { showToast(d.error || "Could not apply the code", "danger"); return false }
+    showToast("Code applied. Your reward comes after your first delivered order.", "success", 6000); loadMe(); return true
+  } catch { showToast("Network problem — try again", "danger"); return false }
+}
 useEffect(()=>{const f=()=>setForgotPin(true);window.addEventListener("zappi-forgot-pin",f);return()=>window.removeEventListener("zappi-forgot-pin",f)},[])
 const [txnPinModal, setTxnPinModal] = useState(null) // {label, onSuccess}
 const [receiptTx, setReceiptTx] = useState(null)
@@ -973,7 +994,7 @@ resetInputs()
 // Real path: Pi payment on-chain, then VTPass delivery via /api/payments/complete.
 // If the 120s confirmation token expires while the Pi wallet ceremony runs, the
 // delivery returns 401 — we re-confirm (Pi is NOT re-charged) and retry delivery only.
-const runRealPayment=(service, tx, txnFields, piCost, confirmationToken, promoCode=null)=>{
+const runRealPayment=(service, tx, txnFields, piCost, confirmationToken, promoCode=null, creditOff=0)=>{
 setIsPaying(true)
 setTimeout(() => {
 setIsPaying(prevIsPaying => {
@@ -1000,6 +1021,7 @@ business_occupation: insOccupation,
 } : {}),
 piAmount: piCost,
 ...(promoCode ? { promoCode } : {}),
+...(creditOff > 0 ? { creditNGN: creditOff } : {}),
 }
 const deliveryFailMsg = (svc, err) => `Your Pi was received but ${svc} was not delivered${err?.message ? " ("+err.message+")" : ""}.${err?.data?.requestId ? " Ref: "+err.data.requestId+"." : ""} ${err?.data?.refund === "processing" ? "Your Pi is being refunded automatically." : "Please don't pay again — open Help & Support and we'll fix it."}`
 const recordFailure = (svc, err) => {
@@ -1013,6 +1035,8 @@ const deliver = async (token, piPaymentId) => {
 const completion = await completeBillPayment(txnFields, { ...extras, piPaymentId }, token)
 finishPayment(service, tx, piCost, completion?.txId, completion?.requestId, completion?.status === "pending" ? "pending" : "success", completion?.token || null)
 if (promoCode) storePromo(null)
+if (creditOff > 0) setTimeout(loadMe, 1500)
+else setTimeout(loadMe, 4000)
 }
 createPayment(
 { amount: Number(piCost.toFixed(7)), memo: `Zappi NG — ${service}`, metadata: { ...txnFields, ...extras } },
@@ -1036,7 +1060,8 @@ catch (e2) { recordFailure(service, e2); showToast(deliveryFailMsg(service, e2),
 const handlePay=(service, tx)=>{
 if (REAL_PAYMENTS && !rateLive) { showToast("The live Pi rate isn't confirmed yet — please wait a few seconds and try again.","danger",6000); return }
 const promoOff = promoDiscount(tx)
-const piCost = tx.pi != null ? Number(tx.pi) : (Number(tx.ngn) - promoOff) / liveRate
+const creditOff = (creditOn && me?.creditNGN > 0 && tx.pi == null) ? Math.max(0, Math.min(Math.floor(me.creditNGN), Math.floor(Number(tx.ngn) - promoOff - 1))) : 0
+const piCost = tx.pi != null ? Number(tx.pi) : (Number(tx.ngn) - promoOff - creditOff) / liveRate
 const txnFields = buildTxnFields(tx)
 const blocked = blockingNoticeFor(txnFields.billType, txnFields.serviceID)
 if (blocked) { showToast(blocked.message, "danger", 8000); return }
@@ -1045,7 +1070,7 @@ const ngnAmt = Number(tx.ngn)
 if (lim.minNGN > 0 && ngnAmt < lim.minNGN) { showToast(`The minimum purchase is ₦${lim.minNGN}`, "danger"); return }
 if (lim.maxNGN > 0 && ngnAmt > lim.maxNGN) { showToast(`The maximum purchase is ₦${lim.maxNGN}`, "danger"); return }
 if (lim.dailyCapNGN > 0 && (cfg.spentTodayNGN || 0) + ngnAmt > lim.dailyCapNGN) { showToast(`Daily limit: ₦${lim.dailyCapNGN} per day. You have ₦${Math.max(0, lim.dailyCapNGN - (cfg.spentTodayNGN || 0))} left today.`, "danger", 7000); return }
-requireTxnConfirmation(`Confirm ${service}${promoOff>0?` (promo −₦${promoOff})`:""}`, txnFields, (confirmationToken)=>{
+requireTxnConfirmation(`Confirm ${service}${promoOff>0?` (promo −₦${promoOff})`:""}${creditOff>0?` (credit −₦${creditOff})`:""}`, txnFields, (confirmationToken)=>{
 setTxnPinModal(null)
 const vtpassEligible = ["airtime","data","electricity","cable","internet","education","insurance","showmax"].includes(tx.type) && !!txnFields.serviceID
 if (REAL_PAYMENTS) {
@@ -1053,7 +1078,7 @@ if (REAL_PAYMENTS) {
 // inside the Pi Browser must not be shown a fake "payment successful".
 if (!vtpassEligible) showToast("This service isn't available for payment yet.","danger")
 else if (!isReady || !window.Pi) showToast("Open Zappi NG inside the Pi Browser to pay with Pi.","danger")
-else runRealPayment(service, tx, txnFields, piCost, confirmationToken, promoOff>0 ? promo.code : null)
+else runRealPayment(service, tx, txnFields, piCost, confirmationToken, promoOff>0 ? promo.code : null, creditOff)
 } else {
 // Demo mode (VITE_REAL_PAYMENTS is not "true"): simulated ledger — no Pi moves.
 // A banner at the top of the screen says so.
@@ -1107,6 +1132,14 @@ return (
 
 {toast&&<div style={{position:"fixed",top:20,left:16,right:16,maxWidth:400,margin:"0 auto",background:toastType==="success"?C.success:toastType==="info"?"#475569":C.danger,color:"white",padding:"12px 24px",borderRadius:24,fontSize:13,fontWeight:600,zIndex:9999,boxShadow:"0 4px 20px rgba(0,0,0,0.2)",whiteSpace:"normal"}}>{toast}</div>}
 
+{payReq&&!txnPinModal&&<div style={{position:"fixed",left:0,right:0,bottom:0,zIndex:9000,display:"flex",justifyContent:"center"}}><div style={{width:"100%",maxWidth:430,background:"var(--card-bg)",borderRadius:"20px 20px 0 0",padding:"18px 18px 28px",boxShadow:"0 -8px 30px rgba(0,0,0,0.25)"}}>
+<p style={{margin:"0 0 4px",fontSize:16,fontWeight:800}}>🙏 Someone asked you to buy airtime</p>
+<p style={{margin:"0 0 8px",fontSize:14}}>₦{payReq.amount.toLocaleString()} {payReq.network} airtime to <b>{payReq.phone}</b></p>
+<p style={{margin:"0 0 12px",fontSize:12,color:"var(--text-tertiary)"}}>Only pay if you know this person and the number is theirs. A wrong number cannot be reversed.</p>
+<div style={{display:"flex",gap:8}}>
+<button onClick={()=>{const r=payReq;setPayReq(null);try{const u=new URL(window.location.href);u.searchParams.delete("req");window.history.replaceState({},"",u)}catch{};handlePay("Airtime",{type:"airtime",label:`${r.network} Airtime`,sub:r.phone,ngn:r.amount,icon:"📱",color:"#EFF6FF",raw:{page:"bills",subPage:"airtime",network:r.network,phone:r.phone,amount:r.amount}})}} style={{flex:1,padding:12,borderRadius:12,border:"none",background:"#CC4E00",color:"white",fontWeight:700,cursor:"pointer"}}>Pay now</button>
+<button onClick={()=>{setPayReq(null);try{const u=new URL(window.location.href);u.searchParams.delete("req");window.history.replaceState({},"",u)}catch{}}} style={{flex:1,padding:12,borderRadius:12,border:"1px solid var(--border)",background:"none",color:"var(--text-primary)",fontWeight:700,cursor:"pointer"}}>Not now</button>
+</div></div></div>}
 {txnPinModal&&<TxnPinModal detail={txnPinModal.detail} onForgot={()=>{setTxnPinModal(null);setForgotPin(true)}} label={txnPinModal.label} txnFields={txnPinModal.txnFields} onSuccess={txnPinModal.onConfirmed} onCancel={()=>setTxnPinModal(null)}/>}
 {showHowTo&&<HowToModal onClose={()=>setShowHowTo(false)}/>}
 {askOpen&&<AskZappi onClose={()=>setAskOpen(false)} onSupport={()=>{setAskOpen(false);setLegalPage("support")}}/>}
@@ -1277,7 +1310,7 @@ setPage("bills"); setSubPage("insurance")
 <FL>Network</FL><NetGrid selected={network} onSelect={setNetwork}/>
 <RecentList transactions={transactions} type="airtime" onSelect={buyAgain}/>
 <FL>Phone number</FL>
-<MyLine phone={phone} network={network} onSelect={m=>{setPhone(m.phone); if(m.network) setNetwork(m.network)}}/>
+<MyLine phone={phone} network={network} onSelect={m=>{setPhone(m.phone); if(m.network) setNetwork(m.network)}}/><SavedPeople phone={phone} network={network} onSelect={m=>{setPhone(m.phone); if(m.network) setNetwork(m.network)}}/>
 <SavedBeneficiaries type="airtime" currentValue={phone} onSelect={b=>{setPhone(b.value); if(b.provider) setNetwork(b.provider)}}/>
 <Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
 {phoneDetected&&<p style={{color:"#16a34a",fontSize:12,fontWeight:600,margin:"-8px 0 12px"}}>✓ Number verified ({phoneDetected} Nigeria)</p>}
@@ -1305,7 +1338,7 @@ onPick={({network:n,phone:ph,bundle:b})=>{setNetwork(n);setBundle(b);if(ph)setPh
 <FL>Network</FL><NetGrid selected={network} onSelect={n=>{setNetwork(n);setBundle(null)}} extra={[{label:"GLO SME",match:"Glo"}]}/>
 <RecentList transactions={transactions} type="data" onSelect={buyAgain}/>
 <FL>Phone number</FL>
-<MyLine phone={phone} network={network} onSelect={m=>{setPhone(m.phone); if(m.network) setNetwork(m.network)}}/>
+<MyLine phone={phone} network={network} onSelect={m=>{setPhone(m.phone); if(m.network) setNetwork(m.network)}}/><SavedPeople phone={phone} network={network} onSelect={m=>{setPhone(m.phone); if(m.network) setNetwork(m.network)}}/>
 <SavedBeneficiaries type="data" currentValue={phone} onSelect={b=>{setPhone(b.value); if(b.provider) setNetwork(b.provider)}}/>
 <Inp value={phone} onChange={e=>setPhone(e.target.value)} placeholder="08012345678"/>
 {phoneDetected&&<p style={{color:"#16a34a",fontSize:12,fontWeight:600,margin:"-8px 0 12px"}}>✓ Number verified ({phoneDetected} Nigeria)</p>}
@@ -1478,6 +1511,10 @@ onPick={({network:n,phone:ph,bundle:b})=>{setNetwork(n);setBundle(b);if(ph)setPh
 <SCard icon="👤" label={t("My Profile")} desc="Manage your account" bg="#F0F0FF" onClick={()=>setShowProfile(true)}/>
 <SCard icon="✨" label="Ask Zappi" desc="AI help with orders, rates and refunds" bg="#FFF7ED" onClick={()=>setAskOpen(true)}/>
 <PromoCard promo={promo} onApply={applyPromo} onRemove={()=>storePromo(null)}/>
+<RewardsCard me={me} creditOn={creditOn} setCreditOn={setCreditOn} onClaim={claimRef}/>
+<MonthlySummary transactions={transactions}/>
+<RemindersCard/>
+<PayForMeCard myLine={(()=>{try{return JSON.parse(localStorage.getItem("zappi_my_line"))}catch{return null}})()}/>
 <SCard icon="💬" label={t("Help & Support")} desc="FAQ, WhatsApp, contact us" bg="#F0FDF4" onClick={()=>setLegalPage("support")}/>
 <div style={{background:"var(--card-bg)",borderRadius:14,padding:"12px 14px",marginBottom:8}}>
 <p style={{margin:"0 0 8px",fontSize:13,fontWeight:700,color:"var(--text-primary)"}}>🌍 {t("Language")}</p>

@@ -234,7 +234,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
     if (tab === "transactions") loadTransactions();
     else if (tab === "pending") loadPendingTx();
     else if (tab === "ledger") loadLedger();
-    else if (tab === "stats") loadStats();
+    else if (tab === "stats") { loadStats(); loadSummary(); }
   }
   function adminPost(path, okMsg) {
     return fetch(`${API_URL}/api/admin${path}`, { method: "POST", headers: authHdrs() })
@@ -247,6 +247,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
     adminPost(`/transactions/${t._id}/recheck`, (d) => `Provider says: ${d.status}${d.refund ? " — refund started" : ""}`).finally(() => { setBusyId(null); reloadCurrent(); });
   }
   function refundOrder(t) {
+    if (role === "staff") { askApproval("refund", t._id, `Refund ${t.billType} ₦${t.amountNGN} for @${t.user?.piUsername || "?"}`); return; }
     setConfirmState({
       message: `Refund π${Number(t.amountPi).toFixed(4)} to @${t.user?.piUsername || "this user"}? Do this only if they did not receive the service.`,
       onConfirm: () => { setConfirmState(null); setBusyId(t._id); adminPost(`/transactions/${t._id}/refund`, () => "Refund started").finally(() => { setBusyId(null); setTimeout(reloadCurrent, 4000); }); },
@@ -273,6 +274,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
   const custBtn = { padding: "7px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, fontSize: 12, cursor: "pointer" };
   function customerAction(c, action) {
     const name = "@" + (c.piUsername || "this customer");
+    if (role === "staff") { askApproval(action === "delete" ? "delete-data" : action, c._id, `${{ "reset-pin": "Reset PIN of", block: "Block", unblock: "Unblock", delete: "Erase data of" }[action]} ${name}`); return; }
     const run = async () => {
       setConfirmState(null);
       const url = `${API_URL}/api/admin/customers/${c._id}`;
@@ -287,6 +289,33 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
     const msg = { "reset-pin": `Reset the transaction PIN of ${name}? They set a new one on next payment, with a 24-hour purchase cap. Do this only after a request in a support ticket.`, block: `Block ${name}? They cannot buy until you unblock them.`, unblock: `Unblock ${name}?`, delete: `Erase the personal data of ${name}? Their name and sign-in details are removed and their support tickets deleted. Order records are kept without their identity. This cannot be undone.` }[action];
     setConfirmState({ message: msg, label: action === "delete" ? "Delete" : "Confirm", onConfirm: run });
   }
+  const [approvals, setApprovals] = useState({ list: [], pending: 0 });
+  const [summary, setSummary] = useState(null);
+  const [reqModal, setReqModal] = useState(null); // {type, targetId, label}
+  const [reqReason, setReqReason] = useState("");
+  const [noteDrafts, setNoteDrafts] = useState({});
+  function loadApprovals() {
+    const url = role === "staff" ? "/approvals/mine" : "/approvals";
+    fetch(`${API_URL}/api/admin${url}`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setApprovals({ list: d.approvals || [], pending: role === "staff" ? (d.approvals || []).filter((a) => a.status === "pending").length : d.pending || 0 })).catch(() => {});
+  }
+  function loadSummary() { if (role === "staff") return; fetch(`${API_URL}/api/admin/summary`, { headers: authHdrs() }).then((r) => r.json()).then((d) => d.today && setSummary(d)).catch(() => {}); }
+  function askApproval(type, targetId, label) { setReqReason(""); setReqModal({ type, targetId, label }); }
+  function sendRequest() {
+    fetch(`${API_URL}/api/admin/approvals`, { method: "POST", headers: authHdrs(), body: JSON.stringify({ type: reqModal.type, targetId: reqModal.targetId, reason: reqReason }) })
+      .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); showToast("Sent to the owner for approval", "success"); setReqModal(null); loadApprovals(); })
+      .catch((e) => showToast(e.message, "danger"));
+  }
+  function decide(a, approve) {
+    fetch(`${API_URL}/api/admin/approvals/${a._id}/decide`, { method: "POST", headers: authHdrs(), body: JSON.stringify({ approve }) })
+      .then(async (r) => { const d = await r.json().catch(() => ({})); showToast(d.error || (approve ? "Approved and done" : "Denied"), d.error ? "danger" : "success"); loadApprovals(); })
+      .catch(() => showToast("Could not save the decision", "danger"));
+  }
+  function addNote(id) {
+    const text = (noteDrafts[id] || "").trim(); if (!text) return;
+    fetch(`${API_URL}/api/admin/tickets/${id}/note`, { method: "POST", headers: authHdrs(), body: JSON.stringify({ text }) })
+      .then((r) => { if (!r.ok) throw new Error(); setNoteDrafts((n) => ({ ...n, [id]: "" })); loadTickets(); showToast("Note saved", "success"); }).catch(() => showToast("Could not save the note", "danger"));
+  }
+  function setTicketMeta(id, patch) { fetch(`${API_URL}/api/admin/tickets/${id}/meta`, { method: "POST", headers: authHdrs(), body: JSON.stringify(patch) }).then(() => loadTickets()).catch(() => {}); }
   const [canned, setCanned] = useState([]);
   const [ticketCtx, setTicketCtx] = useState({});
   function loadCanned() { fetch(`${API_URL}/api/admin/canned-replies`, { headers: authHdrs() }).then((r) => r.json()).then((d) => setCanned(d.replies || [])).catch(() => {}); }
@@ -297,7 +326,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
     fetch(`${API_URL}/api/admin/settings`, { headers: authHdrs() }).then((r) => r.json()).then((d) => {
       setSt(d);
       setSf({ maintOn: !!d.maintenance?.on, maintMsg: d.maintenance?.message || "", min: String(d.limits.minNGN || 0), max: String(d.limits.maxNGN || 0), cap: String(d.limits.dailyCapNGN || 0),
-        low: String(d.lowBalanceNGN), prc: String(d.postResetCapNGN ?? 5000), fb: d.fallbackRate ? String(d.fallbackRate) : "", usd: d.usdNgnRate ? String(d.usdNgnRate) : "",
+        low: String(d.lowBalanceNGN), prc: String(d.postResetCapNGN ?? 5000), cb: String(d.cashbackPct ?? 0), rr: String(d.referralRewardNGN ?? 0), fb: d.fallbackRate ? String(d.fallbackRate) : "", usd: d.usdNgnRate ? String(d.usdNgnRate) : "",
         wa: d.support.whatsapp || "", email: d.support.email || "", hours: d.support.hours || "", staff: (d.staff || []).join(", "), cg: "" });
     }).catch(() => showToast("Could not load settings", "danger")).finally(() => setLoading(false));
   }
@@ -453,7 +482,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
   }
 
   useEffect(() => {
-    if (tab === "stats") loadStats();
+    if (tab === "stats") { loadStats(); loadSummary(); }
     else if (tab === "transactions") loadTransactions();
     else if (tab === "announcements") loadAnnouncements();
     else if (tab === "tickets") { loadTickets(); loadCanned(); }
@@ -470,7 +499,9 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
     else if (tab === "ai") loadAi();
     else if (tab === "settings") loadSettings();
     else if (tab === "customers") loadCustomers();
+    else if (tab === "approvals") loadApprovals();
   }, [tab, txFilter]);
+  useEffect(() => { loadApprovals(); }, []);
 
   // Fetch tickets on mount (not lazily) so the open-count badge on the
   // Support Tickets tab works without opening it first. Uses a separate
@@ -745,7 +776,8 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
             { key: "vtpasstest", icon: "🧪", label: "VTPass Test" },
             { key: "auditlog", icon: "📜", label: "Audit Log" },
             { key: "pending", icon: "⏳", label: "Pending orders", badge: pendingTx.length },
-          ].filter((m) => role !== "staff" || ["stats", "transactions", "pending", "customers", "tickets", "users"].includes(m.key)).map((m) => (
+            { key: "approvals", icon: "✅", label: role === "staff" ? "My requests" : "Approvals", badge: approvals.pending },
+          ].filter((m) => role !== "staff" || ["stats", "transactions", "pending", "customers", "tickets", "users", "approvals"].includes(m.key)).map((m) => (
             <button
               key={m.key}
               onClick={() => setTab(m.key)}
@@ -779,6 +811,18 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
           <div style={{ color: "var(--text-secondary)" }}>No data yet</div>
         ) : (
           <>
+            {summary && (
+              <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 14 }}>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>📋 Today at a glance</div>
+                {summary.alerts.length === 0 && <div style={{ fontSize: 13, color: "#166534", marginBottom: 6 }}>🟢 No alerts. Everything looks normal.</div>}
+                {summary.alerts.map((a, i) => <div key={i} style={{ fontSize: 13, margin: "4px 0", color: a.level === "red" ? "#991B1B" : "#92400E" }}>{a.level === "red" ? "🔴" : "🟡"} {a.text}</div>)}
+                <div style={{ fontSize: 13, margin: "8px 0 2px" }}>Today: <b>{summary.today.delivered}</b> delivered · <b>{summary.today.failed}</b> failed · <b>{summary.today.pending}</b> processing · ₦{Number(summary.today.salesNGN).toLocaleString()} sold · earned ₦{summary.today.earnedNGN.toLocaleString()}</div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Yesterday: {summary.yesterday.delivered} delivered · {summary.yesterday.failed} failed · ₦{Number(summary.yesterday.salesNGN).toLocaleString()} sold</div>
+                {summary.creditOwedNGN > 0 && <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>Customer credit outstanding: ₦{Number(summary.creditOwedNGN).toLocaleString()}</div>}
+                {summary.reasons.length > 0 && <div style={{ marginTop: 8, fontSize: 12 }}><b>Why orders failed (7 days)</b>{summary.reasons.map((r, i) => <div key={i} style={{ color: "var(--text-secondary)" }}>{r.count}× {r.reason}</div>)}</div>}
+                {summary.staff.length > 0 && <div style={{ marginTop: 8, fontSize: 12 }}><b>Staff replies (7 days)</b>{summary.staff.map((r, i) => <div key={i} style={{ color: "var(--text-secondary)" }}>@{r.name}: {r.replies}</div>)}</div>}
+              </div>
+            )}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
               <StatCard label="Total users" value={stats.totalUsers} />
               <StatCard label="New users today" value={stats.usersToday} />
@@ -926,7 +970,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
           ) : tickets.filter((t) => !ticketFilter || t.status === ticketFilter).length === 0 ? (
             <div style={{ color: "var(--text-secondary)" }}>No support tickets{ticketFilter ? ` (${ticketFilter})` : ""}</div>
           ) : (
-            tickets.filter((t) => !ticketFilter || t.status === ticketFilter).map((t) => (
+            tickets.filter((t) => !ticketFilter || t.status === ticketFilter).slice().sort((a, b) => (b.priority === "high") - (a.priority === "high")).map((t) => (
             <div key={t._id} style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 10 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>{t.subject}</div>
@@ -934,7 +978,11 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                   {t.status === "solved" ? "Solved" : "Open"}
                 </span>
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0 10px" }}>@{t.username}</div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0 10px", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                @{t.username}
+                <span style={{ fontSize: 10, padding: "1px 7px", borderRadius: 8, background: "var(--card-bg)" }}>{t.category || "other"}</span>
+                <button onClick={() => setTicketMeta(t._id, { priority: t.priority === "high" ? "normal" : "high" })} style={{ fontSize: 10, padding: "1px 7px", borderRadius: 8, border: "none", cursor: "pointer", background: t.priority === "high" ? "#FEE2E2" : "var(--card-bg)", color: t.priority === "high" ? "#991B1B" : "var(--text-secondary)" }}>{t.priority === "high" ? "🔥 urgent" : "mark urgent"}</button>
+              </div>
 
               <div style={{ maxHeight: 260, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
                 {ticketThread(t).map((m, i) => (
@@ -963,6 +1011,14 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 rows={2}
                 style={{ width: "100%", padding: 8, borderRadius: 8, border: "1px solid var(--border)", marginBottom: 8, boxSizing: "border-box", background: "var(--card-bg)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: 12 }}
               />
+              <div style={{ background: "var(--card-bg)", borderRadius: 8, padding: 8, marginBottom: 8 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 4 }}>🔒 Private team notes (customer cannot see)</div>
+                {(t.internalNotes || []).map((n, i) => <div key={i} style={{ fontSize: 12, margin: "3px 0" }}><b>@{n.by}</b>: {n.text}</div>)}
+                <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                  <input value={noteDrafts[t._id] || ""} onChange={(e) => setNoteDrafts({ ...noteDrafts, [t._id]: e.target.value })} placeholder="Add a note" style={{ flex: 1, padding: 6, borderRadius: 6, border: "1px solid var(--border)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: 12 }} />
+                  <button onClick={() => addNote(t._id)} style={custBtn}>Add</button>
+                </div>
+              </div>
               {canned.length > 0 && (
                 <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 8 }}>
                   {canned.map((c, i) => <button key={i} onClick={() => setReplyDrafts({ ...replyDrafts, [t._id]: c.text })} style={{ ...custBtn, whiteSpace: "nowrap", fontWeight: 600 }}>{c.title}</button>)}
@@ -1381,6 +1437,14 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
               </div>
 
               <div style={card}>
+                <div style={h}>🎁 Cashback and referral rewards</div>
+                <div style={note}>Cashback: percent of each delivered order given back as credit (0 to 5, 0 is off). Referral reward: naira credit given to both a new customer and the friend who invited them after the first delivered order (0 to 500, 0 is off). Credit is a discount on later orders; it costs you money, so keep it small.</div>
+                <label style={lbl}>Cashback (%)</label><input style={inp} inputMode="decimal" value={sf.cb} onChange={(e) => setSf({ ...sf, cb: e.target.value.replace(/[^0-9.]/g, "").slice(0, 4) })} />
+                <label style={lbl}>Referral reward (₦)</label><input style={inp} inputMode="numeric" value={sf.rr} onChange={digits("rr")} />
+                {save(() => saveSettings({ cashbackPct: Number(sf.cb), referralRewardNGN: Number(sf.rr) }, "Rewards saved"))}
+              </div>
+
+              <div style={card}>
                 <div style={h}>💬 Quick replies for support</div>
                 <div style={note}>Ready-made answers that you and your staff can tap inside a ticket. Edit the wording, add or remove.</div>
                 {canned.map((c, i) => (
@@ -1682,9 +1746,9 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
               <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>Joined {new Date(c.createdAt).toLocaleDateString()} · last seen {c.lastLogin ? new Date(c.lastLogin).toLocaleDateString() : "—"}</div>
               {c.blocked && <div style={{ fontSize: 12, fontWeight: 700, color: "#991B1B", marginTop: 4 }}>⛔ Blocked{c.blockedReason ? `: ${c.blockedReason}` : ""}</div>}
               {c.pinResetAt && <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>PIN last reset {new Date(c.pinResetAt).toLocaleString()}</div>}
-              {role !== "staff" && !c.isAdmin && (
+              {!c.isAdmin && (
                 <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-                  <button onClick={() => customerAction(c, "reset-pin")} style={custBtn}>🔑 Reset PIN</button>
+                  <button onClick={() => customerAction(c, "reset-pin")} style={custBtn}>🔑 {role === "staff" ? "Ask: Reset PIN" : "Reset PIN"}</button>
                   <button onClick={() => customerAction(c, c.blocked ? "unblock" : "block")} style={custBtn}>{c.blocked ? "✅ Unblock" : "⛔ Block"}</button>
                   <button onClick={() => customerAction(c, "delete")} style={{ ...custBtn, color: "#dc2626" }}>🗑 Delete data</button>
                 </div>
@@ -1692,6 +1756,46 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
             </div>
           ))}
         </>
+      )}
+
+      {tab === "approvals" && (
+        <>
+          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 10 }}>
+            {role === "staff" ? "Sensitive actions (refunds, PIN resets, blocking, data erasure) need the owner's approval. Your requests and their status:" : "Staff requests wait here. Approving runs the action straight away."}
+          </div>
+          {approvals.list.length === 0 ? <div style={{ color: "var(--text-secondary)" }}>Nothing here yet.</div> : approvals.list.map((a) => (
+            <div key={a._id} style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{({ refund: "↩️ Refund", "reset-pin": "🔑 Reset PIN", block: "⛔ Block", unblock: "✅ Unblock", "delete-data": "🗑 Erase data" })[a.type]}</div>
+                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: a.status === "pending" ? "#FEF3C7" : a.status === "approved" ? "#DCFCE7" : "#FEE2E2", color: a.status === "pending" ? "#92400E" : a.status === "approved" ? "#166534" : "#991B1B" }}>{a.status}</span>
+              </div>
+              <div style={{ fontSize: 13, margin: "4px 0" }}>{a.targetLabel}</div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Reason: {a.reason}{role !== "staff" ? ` · asked by @${a.requestedBy}` : ""}</div>
+              {a.result && <div style={{ fontSize: 12, color: a.status === "failed" ? "#991B1B" : "#166534", marginTop: 2 }}>{a.result}</div>}
+              <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 2 }}>{new Date(a.createdAt).toLocaleString()}</div>
+              {role !== "staff" && a.status === "pending" && (
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button onClick={() => decide(a, true)} style={{ ...custBtn, flex: 1, background: "var(--primary)", color: "white", border: "none" }}>Approve</button>
+                  <button onClick={() => decide(a, false)} style={{ ...custBtn, flex: 1, color: "#dc2626" }}>Deny</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </>
+      )}
+
+      {reqModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 1000 }} onClick={() => setReqModal(null)}>
+          <div style={{ background: "var(--card-bg)", color: "var(--text-primary)", borderRadius: 18, padding: 20, maxWidth: 340, width: "100%" }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Ask the owner to approve</div>
+            <div style={{ fontSize: 13, marginBottom: 10 }}>{reqModal.label}</div>
+            <textarea value={reqReason} onChange={(e) => setReqReason(e.target.value)} rows={3} placeholder="Why? (the owner will read this)" style={{ width: "100%", boxSizing: "border-box", padding: 8, borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontFamily: "inherit", fontSize: 13, marginBottom: 10 }} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setReqModal(null)} style={{ ...custBtn, flex: 1 }}>Cancel</button>
+              <button disabled={!reqReason.trim()} onClick={sendRequest} style={{ ...custBtn, flex: 1, background: "var(--primary)", color: "white", border: "none", opacity: reqReason.trim() ? 1 : 0.5 }}>Send request</button>
+            </div>
+          </div>
+        </div>
       )}
 
       <ConfirmModal state={confirmState} onCancel={() => setConfirmState(null)} />
