@@ -8,7 +8,7 @@ export const LEGAL_UPDATED = 'November 2026'
 export const APP_NAME = 'Zappi NG'
 export const OPERATOR = 'SIRRADDO GLOBAL LIMITED (RC 9939920), Ibadan, Oyo State, Nigeria'
 export const CONTACT_EMAIL = 'sirraddogloballimited@gmail.com'
-export const WEBSITE = 'https://zappi-ng-frontend.vercel.app'
+export const WEBSITE = 'https://zappi0867.pinet.com'
 
 export const PRIVACY_SECTIONS = [
   { title: '1. Who we are', body: [

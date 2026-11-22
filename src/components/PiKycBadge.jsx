@@ -37,9 +37,9 @@ const STATUS_CONFIG = {
     icon: "★",
     label: "Pi Core Team",
     sublabel: "Pi Network core team member",
-    color: "#7c3aed",
-    bg: "#f5f3ff",
-    border: "#c4b5fd",
+    color: "#CC4E00",
+    bg: "#FDEEE3",
+    border: "#F5B98C",
   },
   active: {
     icon: "◎",
@@ -69,9 +69,9 @@ const STATUS_CONFIG = {
     icon: "π",
     label: "Connect Pi",
     sublabel: "Sign in with Pi Network",
-    color: "#7c3aed",
-    bg: "#f5f3ff",
-    border: "#c4b5fd",
+    color: "#CC4E00",
+    bg: "#FDEEE3",
+    border: "#F5B98C",
   },
 };
 

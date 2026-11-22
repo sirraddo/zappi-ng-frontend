@@ -12,7 +12,7 @@ import { useState } from "react";
 import { useTheme } from "../context/ThemeContext";
 import "./SupportPage.css";
 
-const API_URL = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com";
+const API_URL = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com";
 
 function logTicket(subject, message) {
   const token = localStorage.getItem("zappi_token");

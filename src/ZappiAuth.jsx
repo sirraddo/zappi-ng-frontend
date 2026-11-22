@@ -18,7 +18,7 @@ function isPiBrowser() {
     window.location.hostname.includes("minepi.com") 
 }
 
-const API_URL = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"
+const API_URL = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com"
 function dbg(msg) {
   // On-screen debug overlay removed; keep console logging only.
   try { console.log("[pi]", msg); } catch (_) {}
@@ -158,7 +158,7 @@ export function SplashScreen({ onContinue, onSuccess }) {
       <button onClick={handlePi} disabled={busy} style={{ width: "100%", maxWidth: 320, background: "rgba(255,255,255,1)", border: "none", borderRadius: 16, padding: 16, fontSize: 16, fontWeight: 800, color: C.primary, cursor: busy ? "default" : "pointer", boxShadow: "0 8px 24px rgba(0,0,0,0.2)", marginBottom: 16, opacity: busy ? 0.8 : 1 }}>
         {busy ? "Connecting…" : "⚡ Continue with Pi"}
       </button>
-      <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 24, textAlign: "center" }}>Powered by Pi Network · Made for Nigerians 🇳🇬</p>
+      <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 24, textAlign: "center" }}>Built for Pi Browser · Made for Nigerians 🇳🇬</p>
       <AuthMessageModal text={message} onClose={() => setMessage(null)} />
     </div>
   )
@@ -183,7 +183,7 @@ export function LoginScreen({ onSuccess }) {
       <button onClick={handlePi} disabled={busy} style={{ width: "100%", maxWidth: 320, background: "white", border: "none", borderRadius: 16, padding: 16, fontSize: 16, fontWeight: 800, color: C.primary, cursor: busy ? "default" : "pointer", boxShadow: "0 8px 24px rgba(0,0,0,0.2)", marginBottom: 16, opacity: busy ? 0.8 : 1 }}>
         {busy ? "Connecting…" : "⚡ Continue with Pi"}
       </button>
-      <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 24, textAlign: "center" }}>Powered by Pi Network · Made for Nigerians 🇳🇬</p>
+      <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 24, textAlign: "center" }}>Built for Pi Browser · Made for Nigerians 🇳🇬</p>
       <AuthMessageModal text={message} onClose={() => setMessage(null)} />
     </div>
   )

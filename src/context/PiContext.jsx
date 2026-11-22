@@ -34,7 +34,7 @@ export function PiProvider({ children }) {
   .then(async (authResult) => {
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com"}/api/auth/verify`,
+        `${import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com"}/api/auth/verify`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

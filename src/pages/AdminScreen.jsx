@@ -15,7 +15,7 @@
 
 import { useState, useEffect } from "react";
 
-const API_URL = import.meta.env.VITE_API_URL || "https://zappi-ng-backend.onrender.com";
+const API_URL = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com";
 
 function authHdrs() {
   const token = localStorage.getItem("zappi_token");

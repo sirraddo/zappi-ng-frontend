@@ -924,14 +924,18 @@ const ref = tx.requestId || ("ZAP-" + String(tx.backendId || tx.id).slice(-10).t
 const msg = `Hi Zappi NG Support, I'd like to report an issue with a transaction.\n\nReference: ${ref}\nService: ${tx.label}\nAmount: ${tx.amount} (${tx.pi})\nDate: ${tx.ts ? new Date(tx.ts).toLocaleString() : tx.date}\n\nIssue: `
 const apiUrl = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com"
 const token = localStorage.getItem("zappi_token")
-if (token) {
+// Reported inside the app (a support ticket the user follows under Help & Support), so users stay in
+// Pi Browser. WhatsApp is only the fallback when the ticket can't be sent (not signed in / offline).
+const toWhatsApp = () => window.open(`https://wa.me/${CONFIG.whatsappNumber}?text=${encodeURIComponent(msg)}`, "_blank")
+if (!token) { toWhatsApp(); return }
 fetch(`${apiUrl}/api/tickets`, {
 method: "POST",
 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
 body: JSON.stringify({ subject: `Transaction issue — ${ref}`, message: `Service: ${tx.label}\nAmount: ${tx.amount} (${tx.pi})\nReference: ${ref}${tx.backendId ? `\nExact transaction ID: ${tx.backendId}` : ""}` }),
-}).catch(() => {}) // fire-and-forget — WhatsApp opening should never be blocked by this
-}
-window.open(`https://wa.me/${CONFIG.whatsappNumber}?text=${encodeURIComponent(msg)}`, "_blank")
+}).then(r => {
+if (!r.ok) throw new Error("ticket failed")
+showToast("Issue reported. We'll reply in Help & Support — usually within a few hours.", "success")
+}).catch(() => toWhatsApp())
 }
 const buyAgain=(tx)=>{
 const r = tx.raw
@@ -1390,7 +1394,7 @@ onPick={({network:n,phone:ph,bundle:b})=>{setNetwork(n);setBundle(b);if(ph)setPh
 <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:8}}>{(elecMinAmount?[elecMinAmount,elecMinAmount*2,elecMinAmount*5,elecMinAmount*10]:[1000,2000,5000,10000]).map(a=><button key={a} onClick={()=>setAmount(String(a))} style={{padding:"10px 14px",borderRadius:10,border:`2px solid ${amount==a?C.primary:"var(--border)"}`,background:amount==a?C.light:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>₦{a.toLocaleString()}</button>)}</div>
 <Inp value={amount} onChange={e=>setAmount(e.target.value)} placeholder={elecMinAmount?`Or enter amount (min ₦${elecMinAmount.toLocaleString()})`:"Or enter amount"}/>
 <PiSummary amount={amount} bg="#FFF7ED" color="#EA580C" rate={liveRate}/>
-<Btn label={verifiedName?`Pay ₦${Number(amount||0).toLocaleString()} — π ${amount?(amount/liveRate).toFixed(4):"0"}`:"Verify meter to continue"} disabled={!disco||!meter||!amount||!verifiedName} onClick={()=>validate("electricity")&&handlePay("Electricity",{type:"electricity",label:`${disco.split(" ")[0]} Electricity`,sub:`Meter: ${meter} (${verifiedName})`,ngn:Number(amount),icon:"⚡",color:"#FFF7ED",raw:{page:"bills",subPage:"electricity",disco,meter,meterType,amount}})}/>
+<Btn label={verifiedName?`Pay π ${amount?(amount/liveRate).toFixed(4):"0"} · ₦${Number(amount||0).toLocaleString()} electricity`:"Verify meter to continue"} disabled={!disco||!meter||!amount||!verifiedName} onClick={()=>validate("electricity")&&handlePay("Electricity",{type:"electricity",label:`${disco.split(" ")[0]} Electricity`,sub:`Meter: ${meter} (${verifiedName})`,ngn:Number(amount),icon:"⚡",color:"#FFF7ED",raw:{page:"bills",subPage:"electricity",disco,meter,meterType,amount}})}/>
 </div></div>
 )}
 
