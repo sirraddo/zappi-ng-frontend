@@ -45,7 +45,7 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
   const [busy, setBusy] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [saveError, setSaveError] = useState("");
-  const [saveDebug, setSaveDebug] = useState("");
+  const [, setSaveDebug] = useState("");
   const [noShareApi, setNoShareApi] = useState(false);
 
   const cfg = STATUS_CONFIG[receipt.status] || STATUS_CONFIG.pending;
@@ -86,12 +86,12 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
 
     x.fillStyle = "#ffffff"; x.fillRect(0, 0, W, H);
     const g = x.createLinearGradient(0, 0, W, 0);
-    g.addColorStop(0, "#6C3AED"); g.addColorStop(1, "#9F67F5");
+    g.addColorStop(0, "#CC4E00"); g.addColorStop(1, "#F97316");
     x.fillStyle = g; x.fillRect(0, 0, W, 150);
     x.fillStyle = "#ffffff";
     x.font = "800 38px " + FONT; x.fillText("Zappi NG", pad, 66);
     x.font = "400 20px " + FONT; x.fillStyle = "rgba(255,255,255,0.85)";
-    x.fillText("Pi Network Bill Payments", pad, 100);
+    x.fillText("Pay your bills with Pi", pad, 100);
 
     x.fillStyle = cfg.color; x.font = "700 26px " + FONT;
     x.fillText(cfg.icon + "  " + cfg.label, pad, 215);
@@ -299,14 +299,13 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
           {saveError && (
             <div style={{ background: "#FEE2E2", borderRadius: 10, padding: "10px 12px", fontSize: 12, color: "#991B1B", fontWeight: 600, textAlign: "left" }}>
               {saveError}
-              {saveDebug && <div style={{ marginTop: 6, fontSize: 10, color: "#991B1B", fontWeight: 400, fontFamily: "monospace", wordBreak: "break-word" }}>{saveDebug}</div>}
             </div>
           )}
           <div style={{ display: "flex", gap: 10 }}>
             <button className="receipt-share-btn" style={{ flex: 1 }} onClick={shareReceipt} disabled={busy}>
               {busy ? "…" : "Share"}
             </button>
-            <button className="receipt-share-btn" style={{ flex: 1, background: "#fff", color: "#6C3AED", border: "2px solid #6C3AED" }} onClick={downloadReceipt} disabled={busy}>
+            <button className="receipt-share-btn" style={{ flex: 1, background: "#fff", color: "#CC4E00", border: "2px solid #CC4E00" }} onClick={downloadReceipt} disabled={busy}>
               {busy ? "…" : "Download"}
             </button>
           </div>
@@ -329,11 +328,10 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
           {noShareApi && (
             <p style={{ margin: "0 0 10px", fontSize: 11, color: "#999" }}>Most phones: press the power + volume-down buttons together</p>
           )}
-          {saveDebug && <p style={{ margin: "-4px 0 10px", fontSize: 10, color: "#999", fontFamily: "monospace", wordBreak: "break-word" }}>{saveDebug}</p>}
           <img src={previewUrl} alt="Receipt" style={{ width: "100%", borderRadius: 12, border: "1px solid #eee", display: "block" }} />
           <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
             {!noShareApi && <a href={previewUrl} download={fileName()} className="receipt-share-btn" style={{ flex: 1, textDecoration: "none", lineHeight: "2.8" }}>Download</a>}
-            <button className="receipt-share-btn" style={{ flex: 1, background: "#fff", color: "#6C3AED", border: "2px solid #6C3AED" }} onClick={closePreview}>{noShareApi ? "Done" : "Close"}</button>
+            <button className="receipt-share-btn" style={{ flex: 1, background: "#fff", color: "#CC4E00", border: "2px solid #CC4E00" }} onClick={closePreview}>{noShareApi ? "Done" : "Close"}</button>
           </div>
         </div>
       </div>
