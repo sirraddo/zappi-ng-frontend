@@ -113,7 +113,7 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
       y += rowH;
     }
     x.textAlign = "center"; x.fillStyle = "#9aa0a6"; x.font = "400 18px " + FONT;
-    x.fillText("Powered by Pi Network  \u00B7  zappi-ng-frontend.vercel.app", W / 2, H - 45);
+    x.fillText("Paid with Pi  \u00B7  zappi0867.pinet.com", W / 2, H - 45);
 
     return c;
   }

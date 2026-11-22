@@ -6,7 +6,7 @@
  */
 import { useState } from "react"
 
-const SITE = "https://zappi-ng-frontend.vercel.app"
+const SITE = "https://zappi0867.pinet.com" // Pi Browser address, so shared links open inside Pi
 
 const toIntl = (n) => {
   const d = String(n || "").replace(/\D/g, "")

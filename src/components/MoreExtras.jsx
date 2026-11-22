@@ -5,7 +5,7 @@
 import { useState } from "react"
 import { shareText } from "../shareText.js"
 
-const APP_URL = "https://zappi-ng-frontend.vercel.app"
+const APP_URL = "https://zappi0867.pinet.com"
 const box = { background: "var(--card-bg)", borderRadius: 14, padding: "12px 14px", marginBottom: 8 }
 const h = { margin: "0 0 6px", fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }
 const note = { margin: "0 0 8px", fontSize: 12, color: "var(--text-tertiary)" }
