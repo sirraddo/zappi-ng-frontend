@@ -186,6 +186,9 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
   const [st, setSt] = useState(null);
   const [sf, setSf] = useState(null);
   const [aiStatus, setAiStatus] = useState(null);
+  const [bk, setBk] = useState(null); // backup AI status
+  const [bkForm, setBkForm] = useState({ service: "openrouter", model: "", base: "", key: "" });
+  const [bkBusy, setBkBusy] = useState("");
   const [emailSt, setEmailSt] = useState(null);
   const [emailKey, setEmailKey] = useState("");
   const loadEmail = () => fetch(`${API_URL}/api/admin/email-status`, { headers: authHdrs() }).then((r) => r.json()).then(setEmailSt).catch(() => {});
@@ -432,6 +435,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
       .catch((e) => showToast(e.message, "danger"));
   }
   function loadAi() {
+    if (!bk) loadBackup();
     fetch(`${API_URL}/api/admin/ai-status`, { headers: authHdrs() }).then((r) => r.json()).then((d) => { setAiStatus(d); setAiLimit(String(d.dailyLimit)); }).catch(() => showToast("Could not load AI status", "danger"));
     if (!tickets.length) loadTickets();
   }
@@ -447,6 +451,27 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
     fetch(`${API_URL}/api/admin/ai-key`, { method: "POST", headers: authHdrs(), body: JSON.stringify({ key: aiKeyInput.trim() }) })
       .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); setAiKeyInput(""); showToast("AI key saved and tested", "success"); loadAi(); })
       .catch((e) => showToast(e.message, "danger")).finally(() => setAiKeyBusy(false));
+  }
+  function loadBackup() {
+    fetch(`${API_URL}/api/admin/ai-backup`, { headers: authHdrs() }).then((r) => r.json()).then((d) => {
+      setBk(d); setBkForm({ service: d.service || "openrouter", model: d.model || "", base: d.base || "", key: "" });
+    }).catch(() => {});
+  }
+  function bkCall(method, path, body, okMsg, busyLabel) {
+    setBkBusy(busyLabel);
+    return fetch(`${API_URL}/api/admin/ai-backup${path}`, { method, headers: authHdrs(), body: body ? JSON.stringify(body) : undefined })
+      .then(async (r) => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || "Failed"); showToast(okMsg, "success"); loadBackup(); loadAi(); })
+      .catch((e) => showToast(e.message, "danger")).finally(() => setBkBusy(""));
+  }
+  function saveBackup(on = true) {
+    const svc = bk?.services?.[bkForm.service] || {};
+    bkCall("POST", "", { service: bkForm.service, model: bkForm.model.trim() || svc.model, base: bkForm.base.trim() || svc.base, key: bkForm.key.trim(), on }, on ? "Backup AI saved and tested" : "Backup AI switched off", "save");
+  }
+  function removeBackup() {
+    setConfirmState({
+      message: "Remove the backup AI and its key? Ask Zappi and the admin AI then depend on Claude alone.",
+      onConfirm: () => { setConfirmState(null); bkCall("DELETE", "", null, "Backup AI removed", "remove"); },
+    });
   }
   function removeAiKey() {
     setConfirmState({
@@ -1665,6 +1690,35 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 <button disabled={aiKeyBusy || !aiKeyInput.trim()} onClick={saveAiKey} style={{ padding: "0 14px", borderRadius: 10, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, cursor: "pointer", opacity: aiKeyInput.trim() ? 1 : 0.5 }}>{aiKeyBusy ? "Testing…" : "Save"}</button>
               </div>
               {aiStatus.keySource === "admin" && <button onClick={removeAiKey} style={{ background: "none", border: "none", color: "#dc2626", fontWeight: 700, fontSize: 12, cursor: "pointer", padding: 0, marginBottom: 10 }}>Remove saved key</button>}
+              {bk && (() => {
+                const svc = bk.services?.[bkForm.service] || {};
+                const inp = { width: "100%", boxSizing: "border-box", padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text-primary)", fontSize: 13, marginBottom: 8 };
+                const btn = { padding: "8px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, fontSize: 12, cursor: "pointer" };
+                return (
+                  <div id="sec-ai_backup" style={{ borderTop: "1px solid var(--border)", marginTop: 4, marginBottom: 12, paddingTop: 12 }}>
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>Backup AI</div>
+                    <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>
+                      Answers automatically when Claude can't (no key, out of credit, busy or down), for Ask Zappi and the admin AI. Status:{" "}
+                      <b style={{ color: bk.on && bk.hasKey ? "#16a34a" : "var(--text-secondary)" }}>{bk.hasKey ? (bk.on ? `on (${bk.model}, key …${bk.keyEnd})` : "saved but off") : "not set up"}</b>
+                      {bk.used?.count ? ` · answered ${bk.used.count} time${bk.used.count === 1 ? "" : "s"} this month` : ""}
+                      {bk.used?.lastError ? <div style={{ color: "#dc2626", marginTop: 4 }}>Last problem: {bk.used.lastError}</div> : null}
+                    </div>
+                    <select value={bkForm.service} onChange={(e) => setBkForm((f) => ({ ...f, service: e.target.value, model: "", base: "" }))} style={inp}>
+                      {Object.entries(bk.services || {}).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                    </select>
+                    {svc.note && <div style={{ fontSize: 11, color: "var(--text-tertiary)", margin: "-4px 0 8px" }}>{svc.note}{svc.keys ? <> Get a key at <b>{svc.keys.replace("https://", "")}</b></> : null}</div>}
+                    {bkForm.service === "custom" && <input value={bkForm.base} onChange={(e) => setBkForm((f) => ({ ...f, base: e.target.value }))} placeholder="Service address (https://…/v1)" style={inp} />}
+                    <input value={bkForm.model} onChange={(e) => setBkForm((f) => ({ ...f, model: e.target.value }))} placeholder={`Model (default ${svc.model || "required"})`} autoCapitalize="none" style={inp} />
+                    <input type="password" autoComplete="off" value={bkForm.key} onChange={(e) => setBkForm((f) => ({ ...f, key: e.target.value }))} placeholder={bk.hasKey ? "Paste a new key to replace it (optional)" : "Paste the API key"} style={inp} />
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button disabled={!!bkBusy || (!bk.hasKey && !bkForm.key.trim())} onClick={() => saveBackup(true)} style={{ ...btn, background: "var(--primary)", color: "white", border: "none", opacity: !bk.hasKey && !bkForm.key.trim() ? 0.5 : 1 }}>{bkBusy === "save" ? "Testing…" : bk.hasKey && !bk.on ? "Save & switch on" : "Save"}</button>
+                      {bk.hasKey && <button disabled={!!bkBusy} onClick={() => bkCall("POST", "/test", {}, "Backup AI works", "test")} style={btn}>{bkBusy === "test" ? "Testing…" : "Test it"}</button>}
+                      {bk.hasKey && bk.on && <button disabled={!!bkBusy} onClick={() => saveBackup(false)} style={btn}>Switch off</button>}
+                      {bk.hasKey && <button disabled={!!bkBusy} onClick={removeBackup} style={{ ...btn, color: "#dc2626" }}>Remove</button>}
+                    </div>
+                  </div>
+                );
+              })()}
               <div id="sec-ai_switch" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span>"Ask Zappi" for customers: <b>{aiStatus.customerEnabled ? "ON" : "OFF"}</b></span>
                 <button onClick={toggleCustomerAi} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>{aiStatus.customerEnabled ? "Switch off" : "Switch on"}</button>

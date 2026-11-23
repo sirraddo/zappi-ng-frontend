@@ -13,6 +13,8 @@
 import { useState } from "react";
 import "./TransactionReceipt.css";
 
+const API_URL = import.meta.env.VITE_API_URL || "https://zappi-ng-backend-1.onrender.com";
+
 function formatFacts(f) {
   return "share fn:" + (f.hasShare ? "y" : "n") + " canShare fn:" + (f.hasCanShare ? "y" : "n")
     + " | share:" + f.shareResult
@@ -47,6 +49,7 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
   const [saveError, setSaveError] = useState("");
   const [, setSaveDebug] = useState("");
   const [noShareApi, setNoShareApi] = useState(false);
+  const [savedNote, setSavedNote] = useState("");
 
   const cfg = STATUS_CONFIG[receipt.status] || STATUS_CONFIG.pending;
   const typeLabel = TYPE_LABELS[receipt.type] || receipt.type;
@@ -168,6 +171,16 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
       dataUrlLen: 0,
     };
     setNoShareApi(!facts.hasShare);
+    setSavedNote("");
+    // The Pi Browser can't save files or open the share sheet. Hand the image to the phone's own browser instead:
+    // upload it for a one-hour link and open that link outside the Pi Browser, where it downloads normally.
+    if (!facts.hasShare && typeof window.Pi?.openUrlInSystemBrowser === "function") {
+      try {
+        if (await saveViaPhoneBrowser()) { setBusy(false); return; }
+      } catch (e) {
+        console.warn("[receipt] phone-browser save failed, falling back to preview:", e);
+      }
+    }
     try {
       const dataUrl = receiptDataUrl();
       facts.dataUrlLen = dataUrl ? dataUrl.length : 0;
@@ -213,6 +226,29 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
       setSaveDebug(formatFacts(facts) + " | generateError: " + (e?.message || e));
     }
     setBusy(false);
+  }
+
+  async function saveViaPhoneBrowser() {
+    let blob = await receiptBlob();
+    // Keep uploads small (the server takes up to ~1 MB): use JPEG if the PNG is large.
+    if (blob.size > 900 * 1024) {
+      const jpg = receiptCanvas().toDataURL("image/jpeg", 0.9);
+      const bin = atob(jpg.split(",")[1]);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      blob = new Blob([bytes], { type: "image/jpeg" });
+    }
+    const ref = encodeURIComponent(String(receipt.reference || "tx").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40));
+    const r = await fetch(`${API_URL}/api/receipts?ref=${ref}`, {
+      method: "POST",
+      headers: { "Content-Type": blob.type, Authorization: `Bearer ${localStorage.getItem("zappi_token") || ""}` },
+      body: blob,
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.url) throw new Error(d.error || "upload failed");
+    await window.Pi.openUrlInSystemBrowser(d.url);
+    setSavedNote("Your receipt is downloading in your phone's browser. Check your Downloads or Gallery.");
+    return true;
   }
 
   function closePreview() {
@@ -296,6 +332,11 @@ export default function TransactionReceipt({ receipt, onDone, onRetry }) {
         {receipt.sandbox && <div className="receipt-sandbox-badge">🧪 Testnet Transaction</div>}
 
         <div className="receipt-actions">
+          {savedNote && (
+            <div style={{ background: "#DCFCE7", borderRadius: 10, padding: "10px 12px", fontSize: 12, color: "#166534", fontWeight: 600, textAlign: "left" }}>
+              {savedNote}
+            </div>
+          )}
           {saveError && (
             <div style={{ background: "#FEE2E2", borderRadius: 10, padding: "10px 12px", fontSize: 12, color: "#991B1B", fontWeight: 600, textAlign: "left" }}>
               {saveError}
