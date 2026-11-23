@@ -475,7 +475,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
   }
   function removeAiKey() {
     setConfirmState({
-      message: "Remove the AI key saved here? The assistants stop working unless a key is set on Render.",
+      message: "Remove the AI key saved here? The assistants then use the backup AI, or stop if there is none.",
       onConfirm: () => { setConfirmState(null); fetch(`${API_URL}/api/admin/ai-key`, { method: "DELETE", headers: authHdrs() }).then(() => { showToast("Key removed", "success"); loadAi(); }).catch(() => showToast("Could not remove", "danger")); },
     });
   }
@@ -1557,7 +1557,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
 
               <div id="sec-auto_refunds" style={card}>
                 <div style={h}>↩️ Automatic refunds</div>
-                <div style={note}>When a delivery fails, send the customer's Pi back automatically. {st.autoRefund.seedPresent ? "" : "The app wallet seed is not set on Render, so refunds cannot send yet. "}Currently <b>{st.autoRefund.on ? "ON" : "OFF"}</b> (set {st.autoRefund.source === "admin" ? "here" : "on Render"}).</div>
+                <div style={note}>When a delivery fails, send the customer's Pi back automatically. {st.autoRefund.seedPresent ? "" : "The app wallet seed is not in the server settings, so refunds cannot send yet. "}Currently <b>{st.autoRefund.on ? "ON" : "OFF"}</b> (set {st.autoRefund.source === "admin" ? "here" : "in the server settings"}).</div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={() => saveSettings({ autoRefund: true }, "Automatic refunds ON")} style={{ flex: 1, padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: st.autoRefund.on ? "#DCFCE7" : "var(--card-bg)", color: "#166534", fontWeight: 700, cursor: "pointer" }}>Turn ON</button>
                   <button onClick={() => saveSettings({ autoRefund: false }, "Automatic refunds OFF")} style={{ flex: 1, padding: 10, borderRadius: 10, border: "1px solid var(--border)", background: !st.autoRefund.on ? "#FEE2E2" : "var(--card-bg)", color: "#991B1B", fontWeight: 700, cursor: "pointer" }}>Turn OFF</button>
@@ -1887,7 +1887,7 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
                 </div>
               ))}
               <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 8 }}>
-                Updated {new Date(rateInfo.rate.updatedAt).toLocaleTimeString()}{rateInfo.usdNgnFixed ? " · dollar rate is fixed by you on Render" : ""}
+                Updated {new Date(rateInfo.rate.updatedAt).toLocaleTimeString()}{rateInfo.usdNgnFixed ? " · dollar rate is fixed by you in the server settings" : ""}
               </div>
             </div>
             <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, marginBottom: 12 }}>
@@ -1979,7 +1979,15 @@ export default function AdminScreen({ role = "owner", onBack, showToast = () => 
               </div>
             )}
             <div style={{ background: "var(--bg-secondary)", borderRadius: 12, padding: 14, fontSize: 13 }}>
-              <div style={{ marginBottom: 6 }}>Pi rate: <b>{money.rate ? `₦${Number(money.rate).toFixed(2)} per π` : "not available"}</b></div>
+              <div style={{ marginBottom: 6 }}>Pi rate: <b>{Number(money.rate) > 0 ? `₦${Number(money.rate).toFixed(2)} per π` : "not available"}</b></div>
+              {money.wallet && (
+                <div style={{ marginBottom: 6 }}>App wallet (pays refunds):{" "}
+                  {money.wallet.ok
+                    ? <b style={{ color: money.wallet.spendable >= 1 ? "#16a34a" : "#d97706" }}>π{Number(money.wallet.spendable).toFixed(4)} available</b>
+                    : <b style={{ color: "#dc2626" }}>{money.wallet.error}</b>}
+                  {money.wallet.ok && <span style={{ color: "var(--text-tertiary)", fontSize: 12 }}> · π{Number(money.wallet.balance).toFixed(4)} total, 1 π always locked · …{money.wallet.addressEnd}</span>}
+                </div>
+              )}
               <div>Automatic refunds: <b style={{ color: money.refundsEnabled ? "#16a34a" : "#d97706" }}>{money.refundsEnabled ? "ON" : "OFF"}</b></div>
             </div>
             <button onClick={loadMoney} style={{ marginTop: 12, padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--primary)", fontWeight: 700, cursor: "pointer" }}>Refresh</button>
